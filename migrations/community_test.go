@@ -3,6 +3,7 @@ package migrations
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -23,8 +24,22 @@ func TestCommunityRules(t *testing.T) {
 		cascade                         bool
 	}{
 		{"public feed", "GET", "post_feed/records", "", "", 200, []string{`"votes":2`, `"comments":3`, `"author_name":"Alice"`}, false},
+		{"public comment feed", "GET", "comment_feed/records", "", "", 200, []string{`"author_name":"Alice"`, `"body":"hello"`}, false},
+		{"signup burst", "POST", "users/records", `{"email":"burst10@example.com","password":"password123","passwordConfirm":"password123"}`, "", 429, []string{"message"}, false},
+		{"posts burst", "POST", "posts/records", `{"title":"hello","author":"` + a + `"}`, a, 429, []string{"message"}, false},
+		{"comments burst", "POST", "comments/records", `{"post":"` + post + `","author":"` + a + `","body":"hello"}`, a, 429, []string{"message"}, false},
+		{"votes burst", "POST", "votes/records", `{"post":"000000000000011","user":"` + a + `"}`, a, 429, []string{"message"}, false},
 		{"anonymous post", "POST", "posts/records", `{"title":"hello","author":"` + a + `"}`, "", 400, []string{"message"}, false},
 		{"spoof author", "POST", "posts/records", `{"title":"hello","author":"` + b + `"}`, a, 400, []string{"message"}, false},
+		{"comment spoof", "POST", "comments/records", `{"post":"` + post + `","author":"` + b + `","body":"hello"}`, a, 400, []string{"message"}, false},
+		{"comment other delete", "DELETE", "comments/records/ccccccccccccccc", "", b, 404, []string{"message"}, false},
+		{"vote spoof", "POST", "votes/records", `{"post":"` + other + `","user":"` + b + `"}`, a, 400, []string{"message"}, false},
+		{"vote other delete", "DELETE", "votes/records/" + vote, "", b, 404, []string{"message"}, false},
+		{"short form", "POST", "posts/records", `{"title":"hello","author":"` + a + `","form":"I-9"}`, a, 200, []string{`"form":"I-9"`}, false},
+		{"long form suffix", "POST", "posts/records", `{"title":"hello","author":"` + a + `","form":"I-765WS"}`, a, 200, []string{`"form":"I-765WS"`}, false},
+		{"other suffix", "POST", "posts/records", `{"title":"hello","author":"` + a + `","form":"I-864EZ"}`, a, 200, []string{`"form":"I-864EZ"`}, false},
+		{"form too long", "POST", "posts/records", `{"title":"hello","author":"` + a + `","form":"ABCDEFGHIJKLM"}`, a, 400, []string{"message"}, false},
+		{"other form", "POST", "posts/records", `{"title":"hello","author":"` + a + `","form":"EOIR-42B"}`, a, 200, []string{`"form":"EOIR-42B"`}, false},
 		{"other delete", "DELETE", "posts/records/" + post, "", b, 404, []string{"message"}, false},
 		{"owner patch", "PATCH", "posts/records/" + post, `{"title":"changed"}`, a, 403, []string{"message"}, false},
 		{"duplicate vote", "POST", "votes/records", `{"post":"` + post + `","user":"` + a + `"}`, a, 400, []string{"message"}, false},
@@ -68,6 +83,11 @@ func TestCommunityRules(t *testing.T) {
 					}
 					makeRecord("comments", "ccccccccccccccc", map[string]any{"post": other, "author": a, "body": "elsewhere"})
 					makeRecord("votes", "xxxxxxxxxxxxxxx", map[string]any{"post": other, "user": a})
+					if tc.name == "votes burst" {
+						for i := 1; i <= 11; i++ {
+							makeRecord("posts", fmt.Sprintf("%015d", i), map[string]any{"title": "vote target", "author": b})
+						}
+					}
 					if tc.actor != "" {
 						user := ua
 						if tc.actor == b {
@@ -80,6 +100,32 @@ func TestCommunityRules(t *testing.T) {
 						headers["Authorization"] = token
 					}
 					return app
+				},
+				BeforeTestFunc: func(tb testing.TB, _ *tests.TestApp, e *core.ServeEvent) {
+					if !strings.HasSuffix(tc.name, " burst") {
+						return
+					}
+					mux, err := e.Router.BuildMux()
+					if err != nil {
+						tb.Fatal(err)
+					}
+					for i := 0; i < 10; i++ {
+						body := tc.body
+						switch tc.name {
+						case "signup burst":
+							body = fmt.Sprintf(`{"email":"burst%d@example.com","password":"password123","passwordConfirm":"password123"}`, i)
+						case "votes burst":
+							body = fmt.Sprintf(`{"post":"%015d","user":"%s"}`, i+1, a)
+						}
+						req := httptest.NewRequest(tc.method, "/api/collections/"+tc.path, strings.NewReader(body))
+						req.Header.Set("Content-Type", "application/json")
+						req.Header.Set("Authorization", headers["Authorization"])
+						rec := httptest.NewRecorder()
+						mux.ServeHTTP(rec, req)
+						if rec.Code != http.StatusOK {
+							tb.Fatalf("burst request %d: status %d: %s", i+1, rec.Code, rec.Body.String())
+						}
+					}
 				},
 				AfterTestFunc: func(tb testing.TB, app *tests.TestApp, _ *http.Response) {
 					if !tc.cascade {

@@ -39,7 +39,7 @@ func upCommunity(app core.App) error {
 	posts.ViewRule = types.Pointer("")
 	posts.CreateRule = types.Pointer(`@request.auth.id != "" && author = @request.auth.id`)
 	posts.DeleteRule = types.Pointer(`author = @request.auth.id`)
-	posts.Fields.Add(&core.TextField{Name: "title", Required: true, Max: 120}, &core.TextField{Name: "body", Max: 5000}, &core.TextField{Name: "form", Max: 12, Pattern: `^[A-Z]{1,2}-\d{2,4}[A-Z]?$`}, relation("author", users.Id), created(), &core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true})
+	posts.Fields.Add(&core.TextField{Name: "title", Required: true, Max: 120}, &core.TextField{Name: "body", Max: 5000}, &core.TextField{Name: "form", Max: 12}, relation("author", users.Id), created(), &core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true})
 	posts.AddIndex("idx_posts_created", false, "created", "")
 	if err := app.Save(posts); err != nil {
 		return err

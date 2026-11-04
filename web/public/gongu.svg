@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" fill="none">
+  <title>gongu</title>
+  <mask id="g" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128">
+    <g stroke="#fff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="58" cy="52" r="27"/>
+      <path d="M85 25v58a33 33 0 0 1-33 33H38"/>
+    </g>
+  </mask>
+  <filter id="blur" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+    <feGaussianBlur stdDeviation="14"/>
+  </filter>
+  <g mask="url(#g)">
+    <rect width="128" height="128" fill="#7C5CFF"/>
+    <g filter="url(#blur)">
+      <ellipse cx="22" cy="28" rx="44" ry="38" fill="#FF5FA2"/>
+      <ellipse cx="108" cy="20" rx="40" ry="34" fill="#FF9F1C"/>
+      <ellipse cx="104" cy="92" rx="38" ry="40" fill="#2EC4FF"/>
+      <ellipse cx="30" cy="118" rx="42" ry="30" fill="#3DDC97"/>
+    </g>
+  </g>
+</svg>

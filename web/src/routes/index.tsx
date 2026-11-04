@@ -1,16 +1,154 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { useQuery } from "@tanstack/react-query"
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { useState } from "react"
+import { bulletinQuery, formQuery, formsQuery } from "@/lib/api"
+import { latestMedian } from "@/lib/estimate"
 
-export const Route = createFileRoute("/")({
-  component: Home,
-})
+export const Route = createFileRoute("/")({ component: Home })
+
+function MiniTrend({ values }: { values: (number | null)[] }) {
+  const valid = values.filter(
+    (value): value is number => value != null && Number.isFinite(value)
+  )
+  if (valid.length < 2) return <strong>Explore wait trends</strong>
+  const min = Math.min(...valid),
+    span = Math.max(...valid) - min || 1
+  const segments: string[] = []
+  let path = ""
+  values.forEach((value, index) => {
+    if (value == null) {
+      if (path) segments.push(path)
+      path = ""
+      return
+    }
+    const point = `${(index / Math.max(values.length - 1, 1)) * 240},${70 - ((value - min) / span) * 60}`
+    path += `${path ? " L" : "M"}${point}`
+  })
+  if (path) segments.push(path)
+  return (
+    <svg
+      viewBox="0 0 240 80"
+      role="img"
+      aria-label="USCIS median processing time in recent quarters"
+    >
+      {segments.map((segment, index) => (
+        <path
+          key={index}
+          d={segment}
+          fill="none"
+          stroke="#171717"
+          strokeWidth="3"
+        />
+      ))}
+    </svg>
+  )
+}
 
 function Home() {
+  const navigate = useNavigate()
+  const [form, setForm] = useState("I-485")
+  const forms = useQuery(formsQuery())
+  const detail = useQuery(formQuery("I-485"))
+  const bulletin = useQuery(bulletinQuery("EB2", "final_action"))
+  const series = detail.data?.official.find(
+    (s) =>
+      s.id === forms.data?.forms.find((f) => f.form === "I-485")?.defaultSeries
+  )
+  const median = latestMedian(series?.points ?? [])
+  const cutoff = bulletin.data?.series
+    .find((s) => s.country === "ALL")
+    ?.points.at(-1)
   return (
-    <main className="flex min-h-svh items-center justify-center p-6">
-      <h1 className="flex items-center gap-3 text-4xl font-semibold tracking-tight">
-        <img src="/gongu.svg" alt="" className="size-12" />
-        gongu
-      </h1>
+    <main>
+      <section className="hero">
+        <h1>Know when your case lands.</h1>
+        <p>Free case insights. No sign-up needed.</p>
+        <form
+          className="checker"
+          onSubmit={(event) => {
+            event.preventDefault()
+            const filed = new FormData(event.currentTarget).get("filed")
+            void navigate({
+              to: "/trends",
+              search: {
+                form,
+                filed: typeof filed === "string" && filed ? filed : undefined,
+                series: undefined,
+              },
+            })
+          }}
+        >
+          <select
+            aria-label="Case form"
+            value={form}
+            onChange={(e) => setForm(e.target.value)}
+          >
+            {forms.data?.forms
+              .filter((f) => f.featured)
+              .map((f) => (
+                <option value={f.form} key={f.form}>
+                  {f.form} · {f.name}
+                </option>
+              )) ?? <option value="I-485">I-485 · Green card</option>}
+          </select>
+          <input aria-label="Filed date (optional)" name="filed" type="date" />
+          <button className="primary">See my estimate</button>
+        </form>
+      </section>
+      <div className="tray">
+        <Link
+          className="artifact"
+          style={{ background: "#F2A5B7" }}
+          to="/trends"
+          search={{ form: "I-485", series: undefined, filed: undefined }}
+        >
+          <small>I-485 · USCIS median</small>
+          <strong>
+            {median?.processingMonths != null
+              ? `${median.processingMonths} months`
+              : "Explore wait times"}
+          </strong>
+          <small>See the data →</small>
+        </Link>
+        <Link
+          className="artifact"
+          style={{ background: "#C7B6EC" }}
+          to="/trends"
+          search={{ form: "I-485", series: undefined, filed: undefined }}
+        >
+          <small>I-485 · Median wait trend</small>
+          <MiniTrend
+            values={
+              series?.points.slice(-12).map((p) => p.processingMonths) ?? []
+            }
+          />
+          <small>Explore trends →</small>
+        </Link>
+        <Link
+          className="artifact"
+          style={{ background: "#D3E39A" }}
+          to="/bulletin"
+          search={{ category: "EB2", chart: "final_action", country: "ALL" }}
+        >
+          <small>EB-2 · Visa bulletin</small>
+          <strong>
+            {cutoff?.status === "current"
+              ? "Current"
+              : cutoff?.status === "unavailable"
+                ? "Unavailable"
+                : cutoff?.cutoff
+                  ? new Date(`${cutoff.cutoff}T00:00:00Z`).toLocaleDateString(
+                      "en-US",
+                      { month: "short", year: "numeric", timeZone: "UTC" }
+                    )
+                  : "Explore dates"}
+          </strong>
+          <small>View bulletin →</small>
+        </Link>
+      </div>
+      <p className="source">
+        Sources: USCIS, U.S. Department of State &amp; VisaJourney
+      </p>
     </main>
   )
 }

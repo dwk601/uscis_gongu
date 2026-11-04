@@ -27,11 +27,11 @@ func Register(app core.App) {
 			return t.Next()
 		})
 
-		api := &api{q: db.New(pool), cache: make(map[string]entry)}
-		e.Router.GET("/api/x/uscis/forms", func(r *core.RequestEvent) error { return api.serve(r, "forms") })
-		e.Router.GET("/api/x/uscis/forms/{form}", func(r *core.RequestEvent) error { return api.serve(r, "form") })
-		e.Router.GET("/api/x/uscis/forms/{form}/community", func(r *core.RequestEvent) error { return api.serve(r, "community") })
-		e.Router.GET("/api/x/uscis/bulletin", func(r *core.RequestEvent) error { return api.serve(r, "bulletin") })
+		handlers := &api{q: db.New(pool), cache: make(map[string]entry)}
+		e.Router.GET("/api/x/uscis/forms", handlers.formList)
+		e.Router.GET("/api/x/uscis/forms/{form}", handlers.form)
+		e.Router.GET("/api/x/uscis/forms/{form}/community", handlers.community)
+		e.Router.GET("/api/x/uscis/bulletin", handlers.bulletin)
 		e.Router.GET("/api/x/uscis/health", func(r *core.RequestEvent) error {
 			ctx, cancel := context.WithTimeout(r.Request.Context(), 5*time.Second)
 			defer cancel()

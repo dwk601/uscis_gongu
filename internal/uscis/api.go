@@ -42,7 +42,13 @@ func (a *api) load(ctx context.Context, key string, fetch func(context.Context) 
 		if ok && time.Now().Before(item.expires) {
 			return item.value, nil
 		}
-		v, err := fetch(ctx)
+		timeout := 5 * time.Second
+		if key == "community" {
+			timeout = 8 * time.Second
+		}
+		fillCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
+		defer cancel()
+		v, err := fetch(fillCtx)
 		if err == nil {
 			a.mu.Lock()
 			a.cache[key] = entry{v, time.Now().Add(time.Hour)}
@@ -78,9 +84,20 @@ func slug(s string) string {
 	return fmt.Sprintf("%s-%x", strings.Trim(nonSlug.ReplaceAllString(strings.ToLower(s), "-"), "-"), h[:4])
 }
 func label(s string) string {
-	i := strings.LastIndex(s, "(")
-	if i >= 0 && strings.HasSuffix(s, ")") {
-		return s[i+1 : len(s)-1]
+	if !strings.HasSuffix(s, ")") {
+		return s
+	}
+	depth := 0
+	for i := len(s) - 1; i >= 0; i-- {
+		switch s[i] {
+		case ')':
+			depth++
+		case '(':
+			depth--
+			if depth == 0 {
+				return s[i+1 : len(s)-1]
+			}
+		}
 	}
 	return s
 }
@@ -240,128 +257,145 @@ type bulletinSeries struct {
 	Points  []bulletinPoint `json:"points"`
 }
 
-func (a *api) serve(r *core.RequestEvent, kind string) error {
-	timeout := 5 * time.Second
-	if kind == "community" {
-		timeout = 8 * time.Second
-	}
-	ctx, cancel := context.WithTimeout(r.Request.Context(), timeout)
-	defer cancel()
-	fail := func() error { return r.Error(http.StatusServiceUnavailable, "USCIS database unavailable.", nil) }
-	getForms := func() (formsData, error) {
-		v, e := a.load(ctx, "forms", func(ctx context.Context) (any, error) {
-			rows, e := a.q.Forms(ctx)
-			if e != nil {
-				return nil, e
-			}
-			return buildForms(rows), nil
-		})
-		if e != nil {
-			return formsData{}, e
-		}
-		return v.(formsData), nil
-	}
-	var response any
-	switch kind {
-	case "forms", "form", "community":
-		data, err := getForms()
+func (a *api) forms(ctx context.Context) (formsData, error) {
+	value, err := a.load(ctx, "forms", func(ctx context.Context) (any, error) {
+		rows, err := a.q.Forms(ctx)
 		if err != nil {
-			return fail()
+			return nil, err
 		}
-		if kind == "forms" {
-			response = data
-		} else {
-			f := r.Request.PathValue("form")
-			detail := data.details[f]
-			if detail == nil {
-				return r.Error(http.StatusNotFound, "Unknown form.", nil)
-			}
-			if kind == "form" {
-				response = detail
-			} else {
-				list := []communitySeries{}
-				stage, ok := stages[f]
-				if ok {
-					v, e := a.load(ctx, "community", func(ctx context.Context) (any, error) { return a.q.Community(ctx) })
-					if e != nil {
-						return fail()
-					}
-					index := map[string]int{}
-					for _, row := range v.([]db.CommunityRow) {
-						if str(row.Stage) != stage[0] {
-							continue
-						}
-						key := str(row.VisaType)
-						i, exists := index[key]
-						if !exists {
-							i = len(list)
-							index[key] = i
-							list = append(list, communitySeries{"visajourney", stage[0], row.VisaType, stage[1], []communityPoint{}})
-						}
-						list[i].Points = append(list[i].Points, communityPoint{row.FilingYear, row.SampleSize, row.CompletedCount, row.PendingCount, row.PendingShare, row.P10Days, row.P50Days, row.P90Days})
-					}
-				}
-				response = struct {
-					Form   string            `json:"form"`
-					Series []communitySeries `json:"series"`
-				}{f, list}
-			}
-		}
-	case "bulletin":
-		categoryFilter := r.Request.URL.Query().Get("category")
-		if categoryFilter == "" {
-			categoryFilter = "EB2"
-		}
-		chart := r.Request.URL.Query().Get("chart")
-		if chart == "" {
-			chart = "final_action"
-		}
-		if chart != "final_action" && chart != "dates_for_filing" {
-			return r.Error(http.StatusBadRequest, "Invalid chart.", nil)
-		}
-		v, e := a.load(ctx, "bulletin", func(ctx context.Context) (any, error) { return a.q.Bulletin(ctx) })
-		if e != nil {
-			return fail()
-		}
-		categories := []category{}
-		seen := map[string]bool{}
-		list := []bulletinSeries{}
-		index := map[string]int{}
-		for _, row := range v.([]db.BulletinRow) {
-			code := str(row.CategoryCode)
-			group := str(row.CategoryGroup)
-			if !seen[code] {
-				categories = append(categories, category{code, group})
-				seen[code] = true
-			}
-			if code != categoryFilter || str(row.Chart) != chart {
-				continue
-			}
-			country := str(row.CountryCode)
-			i, ok := index[country]
-			if !ok {
-				i = len(list)
-				index[country] = i
-				list = append(list, bulletinSeries{country, row.CountryLabel, []bulletinPoint{}})
-			}
-			status := "date"
-			if row.IsCurrent != nil && *row.IsCurrent {
-				status = "current"
-			} else if row.IsUnavailable != nil && *row.IsUnavailable {
-				status = "unavailable"
-			}
-			list[i].Points = append(list[i].Points, bulletinPoint{date(row.BulletinMonth), date(row.CutoffDate), status})
-		}
-		if !seen[categoryFilter] {
-			return r.Error(http.StatusBadRequest, "Invalid category.", nil)
-		}
-		response = struct {
-			Categories []category       `json:"categories"`
-			Category   string           `json:"category"`
-			Chart      string           `json:"chart"`
-			Series     []bulletinSeries `json:"series"`
-		}{categories, categoryFilter, chart, list}
+		return buildForms(rows), nil
+	})
+	if err != nil {
+		return formsData{}, err
 	}
+	return value.(formsData), nil
+}
+
+func unavailable(r *core.RequestEvent) error {
+	return r.Error(http.StatusServiceUnavailable, "USCIS database unavailable.", nil)
+}
+
+func success(r *core.RequestEvent, response any) error {
 	r.Response.Header().Set("Cache-Control", "public, max-age=3600")
 	return r.JSON(http.StatusOK, response)
+}
+
+func (a *api) formList(r *core.RequestEvent) error {
+	ctx, cancel := context.WithTimeout(r.Request.Context(), 5*time.Second)
+	defer cancel()
+	data, err := a.forms(ctx)
+	if err != nil {
+		return unavailable(r)
+	}
+	return success(r, data)
+}
+
+func (a *api) form(r *core.RequestEvent) error {
+	ctx, cancel := context.WithTimeout(r.Request.Context(), 5*time.Second)
+	defer cancel()
+	data, err := a.forms(ctx)
+	if err != nil {
+		return unavailable(r)
+	}
+	detail := data.details[r.Request.PathValue("form")]
+	if detail == nil {
+		return r.Error(http.StatusNotFound, "Unknown form.", nil)
+	}
+	return success(r, detail)
+}
+
+func (a *api) community(r *core.RequestEvent) error {
+	ctx, cancel := context.WithTimeout(r.Request.Context(), 8*time.Second)
+	defer cancel()
+	data, err := a.forms(ctx)
+	if err != nil {
+		return unavailable(r)
+	}
+	form := r.Request.PathValue("form")
+	if data.details[form] == nil {
+		return r.Error(http.StatusNotFound, "Unknown form.", nil)
+	}
+	series := []communitySeries{}
+	stage, mapped := stages[form]
+	if mapped {
+		value, err := a.load(ctx, "community", func(ctx context.Context) (any, error) { return a.q.Community(ctx) })
+		if err != nil {
+			return unavailable(r)
+		}
+		index := map[string]int{}
+		for _, row := range value.([]db.CommunityRow) {
+			if str(row.Stage) != stage[0] {
+				continue
+			}
+			visaType := str(row.VisaType)
+			position, exists := index[visaType]
+			if !exists {
+				position = len(series)
+				index[visaType] = position
+				series = append(series, communitySeries{"visajourney", stage[0], row.VisaType, stage[1], []communityPoint{}})
+			}
+			series[position].Points = append(series[position].Points, communityPoint{row.FilingYear, row.SampleSize, row.CompletedCount, row.PendingCount, row.PendingShare, row.P10Days, row.P50Days, row.P90Days})
+		}
+	}
+	return success(r, struct {
+		Form   string            `json:"form"`
+		Series []communitySeries `json:"series"`
+	}{form, series})
+}
+
+func (a *api) bulletin(r *core.RequestEvent) error {
+	ctx, cancel := context.WithTimeout(r.Request.Context(), 5*time.Second)
+	defer cancel()
+	categoryFilter := r.Request.URL.Query().Get("category")
+	if categoryFilter == "" {
+		categoryFilter = "EB2"
+	}
+	chart := r.Request.URL.Query().Get("chart")
+	if chart == "" {
+		chart = "final_action"
+	}
+	if chart != "final_action" && chart != "dates_for_filing" {
+		return r.Error(http.StatusBadRequest, "Invalid chart.", nil)
+	}
+	value, err := a.load(ctx, "bulletin", func(ctx context.Context) (any, error) { return a.q.Bulletin(ctx) })
+	if err != nil {
+		return unavailable(r)
+	}
+	categories := []category{}
+	seen := map[string]bool{}
+	series := []bulletinSeries{}
+	index := map[string]int{}
+	for _, row := range value.([]db.BulletinRow) {
+		code := str(row.CategoryCode)
+		if !seen[code] {
+			categories = append(categories, category{code, str(row.CategoryGroup)})
+			seen[code] = true
+		}
+		if code != categoryFilter || str(row.Chart) != chart {
+			continue
+		}
+		country := str(row.CountryCode)
+		position, exists := index[country]
+		if !exists {
+			position = len(series)
+			index[country] = position
+			series = append(series, bulletinSeries{country, row.CountryLabel, []bulletinPoint{}})
+		}
+		status := "date"
+		if row.IsCurrent != nil && *row.IsCurrent {
+			status = "current"
+		} else if row.IsUnavailable != nil && *row.IsUnavailable {
+			status = "unavailable"
+		}
+		series[position].Points = append(series[position].Points, bulletinPoint{date(row.BulletinMonth), date(row.CutoffDate), status})
+	}
+	if !seen[categoryFilter] {
+		return r.Error(http.StatusBadRequest, "Invalid category.", nil)
+	}
+	return success(r, struct {
+		Categories []category       `json:"categories"`
+		Category   string           `json:"category"`
+		Chart      string           `json:"chart"`
+		Series     []bulletinSeries `json:"series"`
+	}{categories, categoryFilter, chart, series})
 }

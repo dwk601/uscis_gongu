@@ -9,6 +9,7 @@ import (
 
 	"gongu/internal/spa"
 	"gongu/internal/uscis"
+	_ "gongu/migrations"
 )
 
 func main() {

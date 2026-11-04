@@ -1,0 +1,17 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema: internal/uscis/db/schema.sql
+    queries: internal/uscis/db/queries.sql
+    gen:
+      go:
+        package: db
+        out: internal/uscis/db
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: pg_catalog.numeric
+            nullable: true
+            go_type:
+              type: float64
+              pointer: true

@@ -9,7 +9,10 @@ export PB_SUPERUSER_EMAIL PB_SUPERUSER_PASSWORD USCIS_DATABASE_URL
 USCIS_SSH ?= root@100.92.189.13
 USCIS_TUNNEL_PORT ?= 15433
 
-.PHONY: setup web build dev-api dev-web check db-tunnel
+.PHONY: setup web build dev-api dev-web check db-tunnel sqlc
+
+sqlc:
+	go tool sqlc generate
 
 setup:
 	npm --prefix web ci

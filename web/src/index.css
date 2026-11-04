@@ -108,6 +108,11 @@ p {
   border-radius: 50%;
   background: var(--tray);
 }
+.landing {
+  min-height: calc(100svh - 80px);
+  display: flex;
+  flex-direction: column;
+}
 .hero {
   text-align: center;
   padding: 70px 20px 56px;
@@ -160,6 +165,7 @@ p {
   border-radius: 28px;
   margin: 0 auto;
   max-width: 1320px;
+  width: calc(100% - 10%);
   min-height: 310px;
   padding: 54px;
   display: flex;
@@ -198,7 +204,8 @@ p {
   text-align: center;
   color: var(--muted);
   font-size: 13px;
-  margin: 28px 0 48px;
+  margin: auto 0 0;
+  padding: 28px 20px 48px;
 }
 .workspace {
   max-width: 1320px;
@@ -211,6 +218,19 @@ p {
   letter-spacing: -0.035em;
   line-height: 1.05;
   margin: 24px 0;
+  overflow-wrap: anywhere;
+}
+.chip-rail {
+  display: flex;
+  gap: 9px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  margin-bottom: 10px;
+  scrollbar-width: thin;
+}
+.chip-rail .chip {
+  flex: none;
+  white-space: nowrap;
 }
 .controls {
   display: flex;
@@ -357,11 +377,46 @@ td {
   font-size: 3rem;
   letter-spacing: -0.035em;
 }
-.status-list {
+.chart-legend {
   display: flex;
-  gap: 12px;
   flex-wrap: wrap;
+  gap: 8px 16px;
+  color: var(--muted);
   font-size: 13px;
+  margin: -8px 0 16px;
+}
+.chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chart-legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.chart-legend .legend-ink {
+  background: var(--ink);
+}
+.status-timeline {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+.status-labels {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.status-timeline svg {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  overflow: visible;
 }
 @media (max-width: 700px) {
   .site-header {
@@ -400,6 +455,7 @@ td {
     width: 100%;
   }
   .tray {
+    width: calc(100% - 24px);
     margin: 0 12px;
     padding: 30px 20px;
     gap: 14px;
@@ -419,6 +475,12 @@ td {
   }
   .workspace {
     padding: 20px 20px 60px;
+  }
+  .workspace h1 {
+    font-size: clamp(2rem, 9vw, 3rem);
+  }
+  .landing {
+    min-height: calc(100svh - 68px);
   }
   .workspace-grid {
     grid-template-columns: 1fr;

@@ -11,7 +11,60 @@ export type ChartRow = {
   low?: number | null
   high?: number | null
   other?: number | null
+  status?: "date" | "current" | "unavailable"
 }
+function StatusTimeline({ rows }: { rows: ChartRow[] }) {
+  const first = rows[0]?.x ?? 0
+  const last = rows.at(-1)?.x ?? first
+  const position = (x: number) => 6 + ((x - first) / (last - first || 1)) * 988
+  return (
+    <div
+      className="status-timeline"
+      aria-label="Bulletin status by month; details in the data table"
+    >
+      <div className="status-labels">
+        <span>Current</span>
+        <span>Unavailable</span>
+      </div>
+      <svg
+        viewBox="0 0 1000 34"
+        preserveAspectRatio="none"
+        role="img"
+        aria-label="Current and unavailable bulletin months"
+      >
+        {rows
+          .filter(
+            (row) => row.status === "current" || row.status === "unavailable"
+          )
+          .map((row) =>
+            row.status === "current" ? (
+              <circle
+                key={row.x}
+                cx={position(row.x)}
+                cy="8"
+                r="4"
+                fill="var(--ink)"
+              >
+                <title>{row.label}: Current</title>
+              </circle>
+            ) : (
+              <rect
+                key={row.x}
+                x={position(row.x) - 4}
+                y="21"
+                width="8"
+                height="8"
+                fill="var(--muted)"
+              >
+                <title>{row.label}: Unavailable</title>
+              </rect>
+            )
+          )}
+      </svg>
+    </div>
+  )
+}
+
 export default function DataChart({
   title,
   rows,
@@ -21,6 +74,7 @@ export default function DataChart({
   calendar,
   dateValues,
   extras = [],
+  pending,
 }: {
   title: string
   rows: ChartRow[]
@@ -30,6 +84,7 @@ export default function DataChart({
   calendar?: boolean
   dateValues?: boolean
   extras?: ChartRow[][]
+  pending?: string
 }) {
   const definition = useMemo(() => {
     const x = (row: ChartRow) => (calendar ? new Date(row.x) : row.x)
@@ -63,7 +118,15 @@ export default function DataChart({
           points: true,
         }),
         ...(second
-          ? [lineY(rows, { x, y: "other", stroke: "#77776f", strokeWidth: 2 })]
+          ? [
+              lineY(rows, {
+                x,
+                y: "other",
+                stroke: "var(--ink)",
+                strokeWidth: 2,
+                strokeDasharray: "5 3",
+              }),
+            ]
           : []),
       ],
       scales: {
@@ -87,6 +150,22 @@ export default function DataChart({
   return (
     <section className="panel chart-panel">
       <h2>{title}</h2>
+      {second && (
+        <div className="chart-legend">
+          <span>
+            <i style={{ background: hue }} />
+            Received
+          </span>
+          <span>
+            <i className="legend-ink" />
+            {second}
+          </span>
+          {pending && <span>Pending: {pending}</span>}
+        </div>
+      )}
+      {rows.some((row) => row.status && row.status !== "date") && (
+        <StatusTimeline rows={rows} />
+      )}
       {rows.some((row) => row.value != null) ? (
         <Chart
           definition={definition}
@@ -118,7 +197,13 @@ export default function DataChart({
               {rows.map((row, index) => (
                 <tr key={`${row.x}-${index}`}>
                   <td>{row.label}</td>
-                  <td>{display(row.value)}</td>
+                  <td>
+                    {row.status === "current"
+                      ? "Current"
+                      : row.status === "unavailable"
+                        ? "Unavailable"
+                        : display(row.value)}
+                  </td>
                   {band && (
                     <>
                       <td>{row.low ?? "—"}</td>

@@ -16,6 +16,22 @@ const featured = [
   "I-140",
   "I-129F",
 ]
+export function categoryHue(category: string) {
+  const categoryHues = [
+    "#D3E39A",
+    "#C7B6EC",
+    "#9EC5F0",
+    "#F2A5B7",
+    "#F3D35B",
+    "#F2703D",
+  ]
+  if (category === "EB2") return categoryHues[0]
+  return categoryHues[
+    [...category].reduce((sum, char) => sum + char.charCodeAt(0), 0) %
+      categoryHues.length
+  ]
+}
+
 export function formHue(form: string) {
   const index = featured.indexOf(form)
   return hues[

@@ -133,7 +133,7 @@ function Trends() {
       className="workspace"
       style={{ "--hue": formHue(search.form) } as CSSProperties}
     >
-      <div className="controls" aria-label="Form">
+      <div className="chip-rail" role="group" aria-label="Form" tabIndex={0}>
         {forms.data?.forms
           .filter((f) => f.featured)
           .map((f) => (
@@ -149,6 +149,8 @@ function Trends() {
               {f.form}
             </button>
           ))}
+      </div>
+      <div className="controls">
         <select
           className="field"
           aria-label="More forms"
@@ -187,7 +189,12 @@ function Trends() {
       )}
       <h1>{detail.data?.name ?? search.form}</h1>
       {(detail.data?.official.length ?? 0) > 1 && (
-        <div className="controls" aria-label="Case category">
+        <div
+          className="chip-rail"
+          role="group"
+          aria-label="Case category"
+          tabIndex={0}
+        >
           {detail.data!.official.map((s) => (
             <button
               className="chip"
@@ -257,11 +264,6 @@ function Trends() {
               />
             </Suspense>
           </div>
-          <p className="muted">
-            Latest pending:{" "}
-            {official?.points.at(-1)?.pending?.toLocaleString() ??
-              "unavailable"}
-          </p>
           <div className="workspace-grid">
             <Suspense fallback={<div className="skeleton" />}>
               <DataChart
@@ -273,6 +275,10 @@ function Trends() {
                 }))}
                 hue={formHue(search.form)}
                 second="Completed"
+                pending={
+                  official?.points.at(-1)?.pending?.toLocaleString() ??
+                  "unavailable"
+                }
                 calendar
               />
             </Suspense>

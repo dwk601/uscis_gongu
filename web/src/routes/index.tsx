@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
 import { bulletinQuery, formQuery, formsQuery } from "@/lib/api"
 import { latestMedian } from "@/lib/estimate"
+import { categoryHue, formHue } from "@/lib/palette"
 
 export const Route = createFileRoute("/")({ component: Home })
 
@@ -59,7 +60,7 @@ function Home() {
     .find((s) => s.country === "ALL")
     ?.points.at(-1)
   return (
-    <main>
+    <main className="landing">
       <section className="hero">
         <h1>Know when your case lands.</h1>
         <p>Free case insights. No sign-up needed.</p>
@@ -98,7 +99,7 @@ function Home() {
       <div className="tray">
         <Link
           className="artifact"
-          style={{ background: "#F2A5B7" }}
+          style={{ background: formHue("I-485") }}
           to="/trends"
           search={{ form: "I-485", series: undefined, filed: undefined }}
         >
@@ -112,7 +113,7 @@ function Home() {
         </Link>
         <Link
           className="artifact"
-          style={{ background: "#C7B6EC" }}
+          style={{ background: formHue("I-485") }}
           to="/trends"
           search={{ form: "I-485", series: undefined, filed: undefined }}
         >
@@ -126,7 +127,7 @@ function Home() {
         </Link>
         <Link
           className="artifact"
-          style={{ background: "#D3E39A" }}
+          style={{ background: categoryHue("EB2") }}
           to="/bulletin"
           search={{ category: "EB2", chart: "final_action", country: "ALL" }}
         >

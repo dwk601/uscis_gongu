@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { lazy, Suspense } from "react"
 import { bulletinQuery } from "@/lib/api"
+import { categoryHue } from "@/lib/palette"
 
 const DataChart = lazy(() => import("@/components/data-chart"))
 type Search = { category: string; chart: string; country: string }
@@ -26,6 +27,32 @@ const month = (value: string) =>
     year: "numeric",
     timeZone: "UTC",
   })
+const categoryLabels: Record<string, string> = {
+  EB1: "EB-1",
+  EB2: "EB-2",
+  EB3: "EB-3",
+  "EB3-OW": "EB-3 Other workers",
+  EB4: "EB-4",
+  "EB4-RELIGIOUS": "EB-4 Religious",
+  "EB5-NON-RC": "EB-5 Non-regional center",
+  "EB5-RC": "EB-5 Regional center",
+  "EB5-SET-ASIDE-HIGH-UNEMPLOYMENT": "EB-5 High unemployment",
+  "EB5-SET-ASIDE-INFRASTRUCTURE": "EB-5 Infrastructure",
+  "EB5-SET-ASIDE-RURAL": "EB-5 Rural",
+  "EB5-UNRESERVED": "EB-5 Unreserved",
+  "EB5-UNRESERVED-RC": "EB-5 Unreserved regional center",
+}
+const countryLabels: Record<string, string> = {
+  ALL: "All countries",
+  CHINA: "China",
+  INDIA: "India",
+  MEXICO: "Mexico",
+  PHILIPPINES: "Philippines",
+  "EL SALVADOR GUATEMALA HONDURAS": "El Salvador/Guatemala/Honduras",
+}
+const categoryLabel = (code: string) => categoryLabels[code] ?? code
+const countryLabel = (code: string) => countryLabels[code] ?? code
+
 function BulletinPage() {
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
@@ -62,6 +89,7 @@ function BulletinPage() {
   const rows = points.map((p) => ({
     x: Date.parse(`${p.month}T00:00:00Z`),
     label: month(p.month!),
+    status: p.status,
     value:
       p.status === "date" && p.cutoff
         ? new Date(`${p.cutoff}T00:00:00Z`).getUTCFullYear() +
@@ -106,16 +134,39 @@ function BulletinPage() {
             return categories.length ? (
               <div className="controls" key={group}>
                 <span className="muted">{group}</span>
-                {categories.map((c) => (
-                  <button
-                    key={c.code}
-                    className="chip"
-                    aria-pressed={search.category === c.code}
-                    onClick={() => update({ category: c.code })}
+                {categories
+                  .filter((c) => !c.code.startsWith("EB5"))
+                  .map((c) => (
+                    <button
+                      key={c.code}
+                      className="chip"
+                      aria-pressed={search.category === c.code}
+                      onClick={() => update({ category: c.code })}
+                    >
+                      {categoryLabel(c.code)}
+                    </button>
+                  ))}
+                {categories.some((c) => c.code.startsWith("EB5")) && (
+                  <select
+                    className="field"
+                    aria-label="EB-5 category"
+                    value={
+                      search.category.startsWith("EB5") ? search.category : ""
+                    }
+                    onChange={(e) => {
+                      if (e.target.value) update({ category: e.target.value })
+                    }}
                   >
-                    {c.code}
-                  </button>
-                ))}
+                    <option value="">EB-5 categories</option>
+                    {categories
+                      .filter((c) => c.code.startsWith("EB5"))
+                      .map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {categoryLabel(c.code)}
+                        </option>
+                      ))}
+                  </select>
+                )}
               </div>
             ) : null
           })}
@@ -127,20 +178,18 @@ function BulletinPage() {
                 aria-pressed={series?.country === s.country}
                 onClick={() => update({ country: s.country })}
               >
-                {s.country === "ALL"
-                  ? "All countries"
-                  : s.country === "CHINA"
-                    ? "China"
-                    : s.country === "EL SALVADOR GUATEMALA HONDURAS"
-                      ? "El Salvador, Guatemala, Honduras"
-                      : s.label || s.country}
+                {countryLabel(s.country)}
               </button>
             ))}
           </div>
           <div className="workspace-grid">
-            <section className="panel bulletin-card">
+            <section
+              className="panel bulletin-card"
+              style={{ background: categoryHue(search.category) }}
+            >
               <small>
-                {search.category} · {series?.label || series?.country}
+                {categoryLabel(search.category)} ·{" "}
+                {series ? countryLabel(series.country) : ""}
               </small>
               <h2>
                 {current?.status === "current"
@@ -166,7 +215,7 @@ function BulletinPage() {
               <DataChart
                 title="Cutoff date over time"
                 rows={rows}
-                hue="#2E4B36"
+                hue={categoryHue(search.category)}
                 calendar
                 dateValues
                 extras={bulletin.data?.series
@@ -190,17 +239,6 @@ function BulletinPage() {
               />
             </Suspense>
           </div>
-          <p className="status-list">
-            {points
-              .filter((p) => p.status !== "date")
-              .slice(-12)
-              .map((p) => (
-                <span key={p.month}>
-                  {month(p.month!)}:{" "}
-                  {p.status === "current" ? "Current" : "Unavailable"}
-                </span>
-              ))}
-          </p>
         </>
       )}
     </main>

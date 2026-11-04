@@ -4,7 +4,23 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/gongu.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Explore USCIS case wait times and visa bulletin trends, free and without signing up."
+    />
     <title>gongu</title>
+    <script>
+      try {
+        const theme = localStorage.getItem("theme")
+        const dark =
+          theme === "dark" ||
+          (theme === "system" &&
+            matchMedia("(prefers-color-scheme: dark)").matches)
+        document.documentElement.classList.add(dark ? "dark" : "light")
+      } catch {
+        document.documentElement.classList.add("light")
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

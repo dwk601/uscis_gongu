@@ -25,7 +25,8 @@ Used on phones and laptops, often repeatedly while waiting on a case. Browsing a
 ## Capabilities and Constraints
 
 - Analytics are read-only from the USCIS ETL PostgreSQL views (`uscis_form_quarter`, `visajourney_timeline_stats`, `immihelp_timeline_stats`, `visa_bulletin_series`).
-- Estimates are descriptive, not USCIS commitments: official medians and self-reported percentiles stay labeled by source; self-reported data is not verified agency status.
+- Estimates are descriptive, not USCIS commitments: official medians and self-reported percentiles stay labeled by source; self-reported data is not verified agency status. The estimate adds the latest positive reported median for the selected official series to the filing date, using 30.44 days per month in UTC.
+- Immihelp is excluded from v1; community percentiles come from VisaJourney.
 - Community: posts, comments, upvotes; email/password accounts in PocketBase. Moderation, chat, and notifications are out of scope until requested.
 - Free to use; no pricing, ads, or paywalls.
 

@@ -1,5 +1,10 @@
 import type { OfficialPoint } from "./api"
 
+export const formatMonths = (months: number) =>
+  (Math.round(months * 10) / 10).toLocaleString("en-US", {
+    maximumFractionDigits: 1,
+  })
+
 /** The latest reported positive median, not a personalized prediction. */
 export function latestMedian(
   points: OfficialPoint[]

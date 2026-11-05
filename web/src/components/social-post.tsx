@@ -77,15 +77,13 @@ export function PostCard({
         <span>{post.author_name || "member"}</span>
         <span>{relativeTime(post.created)}</span>
       </div>
-      <h2>
-        {detail ? (
-          post.title
-        ) : (
+      {!detail && (
+        <h2>
           <Link to="/community/$postId" params={{ postId: post.id }}>
             {post.title}
           </Link>
-        )}
-      </h2>
+        </h2>
+      )}
       {post.body && (
         <p className={detail ? "social-body" : "social-preview"}>{post.body}</p>
       )}

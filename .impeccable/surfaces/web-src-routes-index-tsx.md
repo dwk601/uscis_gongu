@@ -28,4 +28,4 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 
 ## Finish verdict
 
-Independent finish review (degraded, in-thread by a separate verifier): disposition fix → items resolved in this commit, final confirmation pending verifier. Finish remains partial pending confirmation. Geist is brief-pinned. No raster assets ship; provenance is N/A. The quality-bar card was not supplied.
+Independent finish review (separate verifier, degraded in-thread) — fix items resolved in 557aa34 and this commit; final confirmation by verifier. Geist is brief-pinned. No raster assets ship; provenance is N/A. The quality-bar card was not supplied.

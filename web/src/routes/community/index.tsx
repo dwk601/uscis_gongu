@@ -114,7 +114,6 @@ function Community() {
             {sort === "new" ? "New" : "Top"}
           </button>
         ))}
-        <span aria-hidden="true">·</span>
         {["", ...forms].map((form) => (
           <button
             key={form}

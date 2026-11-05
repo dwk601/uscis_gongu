@@ -83,7 +83,19 @@ func slug(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return fmt.Sprintf("%s-%x", strings.Trim(nonSlug.ReplaceAllString(strings.ToLower(s), "-"), "-"), h[:4])
 }
-func label(s string) string {
+func label(form, s string) string {
+	if form == "I-131" {
+		switch s {
+		case "Application for Advance Parole Document for Aliens Inside the United States":
+			return "Advance parole (inside U.S.)"
+		case "Application for Initial Parole Document for Aliens Outside the United States":
+			return "Initial parole (outside U.S.)"
+		case "Application for Travel Document":
+			return "Travel document"
+		case "Application for Travel Documents, Parole Documents, and Arrival/Departure Records":
+			return "Travel and parole documents"
+		}
+	}
 	if !strings.HasSuffix(s, ")") {
 		return s
 	}
@@ -168,7 +180,7 @@ func buildForms(rows []db.FormsRow) formsData {
 		}
 		s := series[key]
 		if s == nil {
-			s = &official{ID: slug(d), Label: label(d), Category: r.Category, Description: d, Points: []point{}, SourceFiles: []string{}}
+			s = &official{ID: slug(d), Label: label(f, d), Category: r.Category, Description: d, Points: []point{}, SourceFiles: []string{}}
 			series[key] = s
 			detail.Official = append(detail.Official, s)
 		}

@@ -47,6 +47,10 @@
 .social h1 {
   margin-bottom: 25px;
 }
+.social-back {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .social-card {
   background: var(--panel);
   border: 1px solid var(--hairline);

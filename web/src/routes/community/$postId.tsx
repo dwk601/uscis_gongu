@@ -79,7 +79,11 @@ function Detail() {
   }
   return (
     <main className="workspace social">
-      <Link to="/community" search={{ sort: "new", form: "" }}>
+      <Link
+        className="social-back"
+        to="/community"
+        search={{ sort: "new", form: "" }}
+      >
         Back to community
       </Link>
       <h1>{post.data?.title ?? "Community post"}</h1>

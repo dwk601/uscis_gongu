@@ -8,7 +8,7 @@ import {
   formsQuery,
   type OfficialPoint,
 } from "@/lib/api"
-import { latestMedian } from "@/lib/estimate"
+import { formatMonths, latestMedian } from "@/lib/estimate"
 import { categoryHue, formHue } from "@/lib/palette"
 
 export const Route = createFileRoute("/")({ component: Home })
@@ -155,7 +155,7 @@ function Home() {
         >
           <strong>
             {median?.processingMonths != null
-              ? `${median.processingMonths} months`
+              ? `${formatMonths(median.processingMonths)} months`
               : "Explore wait times"}
           </strong>
           <small>
@@ -176,7 +176,7 @@ function Home() {
               {trendEnds
                 .map(
                   (p) =>
-                    `${p!.processingMonths} mo · FY${p!.fiscalYear} Q${p!.quarter}`
+                    `${formatMonths(p!.processingMonths!)} mo · FY${p!.fiscalYear} Q${p!.quarter}`
                 )
                 .join(" to ")}
             </small>

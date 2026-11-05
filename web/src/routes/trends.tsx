@@ -14,7 +14,7 @@ import {
   formsQuery,
   type OfficialPoint,
 } from "@/lib/api"
-import { estimateDate, latestMedian } from "@/lib/estimate"
+import { estimateDate, latestMedian, formatMonths } from "@/lib/estimate"
 import { formHue, formInk } from "@/lib/palette"
 
 function validFiled(value: unknown): boolean {
@@ -284,22 +284,7 @@ function Trends() {
               key={s.id}
               onClick={() => update({ series: s.id })}
             >
-              {search.form === "I-131"
-                ? s.label
-                    .replace(/^Application for /i, "")
-                    .replace(
-                      / Document for Aliens Inside the United States/i,
-                      " (inside U.S.)"
-                    )
-                    .replace(
-                      / Document for Aliens Outside the United States/i,
-                      " (outside U.S.)"
-                    )
-                    .replace(
-                      /^Travel Documents?, Parole Documents, and Arrival\/Departure Records$/i,
-                      "Travel and parole documents"
-                    )
-                : s.label}
+              {s.label}
             </button>
           ))}
         </div>
@@ -324,14 +309,15 @@ function Trends() {
                     ? "No recent median"
                     : date
                       ? `Estimated around ${month(date)}`
-                      : `${median.processingMonths} months typical`}
+                      : `${formatMonths(median.processingMonths!)} months typical`}
                 </h2>
                 {date && date.getTime() < now && <p>Past the typical wait.</p>}
               </div>
               <div>
                 {median && (
                   <small>
-                    {median.processingMonths} mo median · USCIS FY
+                    {formatMonths(median.processingMonths!)} mo median · USCIS
+                    FY
                     {String(median.fiscalYear).slice(-2)} Q{median.quarter} ·{" "}
                     {official?.label}
                   </small>

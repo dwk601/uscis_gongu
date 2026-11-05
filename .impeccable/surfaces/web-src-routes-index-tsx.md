@@ -28,4 +28,4 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 
 ## Finish verdict
 
-Independent finish review (separate verifier, degraded in-thread) — fix items resolved in 557aa34 and this commit; final confirmation by verifier. Geist is brief-pinned. No raster assets ship; provenance is N/A. The quality-bar card was not supplied.
+Disposition: ship (independent verifier, 4ef683e). First independent finish review returned fix; its items were resolved in 557aa34 and 4ef683e and confirmed by the verifier. Geist is brief-pinned. No raster assets ship; provenance is N/A. The quality-bar card was not supplied.

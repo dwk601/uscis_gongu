@@ -115,7 +115,10 @@ export default function DataChart({
         : []),
     ],
     scales: {
-      x: { scale: calendar ? scaleUtc : scaleLinear },
+      x: {
+        scale: calendar ? scaleUtc : scaleLinear,
+        axis: { ticks: { spacing: 90 }, tickLabels: { thin: { minGap: 12 } } },
+      },
       y: second
         ? {
             scale: scaleLinear().domain([
@@ -200,12 +203,12 @@ export default function DataChart({
           <table>
             <thead>
               <tr>
-                <th>Period</th>
-                <th>Value</th>
+                <th>{band ? "Filing year" : "Period"}</th>
+                <th>{band ? "Typical wait (months)" : "Value"}</th>
                 {band && (
                   <>
-                    <th>p10</th>
-                    <th>p90</th>
+                    <th>10% finished within (months)</th>
+                    <th>90% finished within (months)</th>
                   </>
                 )}
                 {second && <th>{second}</th>}

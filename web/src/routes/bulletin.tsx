@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { lazy, Suspense } from "react"
 import { bulletinQuery } from "@/lib/api"
 import { categoryHue } from "@/lib/palette"
+import { categoryLabel, countryLabel } from "@/lib/labels"
 
 const DataChart = lazy(() => import("@/components/data-chart"))
 type Search = { category: string; chart: string; country: string }
@@ -34,37 +35,6 @@ const cutoffDate = (value: string) =>
     year: "numeric",
     timeZone: "UTC",
   })
-const categoryLabels: Record<string, string> = {
-  F1: "F1 · Unmarried adult children of citizens",
-  F2A: "F2A · Spouses and children",
-  F2B: "F2B · Unmarried adult children of permanent residents",
-  F3: "F3 · Married children",
-  F4: "F4 · Siblings",
-  EB1: "EB-1",
-  EB2: "EB-2",
-  EB3: "EB-3",
-  "EB3-OW": "EB-3 Other workers",
-  EB4: "EB-4",
-  "EB4-RELIGIOUS": "EB-4 Religious",
-  "EB5-NON-RC": "EB-5 Non-regional center",
-  "EB5-RC": "EB-5 Regional center",
-  "EB5-SET-ASIDE-HIGH-UNEMPLOYMENT": "EB-5 High unemployment",
-  "EB5-SET-ASIDE-INFRASTRUCTURE": "EB-5 Infrastructure",
-  "EB5-SET-ASIDE-RURAL": "EB-5 Rural",
-  "EB5-UNRESERVED": "EB-5 Unreserved",
-  "EB5-UNRESERVED-RC": "EB-5 Unreserved regional center",
-}
-const countryLabels: Record<string, string> = {
-  ALL: "All other countries",
-  CHINA: "China",
-  INDIA: "India",
-  MEXICO: "Mexico",
-  PHILIPPINES: "Philippines",
-  "EL SALVADOR GUATEMALA HONDURAS": "El Salvador/Guatemala/Honduras",
-}
-const categoryLabel = (code: string) => categoryLabels[code] ?? code
-const countryLabel = (code: string) => countryLabels[code] ?? code
-
 function BulletinPage() {
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
@@ -119,17 +89,24 @@ function BulletinPage() {
             aria-pressed={search.chart === "final_action"}
             onClick={() => update({ chart: "final_action" })}
           >
-            Final action
+            Approval cutoff · Final action dates
           </button>
           <button
             className="chip"
             aria-pressed={search.chart === "dates_for_filing"}
             onClick={() => update({ chart: "dates_for_filing" })}
           >
-            Dates for filing
+            Filing cutoff · Dates for filing
           </button>
         </div>
       </div>
+      <p>
+        These are priority-date cutoffs, not approval estimates; check{" "}
+        <a href="https://www.uscis.gov/visabulletininfo">
+          USCIS’s filing chart
+        </a>{" "}
+        before applying for a green card in the U.S.
+      </p>
       {bulletin.isLoading ? (
         <div className="skeleton" aria-label="Loading bulletin" />
       ) : bulletin.isError ? (
@@ -139,63 +116,37 @@ function BulletinPage() {
         </p>
       ) : (
         <>
-          {["Family", "Employment"].map((group) => {
-            const categories =
-              bulletin.data?.categories.filter((c) =>
-                c.group.toLowerCase().includes(group.toLowerCase())
-              ) ?? []
-            return categories.length ? (
-              <div
-                className="controls bulletin-rail"
-                key={group}
-                role="group"
-                aria-label={group}
-                tabIndex={0}
-              >
-                <span className="muted">{group}</span>
-                {categories
-                  .filter((c) => !c.code.startsWith("EB5"))
-                  .map((c) => (
-                    <button
-                      key={c.code}
-                      className="chip"
-                      title={categoryLabel(c.code)}
-                      aria-label={categoryLabel(c.code)}
-                      aria-pressed={search.category === c.code}
-                      onClick={() => update({ category: c.code })}
-                    >
-                      <span className="category-full">
-                        {categoryLabel(c.code)}
-                      </span>
-                      <span className="category-short" aria-hidden="true">
-                        {c.code}
-                      </span>
-                    </button>
-                  ))}
-                {categories.some((c) => c.code.startsWith("EB5")) && (
-                  <select
-                    className="field"
-                    aria-label="EB-5 category"
-                    value={
-                      search.category.startsWith("EB5") ? search.category : ""
-                    }
-                    onChange={(e) => {
-                      if (e.target.value) update({ category: e.target.value })
-                    }}
-                  >
-                    <option value="">EB-5 categories</option>
-                    {categories
-                      .filter((c) => c.code.startsWith("EB5"))
+          <label>
+            Category
+            <select
+              className="field"
+              aria-label="Category"
+              value={search.category}
+              onChange={(e) => update({ category: e.target.value })}
+            >
+              {["Family", "Work & special immigrants", "Investors"].map(
+                (group) => (
+                  <optgroup key={group} label={group}>
+                    {bulletin.data?.categories
+                      .filter((c) =>
+                        group === "Family"
+                          ? c.code.startsWith("F")
+                          : group === "Investors"
+                            ? c.code.startsWith("EB5")
+                            : !c.code.startsWith("F") &&
+                              !c.code.startsWith("EB5")
+                      )
                       .map((c) => (
                         <option key={c.code} value={c.code}>
                           {categoryLabel(c.code)}
                         </option>
                       ))}
-                  </select>
-                )}
-              </div>
-            ) : null
-          })}
+                  </optgroup>
+                )
+              )}
+            </select>
+          </label>
+          <p>{categoryLabel(search.category)}</p>
           <div
             className="controls bulletin-rail"
             role="group"

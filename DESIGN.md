@@ -71,11 +71,11 @@ The light and dark neutral grounds support a seven-color form palette. Use the f
 
 ## Typography
 
-Geist Variable is the shared display and body face. The landing display uses the frontmatter's responsive scale and tight tracking; workspace headings range from 2rem on mobile to 4rem on desktop. Body paragraphs use a 1.5 line height, with 14px controls and metadata. Numeric data uses tabular figures where charts need alignment.
+Geist Variable is the shared display and body face. The landing display uses the frontmatter's responsive scale and tight tracking; workspace headings range from 2rem on mobile to 4rem on desktop. Body paragraphs use a 1.5 line height, with 14px controls and metadata. At 700px and below, inputs use 16px text and controls have at least 44px targets. Numeric data uses tabular figures where charts need alignment.
 
 ## Layout
 
-The header and workspace are capped at 1320px. Workspace horizontal padding scales with the viewport up to 66px. The desktop analytics grid uses 1fr and 1.4fr columns with a 16px gap; it stacks on small screens. Form chips scroll horizontally instead of widening the page. Community content is narrower (850px, or 520px for focused forms).
+The header and workspace are capped at 1320px. Workspace horizontal padding scales with the viewport up to 66px. The desktop analytics grid uses 1fr and 1.4fr columns with a 16px gap; it stacks on small screens. Form chips scroll horizontally instead of widening the page; long visa-route labels wrap. Bulletin categories use a grouped selector with the full selection shown outside it. Community content is narrower (850px, or 520px for focused forms).
 
 ## Elevation & Depth
 

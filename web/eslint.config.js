@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'src/routeTree.gen.ts']),
+  globalIgnores(['dist', 'test-results', 'src/routeTree.gen.ts']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -21,5 +21,9 @@ export default defineConfig([
     rules: {
       'react-refresh/only-export-components': 'off',
     },
+  },
+  {
+    files: ['vite.config.ts', 'playwright.config.ts', 'tests/**/*.ts'],
+    languageOptions: { globals: globals.node },
   },
 ])

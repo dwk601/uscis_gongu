@@ -10,6 +10,7 @@ import {
 } from "@/lib/api"
 import { formatMonths, latestMedian } from "@/lib/estimate"
 import { categoryHue, formHue } from "@/lib/palette"
+import { categoryLabel } from "@/lib/labels"
 
 export const Route = createFileRoute("/")({ component: Home })
 
@@ -135,9 +136,11 @@ function Home() {
               .filter((f) => f.featured)
               .map((f) => (
                 <option value={f.form} key={f.form}>
-                  {f.form} · {f.name}
+                  {f.name} · {f.form}
                 </option>
-              )) ?? <option value="I-485">I-485 · Green card</option>}
+              )) ?? (
+              <option value="I-485">Green card application · I-485</option>
+            )}
           </select>
           <label className="landing-date">
             Filed (optional)
@@ -159,7 +162,7 @@ function Home() {
               : "Explore wait times"}
           </strong>
           <small>
-            I-485 · USCIS median
+            Green card application · I-485 · USCIS median
             <br />
             See the data <ArrowRight size={14} aria-hidden="true" />
           </small>
@@ -182,7 +185,7 @@ function Home() {
             </small>
           )}
           <small>
-            I-485 · USCIS median trend
+            Green card application · I-485 · USCIS median trend
             <br />
             Explore trends <ArrowRight size={14} aria-hidden="true" />
           </small>
@@ -211,7 +214,7 @@ function Home() {
                   : "Explore dates"}
           </strong>
           <small>
-            EB-2 · Visa bulletin
+            {categoryLabel("EB2")} · Visa bulletin
             <br />
             View bulletin <ArrowRight size={14} aria-hidden="true" />
           </small>

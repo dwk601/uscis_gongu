@@ -16,6 +16,7 @@ import {
 } from "@/lib/api"
 import { estimateDate, latestMedian, formatMonths } from "@/lib/estimate"
 import { formHue, formInk } from "@/lib/palette"
+import { visaLabels } from "@/lib/labels"
 
 function validFiled(value: unknown): boolean {
   if (
@@ -165,7 +166,7 @@ function Trends() {
   const forms = useQuery(formsQuery())
   const detail = useQuery(formQuery(search.form))
   const community = useQuery(communityQuery(search.form))
-  const [visa, setVisa] = useState<string | null | undefined>(undefined)
+  const [visa, setVisa] = useState<{ form: string; value: string | null }>()
   const [now] = useState(Date.now)
   const filedRef = useRef<HTMLInputElement>(null)
   const summary = forms.data?.forms.find((f) => f.form === search.form)
@@ -179,16 +180,18 @@ function Trends() {
       ? estimateDate(search.filed, median.processingMonths)
       : undefined
   const rows = chartRows(official?.points ?? [])
-  const candidates = community.data?.series ?? []
+  const candidates = (community.data?.series ?? []).filter((series) =>
+    series.points.some((point) => point.p50 != null)
+  )
   const latestCohort = (points: (typeof candidates)[number]["points"]) =>
     points
       .filter((p) => p.p50 != null)
       .slice()
       .sort((a, b) => (b.filingYear ?? 0) - (a.filingYear ?? 0))[0]
   const selected =
-    (visa === undefined
-      ? undefined
-      : candidates.find((s) => s.visaType === visa)) ??
+    (visa?.form === search.form
+      ? candidates.find((s) => s.visaType === visa.value)
+      : undefined) ??
     [...candidates].sort(
       (a, b) =>
         (latestCohort(b.points)?.sampleSize ?? 0) -
@@ -228,7 +231,7 @@ function Trends() {
                 update({ form: f.form, series: undefined })
               }}
             >
-              {f.form}
+              {f.name} <small>· {f.form}</small>
             </button>
           ))}
       </div>
@@ -249,7 +252,7 @@ function Trends() {
             .filter((f) => !f.featured)
             .map((f) => (
               <option key={f.form} value={f.form}>
-                {f.form} · {f.name}
+                {f.name} · {f.form}
               </option>
             ))}
         </select>
@@ -269,7 +272,10 @@ function Trends() {
           <button onClick={() => void forms.refetch()}>Try again</button>
         </p>
       )}
-      <h1>{detail.data?.name ?? search.form}</h1>
+      <h1>
+        {detail.data?.name ?? summary?.name ?? search.form}{" "}
+        {detail.data?.name && <small>· {search.form}</small>}
+      </h1>
       {(detail.data?.official.length ?? 0) > 1 && (
         <div
           className="chip-rail"
@@ -363,6 +369,28 @@ function Trends() {
             <section className="panel">
               <h2>Community timelines</h2>
               <p className="muted">Self-reported · VisaJourney</p>
+              {!community.isLoading &&
+                !community.isError &&
+                candidates.length > 0 && (
+                  <div
+                    className="controls"
+                    role="group"
+                    aria-label="Visa route"
+                  >
+                    {candidates.map((s) => (
+                      <button
+                        key={s.visaType ?? "not-stated"}
+                        className="chip"
+                        aria-pressed={s === selected}
+                        onClick={() =>
+                          setVisa({ form: search.form, value: s.visaType })
+                        }
+                      >
+                        {visaLabels[s.visaType ?? ""] ?? "Not stated"}
+                      </button>
+                    ))}
+                  </div>
+                )}
               {community.isLoading ? (
                 <div className="skeleton" aria-label="Loading community data" />
               ) : community.isError ? (
@@ -376,28 +404,13 @@ function Trends() {
                 <p>No community timeline available.</p>
               ) : (
                 <>
-                  {candidates.length > 1 ? (
-                    <div className="controls">
-                      {candidates.map((s) => (
-                        <button
-                          key={s.visaType ?? "all"}
-                          className="chip"
-                          aria-pressed={s === selected}
-                          onClick={() => setVisa(s.visaType)}
-                        >
-                          {s.visaType || "All"}
-                        </button>
-                      ))}
-                    </div>
-                  ) : selected?.visaType ? (
-                    <p>{selected.visaType}</p>
-                  ) : null}
                   <div className="big-number">{months(cohort.p50)} months</div>
                   <p className="community-info">
-                    p10–p90: {months(cohort.p10) ?? "—"}–
-                    {months(cohort.p90) ?? "—"} months
+                    {cohort.p10 != null && cohort.p90 != null
+                      ? `Middle 80% of completed reports: ${months(cohort.p10)}–${months(cohort.p90)} months`
+                      : "Range unavailable"}
                     <br />
-                    {cohort.filingYear} cohort · {cohort.completed ?? "—"}{" "}
+                    Filed in {cohort.filingYear} · {cohort.completed ?? "—"}{" "}
                     completed / {cohort.sampleSize ?? "—"} reports
                     <br />
                     {cohort.pendingShare != null
@@ -414,7 +427,7 @@ function Trends() {
             <div className="workspace-grid single-chart">
               <Suspense fallback={<div className="skeleton" />}>
                 <DataChart
-                  title="Community percentiles · months"
+                  title="Community wait times · months"
                   rows={communityRows}
                   hue={formHue(search.form)}
                   band

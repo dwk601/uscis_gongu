@@ -1,4 +1,9 @@
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
+import { formsQuery } from "@/lib/api"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useState, type FormEvent } from "react"
 import { useAuth, mutationErrorMessage } from "@/lib/auth"
@@ -19,6 +24,11 @@ function Community() {
   const search = Route.useSearch()
   const navigate = useNavigate({ from: "/community/" })
   const user = useAuth()
+  const formNames = useQuery(formsQuery())
+  const formLabel = (code: string) => {
+    const name = formNames.data?.forms.find((f) => f.form === code)?.name
+    return name ? `${name} · ${code}` : code
+  }
   const client = useQueryClient()
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
@@ -84,7 +94,9 @@ function Community() {
             <select name="form">
               <option value="">No form</option>
               {forms.map((f) => (
-                <option key={f}>{f}</option>
+                <option key={f} value={f}>
+                  {formLabel(f)}
+                </option>
               ))}
             </select>
           </label>
@@ -121,7 +133,7 @@ function Community() {
             aria-pressed={search.form === form}
             onClick={() => navigate({ search: { ...search, form } })}
           >
-            {form || "All"}
+            {form ? formLabel(form) : "All"}
           </button>
         ))}
       </div>

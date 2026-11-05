@@ -83,7 +83,13 @@ func slug(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return fmt.Sprintf("%s-%x", strings.Trim(nonSlug.ReplaceAllString(strings.ToLower(s), "-"), "-"), h[:4])
 }
-func label(form, s string) string {
+func label(form, s string) (result string) {
+	defer func() {
+		replacements := map[string]string{"Adjustment Of Status": "Adjustment of status", "All Other Relative": "All other relatives", "Immediate Relative": "Immediate relatives", "All Other": "All other cases", "Advance Parole": "Advance parole", "Humanitarian Parole": "Humanitarian parole", "Parole-in-Place": "Parole-in-place", "Parole in Place": "Parole in place"}
+		if replacement, ok := replacements[result]; ok {
+			result = replacement
+		}
+	}()
 	if form == "I-131" {
 		switch s {
 		case "Application for Advance Parole Document for Aliens Inside the United States":
@@ -118,7 +124,7 @@ func label(form, s string) string {
 }
 
 var featured = []string{"I-485", "I-130", "I-765", "I-131", "N-400", "I-140", "I-129F", "I-751", "I-90", "I-539", "I-129", "I-526", "I-821D", "I-601A", "I-360"}
-var names = map[string]string{"I-485": "Green card (adjust status)", "I-130": "Petition for a relative", "I-765": "Work permit", "I-131": "Travel document", "N-400": "Naturalization", "I-140": "Immigrant worker petition", "I-129F": "Fiancé(e) petition", "I-751": "Remove conditions on residence", "I-90": "Replace green card", "I-539": "Extend or change status", "I-129": "Nonimmigrant worker petition", "I-526": "Immigrant investor petition", "I-821D": "Deferred action for childhood arrivals", "I-601A": "Provisional unlawful presence waiver", "I-360": "Special immigrant petition"}
+var names = map[string]string{"I-485": "Green card application", "I-130": "Family petition", "I-765": "Work permit (EAD)", "I-131": "Travel & parole documents", "N-400": "Citizenship", "I-140": "Work-based green card petition", "I-129F": "Fiancé(e) or spouse petition", "I-751": "Remove green card conditions", "I-90": "Renew or replace green card", "I-539": "Extend stay or change status", "I-129": "Work visa petition", "I-526": "Investor green card petition", "I-821D": "DACA", "I-601A": "Provisional unlawful presence waiver", "I-360": "Special immigrant, widow(er) or VAWA petition"}
 
 type period struct {
 	FiscalYear *int32 `json:"fiscalYear"`
@@ -255,7 +261,7 @@ type communitySeries struct {
 	Points   []communityPoint `json:"points"`
 }
 
-var stages = map[string][2]string{"I-485": {"aos", "Filed → decision"}, "I-765": {"ead", "Filed → approved"}, "I-131": {"ap", "Filed → approved"}, "I-751": {"lift", "Filed → decision"}, "N-400": {"n400", "Filed → oath"}, "I-129F": {"k1", "Sent → NOA2"}}
+var stages = map[string][2]string{"I-485": {"aos", "Application filed → decision"}, "I-765": {"ead", "Application filed → work permit approved"}, "I-131": {"ap", "Application filed → advance parole approved"}, "I-751": {"lift", "Application filed → decision"}, "N-400": {"n400", "Application filed → citizenship oath"}, "I-129F": {"k1", "Petition sent → approved"}}
 
 type category struct {
 	Code  string `json:"code"`

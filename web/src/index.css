@@ -579,6 +579,22 @@ td {
   .category-full {
     display: none;
   }
+  button,
+  select,
+  input,
+  textarea,
+  .site-header nav a {
+    min-height: 44px;
+  }
+  button,
+  .site-header nav a {
+    min-width: 44px;
+  }
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
   .chip {
     padding: 8px 12px;
   }
@@ -595,6 +611,22 @@ td {
 
 .controls select.field {
   max-width: 240px;
+}
+.workspace h1 small {
+  font-size: 0.4em;
+  font-weight: 400;
+}
+.workspace > label .field {
+  display: block;
+  max-width: 100%;
+  width: 100%;
+}
+.controls .chip {
+  white-space: normal;
+}
+.chip-rail,
+.bulletin-rail {
+  overscroll-behavior-inline: contain;
 }
 .category-short {
   display: none;

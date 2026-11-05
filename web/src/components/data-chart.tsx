@@ -3,6 +3,7 @@ import { Chart } from "@tanstack/charts/react"
 import { scaleLinear } from "@tanstack/charts/scales/linear"
 import { scaleUtc } from "@tanstack/charts/scales/time"
 import type { CSSProperties } from "react"
+import { chartHue } from "@/lib/palette"
 
 export type ChartRow = {
   x: number
@@ -131,10 +132,16 @@ export default function DataChart({
             timeZone: "UTC",
           })
         : Math.round(value * 10) / 10
+  const [lightStroke, darkStroke] = chartHue(hue)
   return (
     <section
       className="panel chart-panel"
-      style={{ "--chart-hue": hue } as CSSProperties}
+      style={
+        {
+          "--chart-light": lightStroke,
+          "--chart-dark": darkStroke,
+        } as CSSProperties
+      }
     >
       <h2>{title}</h2>
       {second && (

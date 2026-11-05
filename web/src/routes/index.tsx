@@ -61,6 +61,17 @@ function MiniTrend({ values }: { values: (number | null)[] }) {
       role="img"
       aria-label="USCIS median processing time in recent quarters"
     >
+      {values.map((value, index) =>
+        value == null ? null : (
+          <circle
+            key={`point-${index}`}
+            cx={(index / Math.max(values.length - 1, 1)) * 240}
+            cy={70 - ((value - min) / span) * 60}
+            r="2.5"
+            fill="#171717"
+          />
+        )
+      )}
       {segments.map((segment, index) => (
         <path
           key={index}

@@ -1,6 +1,11 @@
 import type { QueryClient } from "@tanstack/react-query"
-import { createRootRouteWithContext, Outlet } from "@tanstack/react-router"
-import { lazy, Suspense } from "react"
+import {
+  createRootRouteWithContext,
+  Outlet,
+  useRouterState,
+} from "@tanstack/react-router"
+import { lazy, Suspense, type CSSProperties } from "react"
+import { formHue } from "@/lib/palette"
 import { SiteHeader } from "@/components/site-header"
 
 const RouterDevtools = import.meta.env.DEV
@@ -23,8 +28,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 )
 
 function RootLayout() {
+  const location = useRouterState({ select: (state) => state.location })
+  const form =
+    typeof location.search.form === "string" ? location.search.form : "I-485"
   return (
-    <>
+    <div
+      className={
+        location.pathname === "/trends" ? "app-shell trend-shell" : "app-shell"
+      }
+      style={{ "--page-hue": formHue(form) } as CSSProperties}
+    >
       <SiteHeader />
       <Outlet />
       {import.meta.env.DEV && (
@@ -33,6 +46,6 @@ function RootLayout() {
           <QueryDevtools buttonPosition="bottom-left" />
         </Suspense>
       )}
-    </>
+    </div>
   )
 }

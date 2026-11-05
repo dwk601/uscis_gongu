@@ -17,7 +17,7 @@ import {
 import { estimateDate, latestMedian } from "@/lib/estimate"
 import { formHue, formInk } from "@/lib/palette"
 
-function validFiled(value: unknown): value is string {
+function validFiled(value: unknown): boolean {
   if (
     typeof value !== "string" ||
     !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
@@ -34,29 +34,55 @@ function FiledInput({
   value,
   onCommit,
   className,
+  inputRef,
 }: {
   value?: string
   onCommit: (value?: string) => void
   className?: string
+  inputRef: React.RefObject<HTMLInputElement | null>
 }) {
-  const ref = useRef<HTMLInputElement>(null)
+  const lastCommitted = useRef(value)
+  const [hint, setHint] = useState("")
   useEffect(() => {
-    if (ref.current && document.activeElement !== ref.current)
-      ref.current.value = value ?? ""
-  }, [value])
+    if (value !== lastCommitted.current) {
+      if (inputRef.current) inputRef.current.value = value ?? ""
+      lastCommitted.current = value
+    }
+  }, [value, inputRef])
   return (
-    <input
-      ref={ref}
-      className={className}
-      type="date"
-      defaultValue={value ?? ""}
-      onChange={(e) => {
-        if (validFiled(e.currentTarget.value)) onCommit(e.currentTarget.value)
-      }}
-      onBlur={(e) => {
-        if (!e.currentTarget.value) onCommit(undefined)
-      }}
-    />
+    <>
+      <input
+        ref={inputRef}
+        className={className}
+        type="date"
+        defaultValue={value ?? ""}
+        aria-describedby={hint ? "filed-hint" : undefined}
+        onChange={(e) => {
+          const next = e.currentTarget.value
+          if (validFiled(next)) {
+            setHint("")
+            lastCommitted.current = next
+            onCommit(next)
+          }
+        }}
+        onBlur={(e) => {
+          const input = e.currentTarget
+          if (validFiled(input.value)) return
+          if (input.value && Number(input.value.slice(0, 4)) < 1990)
+            setHint("Enter a date in 1990 or later.")
+          else setHint("")
+          if (!input.value && !input.validity.badInput) {
+            lastCommitted.current = undefined
+            onCommit(undefined)
+          } else input.value = lastCommitted.current ?? ""
+        }}
+      />
+      {hint && (
+        <span id="filed-hint" className="filed-hint" role="status">
+          {hint}
+        </span>
+      )}
+    </>
   )
 }
 
@@ -69,7 +95,10 @@ export const Route = createFileRoute("/trends")({
         ? search.form
         : "I-485",
     series: typeof search.series === "string" ? search.series : undefined,
-    filed: validFiled(search.filed) ? search.filed : undefined,
+    filed:
+      typeof search.filed === "string" && validFiled(search.filed)
+        ? search.filed
+        : undefined,
   }),
   component: Trends,
 })
@@ -132,6 +161,7 @@ function Trends() {
   const community = useQuery(communityQuery(search.form))
   const [visa, setVisa] = useState<string | null | undefined>(undefined)
   const [now] = useState(Date.now)
+  const filedRef = useRef<HTMLInputElement>(null)
   const summary = forms.data?.forms.find((f) => f.form === search.form)
   const official =
     detail.data?.official.find((s) => s.id === search.series) ??
@@ -221,6 +251,7 @@ function Trends() {
           Filed{" "}
           <FiledInput
             className="field"
+            inputRef={filedRef}
             value={search.filed}
             onCommit={(filed) => update({ filed })}
           />
@@ -284,13 +315,15 @@ function Trends() {
                     {String(median.fiscalYear).slice(-2)} Q{median.quarter}
                   </small>
                 )}
-                <label className="date-label">
-                  {search.filed ? "Filing date" : "Add your filing date"}{" "}
-                  <FiledInput
-                    value={search.filed}
-                    onCommit={(filed) => update({ filed })}
-                  />
-                </label>
+                {!search.filed && (
+                  <button
+                    className="date-nudge"
+                    type="button"
+                    onClick={() => filedRef.current?.focus()}
+                  >
+                    Add your filing date
+                  </button>
+                )}
               </div>
             </section>
             <Suspense fallback={<div className="skeleton" />}>

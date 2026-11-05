@@ -28,16 +28,16 @@ const month = (value: string) =>
     timeZone: "UTC",
   })
 const cutoffDate = (value: string) =>
-  new Date(`${value}T00:00:00Z`).toLocaleDateString("en-GB", {
+  new Date(`${value}T00:00:00Z`).toLocaleDateString("en-US", {
     day: "numeric",
     month: "short",
     year: "numeric",
     timeZone: "UTC",
   })
 const categoryLabels: Record<string, string> = {
-  F1: "F1 · Unmarried adult children",
+  F1: "F1 · Unmarried adult children of citizens",
   F2A: "F2A · Spouses and children",
-  F2B: "F2B · Unmarried adult children",
+  F2B: "F2B · Unmarried adult children of permanent residents",
   F3: "F3 · Married children",
   F4: "F4 · Siblings",
   EB1: "EB-1",

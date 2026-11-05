@@ -32,6 +32,14 @@
 body {
   margin: 0;
 }
+.app-shell {
+  min-height: 100svh;
+  background: var(--ground);
+  transition: background 0.45s ease-out;
+}
+.trend-shell {
+  background: color-mix(in srgb, var(--page-hue) 5%, var(--ground));
+}
 ::selection {
   background: #c7b6ec;
   color: #171717;
@@ -220,10 +228,6 @@ p {
   padding: 28px 5% 80px;
   --hue: #f2703d;
 }
-.trend-workspace {
-  background: color-mix(in srgb, var(--hue) 5%, var(--ground));
-  transition: background 0.45s ease-out;
-}
 .workspace h1 {
   font-size: clamp(2.3rem, 4vw, 4rem);
   letter-spacing: -0.035em;
@@ -236,7 +240,7 @@ p {
   gap: 9px;
   overflow-x: auto;
   padding: 8px;
-  margin-bottom: 10px;
+  margin: 0 -8px 10px;
   scrollbar-width: thin;
 }
 .chip-rail .chip {
@@ -272,6 +276,7 @@ p {
   font-size: 14px;
   color: var(--muted);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
@@ -318,10 +323,10 @@ p {
 }
 .chart-panel {
   min-height: 260px;
-  --chart-stroke: color-mix(in srgb, var(--chart-hue) 45%, #171717);
+  --chart-stroke: var(--chart-light);
 }
 .dark .chart-panel {
-  --chart-stroke: color-mix(in srgb, var(--chart-hue) 45%, #ffffff);
+  --chart-stroke: var(--chart-dark);
 }
 .chart-panel details {
   font-size: 13px;
@@ -374,12 +379,19 @@ td {
   margin: 38px 0 14px;
   font-size: 22px;
 }
-.date-label {
+.date-nudge {
   display: block;
   margin-top: 16px;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
-.date-label input {
-  margin-left: 8px;
+.filed-hint {
+  flex-basis: 100%;
+  font-size: 13px;
+  color: var(--ink);
 }
 .bulletin-heading {
   display: flex;
@@ -549,14 +561,6 @@ td {
 
 .controls select.field {
   max-width: 240px;
-}
-.date-label input {
-  border: 0;
-  border-radius: 8px;
-  background: #fff;
-  color: #171717;
-  padding: 7px;
-  color-scheme: light;
 }
 .estimate svg {
   max-width: 100%;

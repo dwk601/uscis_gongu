@@ -140,6 +140,16 @@ export function isJourney(value: unknown): value is JourneyId {
 export function journeyFor(id: JourneyId) {
   return journeys.find((j) => j.id === id)
 }
+export function availableJourneyForms(
+  id: JourneyId,
+  forms: { form: string }[] = []
+) {
+  return (
+    journeyFor(id)?.forms.filter((choice) =>
+      forms.some((form) => form.form === choice.form)
+    ) ?? []
+  )
+}
 export function inferJourney(form: string): JourneyId {
   const matches = journeys.filter((j) => j.forms.some((f) => f.form === form))
   return matches.length === 1 ? matches[0].id : "all"

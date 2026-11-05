@@ -145,9 +145,11 @@ p {
   gap: 8px;
   background: var(--panel);
   padding: 7px;
-  border-radius: 100px;
-  width: max-content;
-  max-width: 100%;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 900px;
+  flex-wrap: wrap;
+  justify-content: center;
   margin: auto;
   box-shadow: 0 4px 20px #00000010;
 }
@@ -514,13 +516,14 @@ td {
     width: 24px;
   }
   .hero {
-    padding: 58px 20px 38px;
+    padding: 25px 20px 28px;
   }
   .hero h1 {
-    font-size: clamp(2.8rem, 11vw, 4rem);
+    font-size: 2.5rem;
   }
   .hero p {
     font-size: 16px;
+    margin: 10px 0 16px;
   }
   .checker {
     width: 100%;
@@ -753,14 +756,6 @@ td {
   padding: 9px 15px;
 }
 
-.checker {
-  max-width: 900px;
-  width: 100%;
-  border-radius: 20px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
 .landing-form-choices {
   display: flex;
   flex-wrap: wrap;
@@ -777,15 +772,6 @@ td {
 }
 
 @media (max-width: 700px) {
-  .hero {
-    padding: 25px 20px 28px;
-  }
-  .hero h1 {
-    font-size: 2.5rem;
-  }
-  .hero p {
-    margin: 10px 0 16px;
-  }
   .journey-picker--cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;

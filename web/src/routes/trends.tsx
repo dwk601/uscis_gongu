@@ -24,6 +24,7 @@ import { formHue, formInk } from "@/lib/palette"
 import { visaLabels } from "@/lib/labels"
 import { JourneyPicker } from "@/components/journey-picker"
 import {
+  availableJourneyForms,
   inferJourney,
   isJourney,
   journeyFor,
@@ -188,30 +189,30 @@ function Trends() {
   const [now] = useState(Date.now)
   const filedRef = useRef<HTMLInputElement>(null)
   const formRailRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!window.matchMedia("(max-width: 700px)").matches) return
-    let cancelled = false
-    void document.fonts.ready.then(() => {
-      if (!cancelled)
-        formRailRef.current
-          ?.querySelector<HTMLElement>('[aria-pressed="true"]')
-          ?.scrollIntoView({ block: "nearest", inline: "nearest" })
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [search.form, forms.data])
-  const summary = forms.data?.forms.find((f) => f.form === search.form)
+  const journeyRailRef = useRef<HTMLDivElement>(null)
   const requestedJourney = search.journey ?? inferJourney(search.form)
   const journey =
     requestedJourney !== "all" &&
     !journeyFor(requestedJourney)?.forms.some((f) => f.form === search.form)
       ? "all"
       : requestedJourney
-  const choices =
-    journeyFor(journey)?.forms.filter((f) =>
-      forms.data?.forms.some((available) => available.form === f.form)
-    ) ?? []
+  useEffect(() => {
+    if (!window.matchMedia("(max-width: 700px)").matches) return
+    let cancelled = false
+    void document.fonts.ready.then(() => {
+      if (!cancelled) {
+        for (const rail of [journeyRailRef.current, formRailRef.current])
+          rail
+            ?.querySelector<HTMLElement>('[aria-pressed="true"]')
+            ?.scrollIntoView({ block: "nearest", inline: "nearest" })
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [search.form, journey, forms.data])
+  const summary = forms.data?.forms.find((f) => f.form === search.form)
+  const choices = availableJourneyForms(journey, forms.data?.forms)
   const preferred = choices.find((f) => f.form === search.form)
   const official =
     detail.data?.official.find((s) => s.id === search.series) ??
@@ -242,6 +243,9 @@ function Trends() {
     (visa === undefined
       ? undefined
       : candidates.find((s) => s.visaType === visa)) ??
+    (visa === undefined && journey === "students" && search.form === "I-765"
+      ? candidates.find((s) => s.visaType === "F-1")
+      : undefined) ??
     [...candidates].sort(
       (a, b) =>
         (latestCohort(b.points)?.sampleSize ?? 0) -
@@ -268,27 +272,27 @@ function Trends() {
       className="workspace trend-workspace"
       style={{ "--hue": formHue(search.form) } as CSSProperties}
     >
-      <JourneyPicker
-        variant="compact"
-        value={journey}
-        onChange={(id) => {
-          const available =
-            id === "all"
-              ? forms.data?.forms
-              : journeyFor(id)?.forms.filter((f) =>
-                  forms.data?.forms.some((a) => a.form === f.form)
-                )
-          const nextForm = available?.some((f) => f.form === search.form)
-            ? search.form
-            : (available?.[0]?.form ?? search.form)
-          if (nextForm !== search.form) setVisa(undefined)
-          update({
-            journey: id,
-            form: nextForm,
-            ...(nextForm !== search.form ? { series: undefined } : {}),
-          })
-        }}
-      />
+      <div ref={journeyRailRef}>
+        <JourneyPicker
+          variant="compact"
+          value={journey}
+          onChange={(id) => {
+            const available =
+              id === "all"
+                ? forms.data?.forms
+                : availableJourneyForms(id, forms.data?.forms)
+            const nextForm = available?.some((f) => f.form === search.form)
+              ? search.form
+              : (available?.[0]?.form ?? search.form)
+            if (nextForm !== search.form) setVisa(undefined)
+            update({
+              journey: id,
+              form: nextForm,
+              ...(nextForm !== search.form ? { series: undefined } : {}),
+            })
+          }}
+        />
+      </div>
       <div
         ref={formRailRef}
         className="chip-rail form-rail"
@@ -309,7 +313,7 @@ function Trends() {
             onClick={() => {
               if (f.form !== search.form) {
                 setVisa(undefined)
-                update({ form: f.form, series: undefined })
+                update({ form: f.form, journey, series: undefined })
               }
             }}
           >
@@ -327,7 +331,7 @@ function Trends() {
               if (e.target.value) {
                 if (e.target.value !== search.form) {
                   setVisa(undefined)
-                  update({ form: e.target.value, series: undefined })
+                  update({ form: e.target.value, journey, series: undefined })
                 }
               }
             }}
@@ -374,7 +378,6 @@ function Trends() {
       {journey === "residents" && search.form === "I-131" && (
         <p>Travel &amp; parole documents includes more than reentry permits.</p>
       )}
-      {official && <p className="muted">Official series: {official.label}</p>}
       {(detail.data?.official.length ?? 0) > 1 && (
         <div
           className="chip-rail"

@@ -12,7 +12,7 @@ import { formatMonths, latestMedian, quarterLabel } from "@/lib/estimate"
 import { categoryHue, formHue } from "@/lib/palette"
 import { categoryLabel } from "@/lib/labels"
 import { JourneyPicker } from "@/components/journey-picker"
-import { journeyFor, type JourneyId } from "@/lib/journeys"
+import { availableJourneyForms, type JourneyId } from "@/lib/journeys"
 
 export const Route = createFileRoute("/")({ component: Home })
 
@@ -93,14 +93,12 @@ function Home() {
   const navigate = useNavigate()
   const [form, setForm] = useState("I-485")
   const [journey, setJourney] = useState<JourneyId>("all")
-  const choices = journeyFor(journey)?.forms ?? []
   const forms = useQuery(formsQuery())
   const available =
     journey === "all"
       ? (forms.data?.forms.map((f) => ({ form: f.form, label: f.name })) ?? [])
-      : choices.filter((choice) =>
-          forms.data?.forms.some((f) => f.form === choice.form)
-        )
+      : availableJourneyForms(journey, forms.data?.forms)
+  const effectiveForm = available.find((f) => f.form === form) ?? available[0]
   const detail = useQuery(formQuery("I-485"))
   const bulletin = useQuery(bulletinQuery("EB2", "final_action"))
   const series = detail.data?.official.find(
@@ -127,19 +125,7 @@ function Home() {
           <JourneyPicker
             value={journey}
             variant="cards"
-            onChange={(id) => {
-              setJourney(id)
-              const next =
-                id === "all"
-                  ? forms.data?.forms
-                  : journeyFor(id)?.forms.filter((f) =>
-                      forms.data?.forms.some(
-                        (available) => available.form === f.form
-                      )
-                    )
-              if (next?.length && !next.some((f) => f.form === form))
-                setForm(next[0].form)
-            }}
+            onChange={setJourney}
           />
         </div>
         <form
@@ -150,7 +136,7 @@ function Home() {
             void navigate({
               to: "/trends",
               search: {
-                form,
+                form: effectiveForm!.form,
                 journey,
                 filed: typeof filed === "string" && filed ? filed : undefined,
                 series: undefined,
@@ -169,6 +155,29 @@ function Home() {
             </span>
           ) : available.length === 0 ? (
             <span role="status">No forms available for this journey.</span>
+          ) : journey === "all" ? (
+            <select
+              aria-label="Case form"
+              value={effectiveForm?.form}
+              onChange={(e) => setForm(e.target.value)}
+            >
+              {forms.data?.forms
+                .filter((f) => f.featured)
+                .map((f) => (
+                  <option key={f.form} value={f.form}>
+                    {f.name} · {f.form}
+                  </option>
+                ))}
+              <optgroup label="More forms">
+                {forms.data?.forms
+                  .filter((f) => !f.featured)
+                  .map((f) => (
+                    <option key={f.form} value={f.form}>
+                      {f.name} · {f.form}
+                    </option>
+                  ))}
+              </optgroup>
+            </select>
           ) : (
             <div
               className="landing-form-choices"
@@ -180,7 +189,7 @@ function Home() {
                   type="button"
                   className="chip"
                   key={f.form}
-                  aria-pressed={form === f.form}
+                  aria-pressed={effectiveForm?.form === f.form}
                   onClick={() => setForm(f.form)}
                 >
                   {f.label} · {f.form}
@@ -194,11 +203,7 @@ function Home() {
           </label>
           <button
             className="primary"
-            disabled={
-              forms.isLoading ||
-              forms.isError ||
-              !available.some((f) => f.form === form)
-            }
+            disabled={forms.isLoading || forms.isError || !effectiveForm}
           >
             See my estimate
           </button>

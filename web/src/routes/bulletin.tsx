@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query"
+import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { lazy, Suspense } from "react"
 import { bulletinQuery } from "@/lib/api"
 import { categoryHue } from "@/lib/palette"
-import { categoryLabel, countryLabel } from "@/lib/labels"
+import { categoryLabel, categoryLabels, countryLabel } from "@/lib/labels"
 
 const DataChart = lazy(() => import("@/components/data-chart"))
 const olderInvestors = new Set(["EB5-NON-RC", "EB5-RC", "EB5-UNRESERVED-RC"])
@@ -53,13 +53,15 @@ function BulletinPage() {
   const navigate = Route.useNavigate()
   const update = (next: Partial<Search>) =>
     void navigate({ search: (previous) => ({ ...previous, ...next }) })
-  const catalog = useQuery(bulletinQuery("EB2", search.chart))
-  const categories = catalog.data?.categories
-  const category = categories?.some((c) => c.code === search.category)
+  const category = Object.hasOwn(categoryLabels, search.category)
     ? search.category
     : "EB2"
-  const group = groupFor(categories ? category : search.category)
-  const bulletin = useQuery(bulletinQuery(category, search.chart))
+  const bulletin = useQuery({
+    ...bulletinQuery(category, search.chart),
+    placeholderData: keepPreviousData,
+  })
+  const categories = bulletin.data?.categories
+  const group = groupFor(category)
   const series =
     bulletin.data?.series.find((s) => s.country === search.country) ??
     bulletin.data?.series[0]
@@ -162,7 +164,7 @@ function BulletinPage() {
           </button>
         ))}
       </div>
-      {bulletin.isLoading ? (
+      {bulletin.isLoading || bulletin.isPlaceholderData ? (
         <div className="skeleton" aria-label="Loading bulletin" />
       ) : bulletin.isError ? (
         <p className="error">
@@ -214,7 +216,7 @@ function BulletinPage() {
           <div className="workspace-grid">
             <section
               className="panel bulletin-card"
-              style={{ background: categoryHue(search.category) }}
+              style={{ background: categoryHue(category) }}
             >
               <h2>
                 {current?.status === "current"
@@ -241,7 +243,7 @@ function BulletinPage() {
               <DataChart
                 title="Cutoff date over time"
                 rows={rows}
-                hue={categoryHue(search.category)}
+                hue={categoryHue(category)}
                 calendar
                 dateValues
                 extras={bulletin.data?.series

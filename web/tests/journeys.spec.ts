@@ -54,7 +54,7 @@ test("journey navigation preserves an explicit series without refetching the for
   await page.reload()
   await expect(
     page.getByRole("button", { name: "Employment", exact: true })
-  ).toBeVisible()
+  ).toHaveAttribute("aria-pressed", "true")
   await page
     .getByRole("group", { name: "Case category" })
     .getByRole("button", { name: "Family", exact: true })
@@ -69,6 +69,10 @@ test("journey navigation preserves an explicit series without refetching the for
   await expect(page).toHaveURL(/form=I-485/)
   await expect(page).toHaveURL(/filed=2024-01-15/)
   await expect(page).toHaveURL(/series=family/)
-  await page.waitForTimeout(300)
+  await expect(
+    page
+      .getByRole("group", { name: "Journey" })
+      .getByRole("button", { name: "Family", exact: true })
+  ).toHaveAttribute("aria-pressed", "true")
   expect(requests).toBe(before)
 })

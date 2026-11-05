@@ -3,6 +3,7 @@ package uscis
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -317,6 +318,30 @@ func unavailable(r *core.RequestEvent) error {
 func success(r *core.RequestEvent, response any) error {
 	r.Response.Header().Set("Cache-Control", "public, max-age=3600")
 	return r.JSON(http.StatusOK, response)
+}
+
+func validInsightQuery(r *core.RequestEvent, allowed ...string) bool {
+	for key, values := range r.Request.URL.Query() {
+		valid := false
+		for _, name := range allowed {
+			if key == name {
+				valid = true
+				break
+			}
+		}
+		if !valid || len(values) != 1 {
+			return false
+		}
+	}
+	return true
+}
+
+func insightSuccess(r *core.RequestEvent, response any) error {
+	data, err := json.Marshal(response)
+	if err != nil || len(data)+1 > 200*1024 {
+		return unavailable(r)
+	}
+	return success(r, response)
 }
 
 func (a *api) formList(r *core.RequestEvent) error {

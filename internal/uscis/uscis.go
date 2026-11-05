@@ -32,7 +32,10 @@ func Register(app core.App) {
 		e.Router.GET("/api/x/uscis/forms/{form}", handlers.form)
 		e.Router.GET("/api/x/uscis/forms/{form}/community", handlers.community)
 		e.Router.GET("/api/x/uscis/bulletin", handlers.bulletin)
+		e.Router.GET("/api/x/uscis/insights/visa-221g", handlers.visa221g)
+		e.Router.GET("/api/x/uscis/insights/h1b-pay", handlers.pay)
 		e.Router.GET("/api/x/uscis/insights/h1b-employers", handlers.employers)
+		e.Router.GET("/api/x/uscis/insights/student-posts", handlers.studentPosts)
 		e.Router.GET("/api/x/uscis/health", func(r *core.RequestEvent) error {
 			ctx, cancel := context.WithTimeout(r.Request.Context(), 5*time.Second)
 			defer cancel()

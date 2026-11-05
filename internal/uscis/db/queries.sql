@@ -1,3 +1,22 @@
+-- name: Visa221g :many
+SELECT office, start_date, decision_date, first_seen_at, updated_at, pending
+FROM public.immihelp_timeline
+WHERE tracker = '221g-tracker' AND category = 'F1' AND start_date IS NOT NULL;
+
+-- name: PayCatalog :many
+SELECT fiscal_year, title_key, job_title, title_rank, cases, first_received, last_received
+FROM public.dol_lca_pay_stats WHERE worksite_state IS NULL
+ORDER BY fiscal_year DESC, title_rank, title_key;
+
+-- name: PayTitle :many
+SELECT fiscal_year, title_key, job_title, worksite_state, cases, p10, p25, p50, p75, p90
+FROM public.dol_lca_pay_stats WHERE fiscal_year = $1 AND title_key = $2
+ORDER BY cases DESC, worksite_state;
+
+-- name: StudentWeeks :many
+SELECT week_start, topic, posts, covered FROM public.student_post_week
+ORDER BY week_start, topic;
+
 -- name: EmployerYears :many
 SELECT DISTINCT fiscal_year FROM public.h1b_employer
 WHERE fiscal_year IS NOT NULL ORDER BY fiscal_year DESC;

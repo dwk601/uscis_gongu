@@ -24,6 +24,9 @@ type employersResponse struct {
 }
 
 func (a *api) employers(r *core.RequestEvent) error {
+	if !validInsightQuery(r, "year") {
+		return r.Error(http.StatusBadRequest, "Invalid query parameters.", nil)
+	}
 	ctx, cancel := context.WithTimeout(r.Request.Context(), 5*time.Second)
 	defer cancel()
 	value, err := a.load(ctx, "employer-years", func(ctx context.Context) (any, error) { return a.q.EmployerYears(ctx) })
@@ -61,7 +64,7 @@ func (a *api) employers(r *core.RequestEvent) error {
 	}
 	out := employersResponse{Years: years, Year: year, Employers: []employer{}}
 	if !found {
-		return success(r, out)
+		return insightSuccess(r, out)
 	}
 	value, err = a.load(ctx, "employers-"+strconv.Itoa(int(year)), func(ctx context.Context) (any, error) { return a.q.Employers(ctx, &year) })
 	if err != nil {
@@ -70,5 +73,5 @@ func (a *api) employers(r *core.RequestEvent) error {
 	for _, row := range value.([]db.EmployersRow) {
 		out.Employers = append(out.Employers, employer{str(row.EmployerName), row.InitialApprovals, row.InitialDenials, row.ContinuingApprovals})
 	}
-	return success(r, out)
+	return insightSuccess(r, out)
 }

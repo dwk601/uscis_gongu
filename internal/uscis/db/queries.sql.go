@@ -231,3 +231,174 @@ func (q *Queries) Forms(ctx context.Context) ([]FormsRow, error) {
 	}
 	return items, nil
 }
+
+const payCatalog = `-- name: PayCatalog :many
+SELECT fiscal_year, title_key, job_title, title_rank, cases, first_received, last_received
+FROM public.dol_lca_pay_stats WHERE worksite_state IS NULL
+ORDER BY fiscal_year DESC, title_rank, title_key
+`
+
+type PayCatalogRow struct {
+	FiscalYear    *int32
+	TitleKey      *string
+	JobTitle      *string
+	TitleRank     *int32
+	Cases         *int32
+	FirstReceived pgtype.Date
+	LastReceived  pgtype.Date
+}
+
+func (q *Queries) PayCatalog(ctx context.Context) ([]PayCatalogRow, error) {
+	rows, err := q.db.Query(ctx, payCatalog)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PayCatalogRow
+	for rows.Next() {
+		var i PayCatalogRow
+		if err := rows.Scan(
+			&i.FiscalYear,
+			&i.TitleKey,
+			&i.JobTitle,
+			&i.TitleRank,
+			&i.Cases,
+			&i.FirstReceived,
+			&i.LastReceived,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const payTitle = `-- name: PayTitle :many
+SELECT fiscal_year, title_key, job_title, worksite_state, cases, p10, p25, p50, p75, p90
+FROM public.dol_lca_pay_stats WHERE fiscal_year = $1 AND title_key = $2
+ORDER BY cases DESC, worksite_state
+`
+
+type PayTitleParams struct {
+	FiscalYear *int32
+	TitleKey   *string
+}
+
+type PayTitleRow struct {
+	FiscalYear    *int32
+	TitleKey      *string
+	JobTitle      *string
+	WorksiteState *string
+	Cases         *int32
+	P10           *float64
+	P25           *float64
+	P50           *float64
+	P75           *float64
+	P90           *float64
+}
+
+func (q *Queries) PayTitle(ctx context.Context, arg PayTitleParams) ([]PayTitleRow, error) {
+	rows, err := q.db.Query(ctx, payTitle, arg.FiscalYear, arg.TitleKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PayTitleRow
+	for rows.Next() {
+		var i PayTitleRow
+		if err := rows.Scan(
+			&i.FiscalYear,
+			&i.TitleKey,
+			&i.JobTitle,
+			&i.WorksiteState,
+			&i.Cases,
+			&i.P10,
+			&i.P25,
+			&i.P50,
+			&i.P75,
+			&i.P90,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const studentWeeks = `-- name: StudentWeeks :many
+SELECT week_start, topic, posts, covered FROM public.student_post_week
+ORDER BY week_start, topic
+`
+
+func (q *Queries) StudentWeeks(ctx context.Context) ([]StudentPostWeek, error) {
+	rows, err := q.db.Query(ctx, studentWeeks)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StudentPostWeek
+	for rows.Next() {
+		var i StudentPostWeek
+		if err := rows.Scan(
+			&i.WeekStart,
+			&i.Topic,
+			&i.Posts,
+			&i.Covered,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const visa221g = `-- name: Visa221g :many
+SELECT office, start_date, decision_date, first_seen_at, updated_at, pending
+FROM public.immihelp_timeline
+WHERE tracker = '221g-tracker' AND category = 'F1' AND start_date IS NOT NULL
+`
+
+type Visa221gRow struct {
+	Office       *string
+	StartDate    pgtype.Date
+	DecisionDate pgtype.Date
+	FirstSeenAt  pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	Pending      *bool
+}
+
+func (q *Queries) Visa221g(ctx context.Context) ([]Visa221gRow, error) {
+	rows, err := q.db.Query(ctx, visa221g)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Visa221gRow
+	for rows.Next() {
+		var i Visa221gRow
+		if err := rows.Scan(
+			&i.Office,
+			&i.StartDate,
+			&i.DecisionDate,
+			&i.FirstSeenAt,
+			&i.UpdatedAt,
+			&i.Pending,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

@@ -315,10 +315,12 @@ function Pay() {
 }
 function EmployerInsight() {
   const [year, setYear] = useState<number>()
+  const catalog = useQuery(employersQuery())
   const q = useQuery({
     ...employersQuery(year),
     placeholderData: keepPreviousData,
   })
+  const yearOptions = q.data ?? catalog.data
   const max = Math.max(
     1,
     ...(q.data?.employers.map((e) => e.initialApprovals) ?? [])
@@ -332,22 +334,26 @@ function EmployerInsight() {
         error={q.isError}
         retry={() => void q.refetch()}
       />
+      {yearOptions && yearOptions.years.length > 0 && (
+        <label>
+          Year{" "}
+          <select
+            className="field"
+            value={year ?? yearOptions.year ?? ""}
+            onChange={(e) => setYear(Number(e.target.value))}
+          >
+            {yearOptions.years.map((y) => (
+              <option key={y}>{y}</option>
+            ))}
+          </select>
+        </label>
+      )}
+      {q.isPlaceholderData && <p role="status">Loading employers…</p>}
       {q.data && (
-        <>
-          {q.data.years.length > 0 && (
-            <label>
-              Year{" "}
-              <select
-                className="field"
-                value={year ?? q.data.year ?? ""}
-                onChange={(e) => setYear(Number(e.target.value))}
-              >
-                {q.data.years.map((y) => (
-                  <option key={y}>{y}</option>
-                ))}
-              </select>
-            </label>
-          )}
+        <div
+          aria-busy={q.isPlaceholderData}
+          className={q.isPlaceholderData ? "insight-loading" : undefined}
+        >
           {q.data.employers.length === 0 ? (
             <p>Nothing to show yet.</p>
           ) : (
@@ -367,7 +373,7 @@ function EmployerInsight() {
               </ol>
             </>
           )}
-        </>
+        </div>
       )}
     </section>
   )
@@ -414,7 +420,8 @@ function Posts() {
                 if (!w.covered || count == null) return null
                 const x = (i / weeks.length) * 600
                 const width = Math.max(1, 590 / weeks.length)
-                const top = 165 - (count / max) * 140
+                const top =
+                  165 - (count === 0 ? 0 : Math.max(7, (count / max) * 140))
                 const spike = (w.z[topic] ?? -Infinity) >= 3
                 return (
                   <Fragment key={w.week}>
@@ -440,7 +447,7 @@ function Posts() {
                     )}
                     {spike && (
                       <path
-                        d={`M ${x + width / 2} ${top - 10} l -5 -8 h 10 Z`}
+                        d={`M ${x + width / 2} ${top - 4} l -10 -16 h 20 Z`}
                         fill="var(--ink)"
                       />
                     )}

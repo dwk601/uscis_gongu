@@ -219,11 +219,13 @@ test("insight edge states and employer year retain focus", async ({ page }) => {
         await new Promise<void>((resolve) => {
           releaseYear = resolve
         })
+      if (url.searchParams.get("year") === "2024")
+        return route.fulfill({ status: 400, json: { message: "Bad request" } })
       return route.fulfill({
         json: url.searchParams.has("year")
           ? { years: [], year: null, employers: [] }
           : {
-              years: [2025, 2024],
+              years: [2025, 2024, 2023],
               year: 2025,
               employers: [
                 {
@@ -276,6 +278,13 @@ test("insight edge states and employer year retain focus", async ({ page }) => {
   await select.focus()
   await select.selectOption("2024")
   await expect(select).toBeFocused()
+  await expect(page.getByRole("status")).toHaveText("Loading employers…")
+  await expect.poll(() => !!releaseYear).toBe(true)
+  releaseYear!()
+  await expect(page.getByText("Insights unavailable.")).toBeVisible()
+  await expect(select).toBeFocused()
+  releaseYear = undefined
+  await select.selectOption("2023")
   await expect.poll(() => !!releaseYear).toBe(true)
   releaseYear!()
   await expect(page.getByText("Nothing to show yet.")).toBeVisible()

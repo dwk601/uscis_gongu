@@ -852,12 +852,12 @@ td {
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.insight-panel .insight-chart {
-  max-height: 260px;
+.insight-loading {
+  opacity: 0.55;
 }
 .insight-axis {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  margin-top: -16px;
+  margin: -16px 1.667% 0;
 }

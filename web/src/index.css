@@ -422,6 +422,10 @@ td {
   justify-content: space-between;
   gap: 20px;
 }
+.bulletin-link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .bulletin-card {
   background: #d3e39a;
   color: #171717;

@@ -27,7 +27,7 @@ build: web
 # Loads .env.local when present; the Vite dev server proxies /api and /_ to this port.
 dev-api: web
 	@set -e; if [ -f .env.local ]; then set -a; source .env.local; set +a; fi; \
-	go run . superuser upsert "$$PB_SUPERUSER_EMAIL" "$$PB_SUPERUSER_PASSWORD"; \
+	go run . superuser upsert "$${POCKETBASE_USERNAME:-$$PB_SUPERUSER_EMAIL}" "$${POCKETBASE_PASSWORD:-$$PB_SUPERUSER_PASSWORD}"; \
 	go run . serve --http=127.0.0.1:8090
 
 # Forwards 127.0.0.1:$(USCIS_TUNNEL_PORT) to the server's uscis-etl PostgreSQL over Tailscale SSH. Container IP is looked up per run because Coolify redeploys change it.

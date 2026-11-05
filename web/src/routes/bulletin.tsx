@@ -102,7 +102,10 @@ function BulletinPage() {
       </div>
       <p>
         These are priority-date cutoffs, not approval estimates; check{" "}
-        <a href="https://www.uscis.gov/visabulletininfo">
+        <a
+          className="bulletin-link"
+          href="https://www.uscis.gov/visabulletininfo"
+        >
           USCIS’s filing chart
         </a>{" "}
         before applying for a green card in the U.S.

@@ -1,0 +1,143 @@
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.account-signin {
+  padding: 10px 17px;
+  font-size: 14px;
+}
+.account-menu {
+  position: relative;
+}
+.account-menu summary {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #c7b6ec;
+  color: #171717;
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+.account-menu div {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  top: 48px;
+  min-width: 140px;
+  padding: 8px;
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px #0003;
+}
+.account-menu a,
+.account-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px;
+  background: transparent;
+}
+.social {
+  max-width: 850px;
+}
+.social h1 {
+  margin-bottom: 25px;
+}
+.social-card {
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  padding: 22px;
+  margin: 14px 0;
+}
+.social-card h2,
+.social-card h3 {
+  margin: 0 0 12px;
+}
+.social-form {
+  display: grid;
+  gap: 12px;
+}
+.social-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+.social-form input,
+.social-form textarea,
+.social-form select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--ground);
+  color: var(--ink);
+  font: inherit;
+}
+.social-form textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+.social-form .primary {
+  justify-self: start;
+}
+.social-meta {
+  color: var(--muted);
+  font-size: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.social-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.social-actions button,
+.social-actions a {
+  font-size: 14px;
+}
+.social-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.social-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+}
+.social-error {
+  color: #c33b3b;
+}
+.social-tag {
+  border-radius: 99px;
+  padding: 4px 9px;
+  color: #171717;
+  font-size: 12px;
+  font-weight: 600;
+}
+.social-narrow {
+  max-width: 520px;
+}
+.social-section {
+  margin: 30px 0;
+}
+.social-section h2 {
+  font-size: 22px;
+}
+@media (max-width: 600px) {
+  .account-signin {
+    padding: 9px 12px;
+  }
+  .social-card {
+    padding: 17px;
+  }
+}

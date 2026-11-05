@@ -5,6 +5,7 @@ import { useTheme } from "./theme-provider"
 
 const navigation = [
   { label: "Trends", to: "/trends", search: { form: "I-485" } },
+  { label: "Community", to: "/community", search: { sort: "new", form: "" } },
   {
     label: "Bulletin",
     to: "/bulletin",

@@ -11,7 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BulletinRouteImport } from './routes/bulletin'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TrendsRouteImport } from './routes/trends'
+import { Route as CommunityIndexRouteImport } from './routes/community/index'
+import { Route as CommunityPostIdRouteImport } from './routes/community/$postId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -23,40 +27,98 @@ const BulletinRoute = BulletinRouteImport.update({
   path: '/bulletin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TrendsRoute = TrendsRouteImport.update({
   id: '/trends',
   path: '/trends',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunityIndexRoute = CommunityIndexRouteImport.update({
+  id: '/community/',
+  path: '/community/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunityPostIdRoute = CommunityPostIdRouteImport.update({
+  id: '/community/$postId',
+  path: '/community/$postId',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bulletin': typeof BulletinRoute
+  '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/trends': typeof TrendsRoute
+  '/community/$postId': typeof CommunityPostIdRoute
+  '/community/': typeof CommunityIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bulletin': typeof BulletinRoute
+  '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/trends': typeof TrendsRoute
+  '/community/$postId': typeof CommunityPostIdRoute
+  '/community': typeof CommunityIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/bulletin': typeof BulletinRoute
+  '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/trends': typeof TrendsRoute
+  '/community/$postId': typeof CommunityPostIdRoute
+  '/community/': typeof CommunityIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/bulletin' | '/trends'
+  fullPaths:
+    | '/'
+    | '/bulletin'
+    | '/login'
+    | '/settings'
+    | '/trends'
+    | '/community/$postId'
+    | '/community/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/bulletin' | '/trends'
-  id: '__root__' | '/' | '/bulletin' | '/trends'
+  to:
+    | '/'
+    | '/bulletin'
+    | '/login'
+    | '/settings'
+    | '/trends'
+    | '/community/$postId'
+    | '/community'
+  id:
+    | '__root__'
+    | '/'
+    | '/bulletin'
+    | '/login'
+    | '/settings'
+    | '/trends'
+    | '/community/$postId'
+    | '/community/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BulletinRoute: typeof BulletinRoute
+  LoginRoute: typeof LoginRoute
+  SettingsRoute: typeof SettingsRoute
   TrendsRoute: typeof TrendsRoute
+  CommunityPostIdRoute: typeof CommunityPostIdRoute
+  CommunityIndexRoute: typeof CommunityIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -75,11 +137,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BulletinRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/trends': {
       id: '/trends'
       path: '/trends'
       fullPath: '/trends'
       preLoaderRoute: typeof TrendsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community/': {
+      id: '/community/'
+      path: '/community'
+      fullPath: '/community/'
+      preLoaderRoute: typeof CommunityIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community/$postId': {
+      id: '/community/$postId'
+      path: '/community/$postId'
+      fullPath: '/community/$postId'
+      preLoaderRoute: typeof CommunityPostIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -88,7 +178,11 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BulletinRoute: BulletinRoute,
+  LoginRoute: LoginRoute,
+  SettingsRoute: SettingsRoute,
   TrendsRoute: TrendsRoute,
+  CommunityPostIdRoute: CommunityPostIdRoute,
+  CommunityIndexRoute: CommunityIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

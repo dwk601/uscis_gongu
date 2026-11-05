@@ -216,9 +216,7 @@ function Trends() {
   const preferred = choices.find((f) => f.form === search.form)
   const official =
     detail.data?.official.find((s) => s.id === search.series) ??
-    (search.series === undefined &&
-    preferred &&
-    "preferredSeriesLabel" in preferred
+    (preferred && "preferredSeriesLabel" in preferred
       ? detail.data?.official.find(
           (s) => s.label === preferred.preferredSeriesLabel
         )

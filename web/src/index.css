@@ -166,6 +166,9 @@ p {
   background: transparent;
   padding: 12px 14px;
 }
+.checker select {
+  width: 22rem;
+}
 .primary {
   background: #171717;
   color: #fff;
@@ -516,14 +519,14 @@ td {
     width: 24px;
   }
   .hero {
-    padding: 25px 20px 28px;
+    padding: 12px 20px 28px;
   }
   .hero h1 {
-    font-size: 2.5rem;
+    font-size: 2.2rem;
   }
   .hero p {
     font-size: 16px;
-    margin: 10px 0 16px;
+    margin: 6px 0 12px;
   }
   .checker {
     width: 100%;
@@ -703,29 +706,13 @@ td {
   gap: 8px;
 }
 
-.journey-picker button {
-  background: var(--panel);
-  color: var(--ink);
-  border: 1px solid var(--hairline);
-  text-align: left;
-}
-
-.journey-picker button:hover {
-  border-color: var(--ink);
-}
-
-.journey-picker button[aria-pressed="true"] {
-  background: var(--ink);
-  color: var(--ground);
-  border-color: var(--ink);
-}
-
 .journey-picker--cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .journey-picker--cards button {
+  text-align: left;
   border-radius: 12px;
   padding: 12px 14px;
   min-height: 72px;
@@ -752,14 +739,13 @@ td {
 
 .journey-picker--compact {
   overflow-x: auto;
-  padding: 4px 3px 10px;
-  margin-bottom: 5px;
+  padding: 8px 8px 10px;
+  margin: -4px -8px 5px;
+  scroll-padding-inline: 8px;
 }
 
 .journey-picker--compact button {
   flex: none;
-  border-radius: 99px;
-  padding: 9px 15px;
 }
 
 .landing-form-choices {
@@ -786,15 +772,6 @@ td {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
   }
-  .hero {
-    padding-top: 12px;
-  }
-  .hero h1 {
-    font-size: 2.2rem;
-  }
-  .hero p {
-    margin: 6px 0 12px;
-  }
   .landing-journeys {
     margin-bottom: 10px;
   }
@@ -805,9 +782,6 @@ td {
   .journey-picker--cards button {
     min-height: 44px;
     padding: 7px 10px;
-  }
-  .journey-picker--cards button:last-child {
-    grid-column: auto;
   }
   .journey-picker--cards small {
     display: none;

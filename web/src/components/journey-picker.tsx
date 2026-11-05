@@ -1,5 +1,10 @@
 import { journeys, type JourneyId } from "@/lib/journeys"
 
+// Browsers do not scroll a partly visible focused button into view on their own.
+function revealOnFocus(event: React.FocusEvent<HTMLButtonElement>) {
+  event.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" })
+}
+
 export function JourneyPicker({
   value,
   onChange,
@@ -18,8 +23,10 @@ export function JourneyPicker({
       {journeys.map((journey) => (
         <button
           type="button"
+          className="chip"
           key={journey.id}
           aria-pressed={value === journey.id}
+          onFocus={revealOnFocus}
           onClick={() => onChange(journey.id)}
         >
           <span>{journey.name}</span>
@@ -28,7 +35,9 @@ export function JourneyPicker({
       ))}
       <button
         type="button"
+        className="chip"
         aria-pressed={value === "all"}
+        onFocus={revealOnFocus}
         onClick={() => onChange("all")}
       >
         <span>All forms</span>

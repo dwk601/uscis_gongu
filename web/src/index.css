@@ -225,7 +225,7 @@ p {
 .workspace {
   max-width: 1320px;
   margin: auto;
-  padding: 28px 5% 80px;
+  padding: 28px min(5vw, 66px) 80px;
   --hue: #f2703d;
 }
 .workspace h1 {

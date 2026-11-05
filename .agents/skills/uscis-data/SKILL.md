@@ -54,10 +54,10 @@ This is an integration index, not permission to expose every column. `dataset_fi
 
 Verify the real data/API boundary: approved views only, writes denied, source semantics retained, and no false claim of complete/fresh data after partial ETL failure. Apply test-selection rules in `AGENTS.md`.
 
-The pool lives in `internal/uscis` (`USCIS_DATABASE_URL`, sessions forced read-only). App login `gongu_reader` inherits SELECT on the approved views from group `uscis_app_reader`; the ETL `schema.sql` re-grants that group on every init because recreated materialized views lose privileges, so exposing a new surface means changing that grant list. Local testing reaches the server database through `make db-tunnel` (`.env.local`); production connects as host `postgres` on the uscis-etl Coolify network. sqlc is pinned as a Go tool (`go tool sqlc generate`) but has no config yet: sqlc cannot parse the ETL `schema.sql` (lateral/JSON view bodies), so the first query must supply a view-column schema input for generation.
+The pool lives in `internal/uscis` (`USCIS_DATABASE_URL`, sessions forced read-only). App login `gongu_reader` inherits SELECT on the approved views from group `uscis_app_reader`; the ETL `schema.sql` re-grants that group on every init because recreated materialized views lose privileges, so exposing a new surface means changing that grant list. Local testing reaches the server database through `make db-tunnel` (`.env.local`); production connects as host `postgres` on the uscis-etl Coolify network. sqlc is configured in `sqlc.yaml`; run `make sqlc` to regenerate. Its schema input is derived from `information_schema` because sqlc cannot parse the ETL view bodies. Endpoints live in `internal/uscis/api.go`.
 
-verify: TBD — add when the first sqlc query and its API route exist.
+verify: Compare live endpoint responses with corresponding `psql` queries against the approved views; no automated test covers this boundary.
 
 Upstream view-contract check, only when changing ETL contracts: `cd /Users/dwk/Personal/etl/uscis && uv run pytest tests/test_derived_views.py`. Requires local PostgreSQL and creates `uscis_etl_test` with isolated schemas; inspect that repo's test setup first. This is not an app check or a production refresh command.
 
-CI job: TBD — no check commands or CI configuration exist yet; name the actual job when checks are introduced.
+Checks are not enforced by any hook or CI.

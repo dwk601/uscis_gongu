@@ -68,7 +68,13 @@ function FiledInput({
         onBlur={(e) => {
           const input = e.currentTarget
           if (validFiled(input.value)) return
-          if (input.value && Number(input.value.slice(0, 4)) < 1990)
+          const date = new Date(`${input.value}T00:00:00Z`)
+          if (
+            /^\d{4}-\d{2}-\d{2}$/.test(input.value) &&
+            !Number.isNaN(date.getTime()) &&
+            date.toISOString().slice(0, 10) === input.value &&
+            Number(input.value.slice(0, 4)) < 1990
+          )
             setHint("Enter a date in 1990 or later.")
           else setHint("")
           if (!input.value && !input.validity.badInput) {

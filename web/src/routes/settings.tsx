@@ -76,6 +76,11 @@ function Settings() {
   if (!user)
     return (
       <main className="workspace social">
+        {error && (
+          <p className="social-error" role="alert">
+            {error}
+          </p>
+        )}
         <p>Sign in to manage your settings.</p>
         <Link
           className="primary"

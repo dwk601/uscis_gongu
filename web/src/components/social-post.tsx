@@ -112,7 +112,7 @@ export function PostCard({
           </Link>
         )}
         <Link to="/community/$postId" params={{ postId: post.id }}>
-          {post.comments} comments
+          {post.comments} {post.comments === 1 ? "comment" : "comments"}
         </Link>
       </div>
       {error && (

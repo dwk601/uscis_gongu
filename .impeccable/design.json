@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-04T00:00:00Z",
+  "title": "Design System: gongu",
+  "extensions": {
+    "colorMeta": {
+      "ground": { "role": "neutral", "displayName": "Canvas", "canonical": "#f7f7f4" },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#171717" },
+      "tangerine": { "role": "primary", "displayName": "Tangerine", "canonical": "#f2703d" },
+      "lilac": { "role": "secondary", "displayName": "Lilac", "canonical": "#c7b6ec" },
+      "lime": { "role": "secondary", "displayName": "Lime", "canonical": "#d3e39a" },
+      "forest": { "role": "secondary", "displayName": "Forest", "canonical": "#2e4b36" },
+      "sky": { "role": "secondary", "displayName": "Sky", "canonical": "#9ec5f0" },
+      "rose": { "role": "secondary", "displayName": "Rose", "canonical": "#f2a5b7" },
+      "butter": { "role": "secondary", "displayName": "Butter", "canonical": "#f3d35b" }
+    },
+    "typographyMeta": { "display": { "displayName": "Display", "purpose": "Landing headlines." } },
+    "shadows": [
+      { "name": "checker", "value": "0 4px 20px #00000010", "purpose": "Landing checker lift." },
+      { "name": "artifact", "value": "0 12px 24px #0000001c", "purpose": "Landing artifact lift." },
+      { "name": "menu", "value": "0 8px 24px #0003", "purpose": "Account menu." }
+    ],
+    "motion": [{ "name": "surface", "value": "background 0.45s ease-out", "purpose": "Theme and form-color changes." }],
+    "breakpoints": [{ "name": "workspace", "value": "700px" }, { "name": "social", "value": "600px" }]
+  },
+  "components": [
+    { "name": "Primary button", "kind": "button", "refersTo": "button-primary", "description": "The main action.", "html": "<button class=\"ds-primary\">Continue</button>", "css": ".ds-primary{background:#171717;color:#fff;border:0;border-radius:99px;padding:14px 24px;font:600 1rem 'Geist Variable',sans-serif}.ds-primary:hover{background:#383833}.ds-primary:focus-visible{outline:3px solid #7c55ca;outline-offset:3px}" },
+    { "name": "Chip", "kind": "chip", "refersTo": "chip", "description": "A compact choice.", "html": "<button class=\"ds-chip\">N-400</button>", "css": ".ds-chip{border:1px solid var(--hairline,#e7e6e1);background:var(--panel,#fff);color:var(--ink,#171717);border-radius:99px;padding:9px 15px;font:14px 'Geist Variable',sans-serif}.ds-chip:hover{border-color:var(--ink,#171717)}.ds-chip:focus-visible{outline:3px solid var(--focus,#7c55ca);outline-offset:3px}" },
+    { "name": "Field", "kind": "input", "description": "A social form field.", "html": "<input class=\"ds-field\" placeholder=\"Display name\" aria-label=\"Display name\">", "css": ".ds-field{padding:12px 14px;border:1px solid var(--hairline,#e7e6e1);border-radius:12px;background:var(--ground,#f7f7f4);color:var(--ink,#171717);font:14px 'Geist Variable',sans-serif}.ds-field:focus-visible{outline:3px solid var(--focus,#7c55ca);outline-offset:3px}" },
+    { "name": "Social card", "kind": "card", "description": "A community content container.", "html": "<article class=\"ds-card\"><h2>A community conversation</h2><p>Share your experience.</p></article>", "css": ".ds-card{background:var(--panel,#fff);color:var(--ink,#171717);border:1px solid var(--hairline,#e7e6e1);border-radius:14px;padding:22px;font-family:'Geist Variable',sans-serif}.ds-card h2{margin:0 0 12px}.ds-card p{line-height:1.5}" },
+    { "name": "Navigation", "kind": "nav", "description": "Quiet primary navigation.", "html": "<nav class=\"ds-nav\"><a href=\"#\">Trends</a><a href=\"#\">Bulletin</a><a href=\"#\">Community</a></nav>", "css": ".ds-nav{display:flex;gap:32px;font:14px 'Geist Variable',sans-serif}.ds-nav a{color:var(--muted,#62625e);text-decoration:none}.ds-nav a:hover{color:var(--ink,#171717)}.ds-nav a:focus-visible{outline:3px solid var(--focus,#7c55ca);outline-offset:3px}" }
+  ],
+  "narrative": {
+    "northStar": "An open canvas of cases",
+    "overview": "A quiet, off-white canvas carries bright form colors and confident black actions. Data and community surfaces keep the same friendly world while giving reading and interaction room to breathe.",
+    "keyCharacteristics": ["Color identifies a form rather than decorating every surface.", "Soft trays and lightly lifted artifacts contrast with flat workspace panels.", "Pill controls and tight, balanced headlines keep the interface approachable."],
+    "rules": [],
+    "dos": ["Do keep form colors associated with their data and use legible ink on each.", "Do preserve clear focus indicators and responsive chip rails."],
+    "donts": ["Don't make analytical or community surfaces depend on a sign-in for reading.", "Don't substitute fabricated figures for missing data."]
+  }
+}

@@ -39,5 +39,6 @@ dev-web:
 	npm --prefix web run dev
 
 check: web
-	npm --prefix web run lint
-	go vet ./...
+	@npm --prefix web run lint & lint=$$!; \
+	go vet ./internal/... ./migrations/... . && go test ./internal/... ./migrations/... . & go=$$!; \
+	status=0; wait $$lint || status=1; wait $$go || status=1; exit $$status

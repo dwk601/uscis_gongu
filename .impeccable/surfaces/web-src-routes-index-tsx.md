@@ -24,3 +24,8 @@ FIRST VIEWPORT: Landing: slim nav (logo left; Trends, Bulletin, Community center
 FORM: brief-pinned grida.co canvas world, 1 of 1 (pinned, no roll). seed: none (unavailable)
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+
+
+## Finish verdict
+
+In-thread finish review: fix / partial. Desktop 1440 and CDP-emulated mobile 390 were reviewed in both themes across the seven scoped routes, with local PocketBase and a local USCIS database; the 1920px chip rail remains within the workspace. Geist is brief-pinned despite the detector warning. No raster assets ship; provenance is N/A. The existing `seed: none (unavailable)` could not be corroborated by the installed seed checker, which reports that this machine can make seed references; no seed has been invented. The quality-bar card was not supplied. DESIGN.md and its sidecar describe the built implementation.

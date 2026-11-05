@@ -12,7 +12,7 @@ The existing PostgreSQL ETL database owns USCIS data and runs on the same server
 
 - PostgreSQL access is read-only through current/typed views, including materialized views—not raw ETL tables. Some existing query surfaces are plain views; do not assume all need refresh. Exact contracts and ETL source paths live in `uscis-data`.
 - Same-server deployment does not merge the two data stores or their privileges. Load `pocketbase-app` for the app/auth/community boundary.
-- Layout: root Go module (`main.go`, `internal/`) embeds `web/dist`, so build the web app before `go build`/`go vet` (`make build`, `make check`). Dev: `make dev-api` + `make dev-web`. No tests or CI jobs yet. ETL source inspection is not verification of the deployed database schema or grants.
+- Layout: root Go module (`main.go`, `internal/`) embeds `web/dist`, so build the web app before `go build`/`go vet` (`make build`, `make check`). Dev: `make dev-api` + `make dev-web`. Tests exist; no CI jobs yet. ETL source inspection is not verification of the deployed database schema or grants.
 - `web/` keeps the official shadcn Vite template's ESLint + Prettier and TypeScript 6.0 (typescript-eslint does not support TS 7 yet).
 
 ## Standing rules

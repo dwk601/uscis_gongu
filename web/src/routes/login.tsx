@@ -67,10 +67,15 @@ function Login() {
     } catch (err) {
       if (created) setCreate(false)
       const status = (err as { status?: number }).status
+      const emailError = (
+        err as { response?: { data?: { email?: { code?: string } } } }
+      ).response?.data?.email?.code
       const message =
-        !create && status === 400
-          ? "Email or password is incorrect. Please try again."
-          : errorMessage(err)
+        create && !created && emailError === "validation_not_unique"
+          ? "An account with this email already exists. Sign in instead."
+          : !create && status === 400
+            ? "Email or password is incorrect. Please try again."
+            : errorMessage(err)
       setError(
         created ? `Account created. Sign in to continue. ${message}` : message
       )

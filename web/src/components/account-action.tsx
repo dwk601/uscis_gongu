@@ -33,7 +33,9 @@ export function AccountAction() {
     return pb.authStore.onChange((_token, record) => {
       if (id !== record?.id) {
         id = record?.id
-        client.clear()
+        client.removeQueries({ queryKey: ["votes"] })
+        void client.invalidateQueries({ queryKey: ["post_feed"] })
+        void client.invalidateQueries({ queryKey: ["comment_feed"] })
       }
     })
   }, [client])

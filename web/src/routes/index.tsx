@@ -1,11 +1,40 @@
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
-import { bulletinQuery, formQuery, formsQuery } from "@/lib/api"
+import {
+  bulletinQuery,
+  formQuery,
+  formsQuery,
+  type OfficialPoint,
+} from "@/lib/api"
 import { latestMedian } from "@/lib/estimate"
 import { categoryHue, formHue } from "@/lib/palette"
 
 export const Route = createFileRoute("/")({ component: Home })
+
+function recentValues(points: OfficialPoint[]) {
+  const sorted = points
+    .filter((p) => p.quarterStart)
+    .slice()
+    .sort((a, b) => a.quarterStart!.localeCompare(b.quarterStart!))
+    .slice(-12)
+  const values: (number | null)[] = []
+  let previous: Date | undefined
+  for (const point of sorted) {
+    const current = new Date(`${point.quarterStart}T00:00:00Z`)
+    if (previous) {
+      const next = new Date(previous)
+      next.setUTCMonth(next.getUTCMonth() + 3)
+      while (next < current) {
+        values.push(null)
+        next.setUTCMonth(next.getUTCMonth() + 3)
+      }
+    }
+    values.push(point.processingMonths)
+    previous = current
+  }
+  return values
+}
 
 function MiniTrend({ values }: { values: (number | null)[] }) {
   const valid = values.filter(
@@ -92,7 +121,10 @@ function Home() {
                 </option>
               )) ?? <option value="I-485">I-485 · Green card</option>}
           </select>
-          <input aria-label="Filed date (optional)" name="filed" type="date" />
+          <label className="landing-date">
+            Filed (optional)
+            <input name="filed" type="date" />
+          </label>
           <button className="primary">See my estimate</button>
         </form>
       </section>
@@ -118,11 +150,7 @@ function Home() {
           search={{ form: "I-485", series: undefined, filed: undefined }}
         >
           <small>I-485 · Median wait trend</small>
-          <MiniTrend
-            values={
-              series?.points.slice(-12).map((p) => p.processingMonths) ?? []
-            }
-          />
+          <MiniTrend values={recentValues(series?.points ?? [])} />
           <small>Explore trends →</small>
         </Link>
         <Link
@@ -140,7 +168,12 @@ function Home() {
                 : cutoff?.cutoff
                   ? new Date(`${cutoff.cutoff}T00:00:00Z`).toLocaleDateString(
                       "en-US",
-                      { month: "short", year: "numeric", timeZone: "UTC" }
+                      {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        timeZone: "UTC",
+                      }
                     )
                   : "Explore dates"}
           </strong>

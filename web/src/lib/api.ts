@@ -65,11 +65,17 @@ export type Bulletin = {
 }
 
 const staleTime = 60 * 60 * 1000
+const retry = (count: number, error: Error) => {
+  const status =
+    "status" in error && typeof error.status === "number" ? error.status : 0
+  return !(status >= 400 && status < 500) && count < 3
+}
 
 export const formsQuery = () =>
   queryOptions({
     queryKey: ["uscis", "forms"],
     staleTime,
+    retry,
     queryFn: ({ signal }) =>
       pb.send<{ forms: FormSummary[] }>("/api/x/uscis/forms", { signal }),
   })
@@ -77,6 +83,7 @@ export const formQuery = (form: string) =>
   queryOptions({
     queryKey: ["uscis", "forms", form],
     staleTime,
+    retry,
     queryFn: ({ signal }) =>
       pb.send<FormDetail>(`/api/x/uscis/forms/${encodeURIComponent(form)}`, {
         signal,
@@ -86,6 +93,7 @@ export const communityQuery = (form: string) =>
   queryOptions({
     queryKey: ["uscis", "community", form],
     staleTime,
+    retry,
     queryFn: ({ signal }) =>
       pb.send<{ form: string; series: CommunitySeries[] }>(
         `/api/x/uscis/forms/${encodeURIComponent(form)}/community`,
@@ -96,6 +104,7 @@ export const bulletinQuery = (category: string, chart: string) =>
   queryOptions({
     queryKey: ["uscis", "bulletin", category, chart],
     staleTime,
+    retry,
     queryFn: ({ signal }) =>
       pb.send<Bulletin>("/api/x/uscis/bulletin", {
         signal,

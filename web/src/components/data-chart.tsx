@@ -2,7 +2,7 @@ import { areaY, defineChart, lineY } from "@tanstack/charts"
 import { Chart } from "@tanstack/charts/react"
 import { scaleLinear } from "@tanstack/charts/scales/linear"
 import { scaleUtc } from "@tanstack/charts/scales/time"
-import { useMemo } from "react"
+import type { CSSProperties } from "react"
 
 export type ChartRow = {
   x: number
@@ -12,11 +12,13 @@ export type ChartRow = {
   high?: number | null
   other?: number | null
   status?: "date" | "current" | "unavailable"
+  exact?: string
 }
 function StatusTimeline({ rows }: { rows: ChartRow[] }) {
   const first = rows[0]?.x ?? 0
   const last = rows.at(-1)?.x ?? first
-  const position = (x: number) => 6 + ((x - first) / (last - first || 1)) * 988
+  const position = (x: number) =>
+    `${((x - first) / (last - first || 1)) * 100}%`
   return (
     <div
       className="status-timeline"
@@ -26,9 +28,8 @@ function StatusTimeline({ rows }: { rows: ChartRow[] }) {
         <span>Current</span>
         <span>Unavailable</span>
       </div>
-      <svg
-        viewBox="0 0 1000 34"
-        preserveAspectRatio="none"
+      <div
+        className="status-track"
         role="img"
         aria-label="Current and unavailable bulletin months"
       >
@@ -36,31 +37,15 @@ function StatusTimeline({ rows }: { rows: ChartRow[] }) {
           .filter(
             (row) => row.status === "current" || row.status === "unavailable"
           )
-          .map((row) =>
-            row.status === "current" ? (
-              <circle
-                key={row.x}
-                cx={position(row.x)}
-                cy="8"
-                r="4"
-                fill="var(--ink)"
-              >
-                <title>{row.label}: Current</title>
-              </circle>
-            ) : (
-              <rect
-                key={row.x}
-                x={position(row.x) - 4}
-                y="21"
-                width="8"
-                height="8"
-                fill="var(--muted)"
-              >
-                <title>{row.label}: Unavailable</title>
-              </rect>
-            )
-          )}
-      </svg>
+          .map((row) => (
+            <span
+              key={row.x}
+              className={`status-marker ${row.status}`}
+              style={{ left: position(row.x) }}
+              title={`${row.label}: ${row.status === "current" ? "Current" : "Unavailable"}`}
+            />
+          ))}
+      </div>
     </div>
   )
 }
@@ -86,55 +71,54 @@ export default function DataChart({
   extras?: ChartRow[][]
   pending?: string
 }) {
-  const definition = useMemo(() => {
-    const x = (row: ChartRow) => (calendar ? new Date(row.x) : row.x)
-    return defineChart({
-      marks: [
-        ...(band
-          ? [
-              areaY(rows, {
-                x,
-                y1: "low",
-                y2: "high",
-                fill: hue,
-                fillOpacity: 0.18,
-              }),
-            ]
-          : []),
-        ...extras.map((extra) =>
-          lineY(extra, {
-            x,
-            y: "value",
-            stroke: "#999990",
-            strokeWidth: 1,
-            strokeOpacity: 0.6,
-          })
-        ),
-        lineY(rows, {
+  const x = (row: ChartRow) => (calendar ? new Date(row.x) : row.x)
+  const definition = defineChart({
+    marks: [
+      ...(band
+        ? [
+            areaY(rows, {
+              x,
+              y1: "low",
+              y2: "high",
+              fill: hue,
+              fillOpacity: 0.18,
+            }),
+          ]
+        : []),
+      ...extras.map((extra) =>
+        lineY(extra, {
           x,
           y: "value",
-          stroke: hue,
-          strokeWidth: 2,
-          points: true,
-        }),
-        ...(second
-          ? [
-              lineY(rows, {
-                x,
-                y: "other",
-                stroke: "var(--ink)",
-                strokeWidth: 2,
-                strokeDasharray: "5 3",
-              }),
-            ]
-          : []),
-      ],
-      scales: {
-        x: { scale: calendar ? scaleUtc : scaleLinear },
-        y: { scale: scaleLinear },
-      },
-    })
-  }, [rows, hue, second, band, calendar, extras])
+          stroke: "#999990",
+          strokeWidth: 1,
+          strokeOpacity: 0.6,
+        })
+      ),
+      lineY(rows, {
+        x,
+        y: "value",
+        stroke: "var(--chart-stroke)",
+        strokeWidth: 2,
+        points: true,
+      }),
+      ...(second
+        ? [
+            lineY(rows, {
+              x,
+              y: "other",
+              stroke: "var(--ink)",
+              strokeWidth: 2,
+              strokeDasharray: "5 3",
+            }),
+          ]
+        : []),
+    ],
+    scales: {
+      x: { scale: calendar ? scaleUtc : scaleLinear },
+      y: { scale: scaleLinear },
+    },
+    ...(dateValues ? { margin: { left: 72, right: 12 } } : {}),
+  })
   const display = (value: number | null) =>
     value == null
       ? "—"
@@ -148,12 +132,15 @@ export default function DataChart({
           })
         : Math.round(value * 10) / 10
   return (
-    <section className="panel chart-panel">
+    <section
+      className="panel chart-panel"
+      style={{ "--chart-hue": hue } as CSSProperties}
+    >
       <h2>{title}</h2>
       {second && (
         <div className="chart-legend">
           <span>
-            <i style={{ background: hue }} />
+            <i style={{ background: "var(--chart-stroke)" }} />
             Received
           </span>
           <span>
@@ -202,7 +189,7 @@ export default function DataChart({
                       ? "Current"
                       : row.status === "unavailable"
                         ? "Unavailable"
-                        : display(row.value)}
+                        : (row.exact ?? display(row.value))}
                   </td>
                   {band && (
                     <>

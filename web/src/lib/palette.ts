@@ -32,6 +32,10 @@ export function categoryHue(category: string) {
   ]
 }
 
+export function formInk(form: string) {
+  return formHue(form) === "#2E4B36" ? "#FFFFFF" : "#171717"
+}
+
 export function formHue(form: string) {
   const index = featured.indexOf(form)
   return hues[

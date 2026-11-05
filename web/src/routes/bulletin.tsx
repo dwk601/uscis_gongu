@@ -27,7 +27,19 @@ const month = (value: string) =>
     year: "numeric",
     timeZone: "UTC",
   })
+const cutoffDate = (value: string) =>
+  new Date(`${value}T00:00:00Z`).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  })
 const categoryLabels: Record<string, string> = {
+  F1: "F1 · Unmarried adult children",
+  F2A: "F2A · Spouses and children",
+  F2B: "F2B · Unmarried adult children",
+  F3: "F3 · Married children",
+  F4: "F4 · Siblings",
   EB1: "EB-1",
   EB2: "EB-2",
   EB3: "EB-3",
@@ -43,7 +55,7 @@ const categoryLabels: Record<string, string> = {
   "EB5-UNRESERVED-RC": "EB-5 Unreserved regional center",
 }
 const countryLabels: Record<string, string> = {
-  ALL: "All countries",
+  ALL: "All other countries",
   CHINA: "China",
   INDIA: "India",
   MEXICO: "Mexico",
@@ -90,6 +102,7 @@ function BulletinPage() {
     x: Date.parse(`${p.month}T00:00:00Z`),
     label: month(p.month!),
     status: p.status,
+    exact: p.cutoff ? cutoffDate(p.cutoff) : undefined,
     value:
       p.status === "date" && p.cutoff
         ? new Date(`${p.cutoff}T00:00:00Z`).getUTCFullYear() +
@@ -170,7 +183,7 @@ function BulletinPage() {
               </div>
             ) : null
           })}
-          <div className="controls" aria-label="Country">
+          <div className="controls" role="group" aria-label="Country">
             {bulletin.data?.series.map((s) => (
               <button
                 key={s.country}
@@ -197,7 +210,7 @@ function BulletinPage() {
                   : current?.status === "unavailable"
                     ? "Unavailable"
                     : current?.cutoff
-                      ? month(current.cutoff)
+                      ? cutoffDate(current.cutoff)
                       : "No cutoff available"}
               </h2>
               <p>

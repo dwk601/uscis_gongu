@@ -95,7 +95,10 @@ func label(s string) string {
 		case '(':
 			depth--
 			if depth == 0 {
-				return s[i+1 : len(s)-1]
+				if i > 0 && s[i-1] == ' ' {
+					return s[i+1 : len(s)-1]
+				}
+				return s
 			}
 		}
 	}

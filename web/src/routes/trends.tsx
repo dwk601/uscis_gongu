@@ -1,6 +1,13 @@
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { lazy, Suspense, useState, type CSSProperties } from "react"
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react"
 import {
   communityQuery,
   formQuery,
@@ -8,7 +15,50 @@ import {
   type OfficialPoint,
 } from "@/lib/api"
 import { estimateDate, latestMedian } from "@/lib/estimate"
-import { formHue } from "@/lib/palette"
+import { formHue, formInk } from "@/lib/palette"
+
+function validFiled(value: unknown): value is string {
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+    Number(value.slice(0, 4)) < 1990
+  )
+    return false
+  const date = new Date(`${value}T00:00:00Z`)
+  return (
+    !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+  )
+}
+
+function FiledInput({
+  value,
+  onCommit,
+  className,
+}: {
+  value?: string
+  onCommit: (value?: string) => void
+  className?: string
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (ref.current && document.activeElement !== ref.current)
+      ref.current.value = value ?? ""
+  }, [value])
+  return (
+    <input
+      ref={ref}
+      className={className}
+      type="date"
+      defaultValue={value ?? ""}
+      onChange={(e) => {
+        if (validFiled(e.currentTarget.value)) onCommit(e.currentTarget.value)
+      }}
+      onBlur={(e) => {
+        if (!e.currentTarget.value) onCommit(undefined)
+      }}
+    />
+  )
+}
 
 const DataChart = lazy(() => import("@/components/data-chart"))
 type Search = { form: string; series?: string; filed?: string }
@@ -19,11 +69,7 @@ export const Route = createFileRoute("/trends")({
         ? search.form
         : "I-485",
     series: typeof search.series === "string" ? search.series : undefined,
-    filed:
-      typeof search.filed === "string" &&
-      /^\d{4}-\d{2}-\d{2}$/.test(search.filed)
-        ? search.filed
-        : undefined,
+    filed: validFiled(search.filed) ? search.filed : undefined,
   }),
   component: Trends,
 })
@@ -130,7 +176,7 @@ function Trends() {
       })) ?? []
   return (
     <main
-      className="workspace"
+      className="workspace trend-workspace"
       style={{ "--hue": formHue(search.form) } as CSSProperties}
     >
       <div className="chip-rail" role="group" aria-label="Form" tabIndex={0}>
@@ -173,11 +219,10 @@ function Trends() {
         </select>
         <label className="field-label">
           Filed{" "}
-          <input
+          <FiledInput
             className="field"
-            type="date"
-            value={search.filed ?? ""}
-            onChange={(e) => update({ filed: e.target.value || undefined })}
+            value={search.filed}
+            onCommit={(filed) => update({ filed })}
           />
         </label>
       </div>
@@ -219,7 +264,7 @@ function Trends() {
           <div className="workspace-grid">
             <section
               className="panel estimate"
-              style={search.form === "I-131" ? { color: "#fff" } : undefined}
+              style={{ color: formInk(search.form) }}
             >
               <div>
                 <small>USCIS · {official?.label}</small>
@@ -230,9 +275,7 @@ function Trends() {
                       ? `Estimated around ${month(date)}`
                       : `${median.processingMonths} months typical`}
                 </h2>
-                {date && date.getTime() < now && (
-                  <p>This estimate has likely passed the median.</p>
-                )}
+                {date && date.getTime() < now && <p>Past the typical wait.</p>}
               </div>
               <div>
                 {median && (
@@ -241,18 +284,13 @@ function Trends() {
                     {String(median.fiscalYear).slice(-2)} Q{median.quarter}
                   </small>
                 )}
-                {!search.filed && (
-                  <label className="date-label">
-                    Add your filing date{" "}
-                    <input
-                      type="date"
-                      value=""
-                      onChange={(e) =>
-                        update({ filed: e.target.value || undefined })
-                      }
-                    />
-                  </label>
-                )}
+                <label className="date-label">
+                  {search.filed ? "Filing date" : "Add your filing date"}{" "}
+                  <FiledInput
+                    value={search.filed}
+                    onCommit={(filed) => update({ filed })}
+                  />
+                </label>
               </div>
             </section>
             <Suspense fallback={<div className="skeleton" />}>
@@ -298,9 +336,9 @@ function Trends() {
                 <p>No community timeline available.</p>
               ) : (
                 <>
-                  <div className="controls">
-                    {candidates.length > 1 &&
-                      candidates.map((s) => (
+                  {candidates.length > 1 ? (
+                    <div className="controls">
+                      {candidates.map((s) => (
                         <button
                           key={s.visaType ?? "all"}
                           className="chip"
@@ -310,7 +348,10 @@ function Trends() {
                           {s.visaType || "All"}
                         </button>
                       ))}
-                  </div>
+                    </div>
+                  ) : selected?.visaType ? (
+                    <p>{selected.visaType}</p>
+                  ) : null}
                   <div className="big-number">{months(cohort.p50)} months</div>
                   <p className="community-info">
                     p10–p90: {months(cohort.p10) ?? "—"}–
@@ -330,7 +371,7 @@ function Trends() {
             </section>
           </div>
           {cohort && (
-            <div className="workspace-grid">
+            <div className="workspace-grid single-chart">
               <Suspense fallback={<div className="skeleton" />}>
                 <DataChart
                   title="Community percentiles · months"

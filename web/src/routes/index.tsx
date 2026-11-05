@@ -192,7 +192,7 @@ function Home() {
                   aria-pressed={effectiveForm?.form === f.form}
                   onClick={() => setForm(f.form)}
                 >
-                  {f.label} · {f.form}
+                  {f.label} <span className="form-code">· {f.form}</span>
                 </button>
               ))}
             </div>

@@ -596,6 +596,7 @@ td {
   }
   .form-rail .chip small {
     white-space: nowrap;
+    overflow-wrap: normal;
   }
   .chip {
     padding: 8px 12px;
@@ -730,6 +731,11 @@ td {
   min-height: 72px;
 }
 
+.journey-picker--cards button:last-child {
+  grid-column: 1 / -1;
+  min-height: 44px;
+}
+
 .journey-picker--cards span,
 .journey-picker--cards small {
   display: block;
@@ -764,6 +770,10 @@ td {
   width: 100%;
 }
 
+.form-code {
+  white-space: nowrap;
+}
+
 .examples-label {
   text-align: center;
   color: var(--muted);
@@ -776,19 +786,39 @@ td {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
   }
+  .hero {
+    padding-top: 12px;
+  }
+  .hero h1 {
+    font-size: 2.2rem;
+  }
+  .hero p {
+    margin: 6px 0 12px;
+  }
+  .landing-journeys {
+    margin-bottom: 10px;
+  }
+  .landing-journeys h2 {
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+  }
   .journey-picker--cards button {
-    min-height: 54px;
+    min-height: 44px;
     padding: 7px 10px;
   }
+  .journey-picker--cards button:last-child {
+    grid-column: auto;
+  }
   .journey-picker--cards small {
-    line-height: 1.15;
+    display: none;
   }
   .landing-form-choices {
-    justify-content: flex-start;
-    max-height: 125px;
-    overflow: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .landing-form-choices .chip {
     text-align: left;
+    font-size: 13px;
+    line-height: 1.2;
   }
 }

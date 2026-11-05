@@ -110,6 +110,72 @@ func (q *Queries) Community(ctx context.Context) ([]CommunityRow, error) {
 	return items, nil
 }
 
+const employerYears = `-- name: EmployerYears :many
+SELECT DISTINCT fiscal_year FROM public.h1b_employer
+WHERE fiscal_year IS NOT NULL ORDER BY fiscal_year DESC
+`
+
+func (q *Queries) EmployerYears(ctx context.Context) ([]*int32, error) {
+	rows, err := q.db.Query(ctx, employerYears)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*int32
+	for rows.Next() {
+		var fiscal_year *int32
+		if err := rows.Scan(&fiscal_year); err != nil {
+			return nil, err
+		}
+		items = append(items, fiscal_year)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const employers = `-- name: Employers :many
+SELECT employer_name, sum(initial_approvals)::bigint AS initial_approvals,
+       sum(initial_denials)::bigint AS initial_denials,
+       sum(continuing_approvals)::bigint AS continuing_approvals
+FROM public.h1b_employer
+WHERE fiscal_year = $1 AND employer_name IS NOT NULL
+GROUP BY employer_name ORDER BY initial_approvals DESC, employer_name ASC LIMIT 20
+`
+
+type EmployersRow struct {
+	EmployerName        *string
+	InitialApprovals    int64
+	InitialDenials      int64
+	ContinuingApprovals int64
+}
+
+func (q *Queries) Employers(ctx context.Context, fiscalYear *int32) ([]EmployersRow, error) {
+	rows, err := q.db.Query(ctx, employers, fiscalYear)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []EmployersRow
+	for rows.Next() {
+		var i EmployersRow
+		if err := rows.Scan(
+			&i.EmployerName,
+			&i.InitialApprovals,
+			&i.InitialDenials,
+			&i.ContinuingApprovals,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const forms = `-- name: Forms :many
 SELECT fiscal_year, quarter, quarter_start, category, form, description, received, approved, denied, completed, pending, processing_months, source_file
 FROM public.uscis_form_quarter

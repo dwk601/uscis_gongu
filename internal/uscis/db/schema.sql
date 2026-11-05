@@ -1,4 +1,8 @@
 -- Generation input only; never executed.
+CREATE TABLE public.immihelp_timeline (tracker text, category text, office text, first_seen_at timestamptz, updated_at timestamptz, start_date date, decision_date date, pending boolean);
+CREATE TABLE public.dol_lca_pay_stats (fiscal_year integer, title_key text, job_title text, title_rank integer, worksite_state text, cases integer, p10 double precision, p25 double precision, p50 double precision, p75 double precision, p90 double precision, first_received date, last_received date);
+CREATE TABLE public.h1b_employer (fiscal_year integer, employer_name text, initial_approvals integer, initial_denials integer, continuing_approvals integer);
+CREATE TABLE public.student_post_week (week_start date, topic text, posts integer, covered boolean);
 CREATE TABLE public.uscis_form_quarter (fiscal_year integer, quarter integer, quarter_start date, category text, form text, description text, received numeric, approved numeric, denied numeric, completed numeric, pending numeric, processing_months numeric, fytd_received numeric, fytd_approved numeric, fytd_denied numeric, fytd_completed numeric, fytd_pending numeric, source_file text, row_num integer);
 CREATE TABLE public.visa_bulletin_series (bulletin_month date, chart text, category_group text, category_code text, country_code text, raw_value text, cutoff_date date, is_current boolean, is_unavailable boolean, category_label text, country_label text, url text);
 CREATE TABLE public.visajourney_timeline_stats (stage text, visa_type text, filing_year integer, sample_size bigint, completed_count bigint, pending_count bigint, excluded_count bigint, pending_share numeric, p10_days double precision, p50_days double precision, p90_days double precision);

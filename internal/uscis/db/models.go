@@ -8,6 +8,48 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type DolLcaPayStat struct {
+	FiscalYear    *int32
+	TitleKey      *string
+	JobTitle      *string
+	TitleRank     *int32
+	WorksiteState *string
+	Cases         *int32
+	P10           *float64
+	P25           *float64
+	P50           *float64
+	P75           *float64
+	P90           *float64
+	FirstReceived pgtype.Date
+	LastReceived  pgtype.Date
+}
+
+type H1bEmployer struct {
+	FiscalYear          *int32
+	EmployerName        *string
+	InitialApprovals    *int32
+	InitialDenials      *int32
+	ContinuingApprovals *int32
+}
+
+type ImmihelpTimeline struct {
+	Tracker      *string
+	Category     *string
+	Office       *string
+	FirstSeenAt  pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	StartDate    pgtype.Date
+	DecisionDate pgtype.Date
+	Pending      *bool
+}
+
+type StudentPostWeek struct {
+	WeekStart pgtype.Date
+	Topic     *string
+	Posts     *int32
+	Covered   *bool
+}
+
 type UscisFormQuarter struct {
 	FiscalYear       *int32
 	Quarter          *int32

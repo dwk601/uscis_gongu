@@ -51,7 +51,20 @@ func (a *api) load(ctx context.Context, key string, fetch func(context.Context) 
 		v, err := fetch(fillCtx)
 		if err == nil {
 			a.mu.Lock()
-			a.cache[key] = entry{v, time.Now().Add(time.Hour)}
+			now := time.Now()
+			var oldest string
+			var oldestExpiry time.Time
+			for k, item := range a.cache {
+				if !now.Before(item.expires) {
+					delete(a.cache, k)
+				} else if oldest == "" || item.expires.Before(oldestExpiry) {
+					oldest, oldestExpiry = k, item.expires
+				}
+			}
+			if len(a.cache) >= 256 {
+				delete(a.cache, oldest)
+			}
+			a.cache[key] = entry{v, now.Add(time.Hour)}
 			a.mu.Unlock()
 		}
 		return v, err

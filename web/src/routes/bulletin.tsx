@@ -110,17 +110,24 @@ function BulletinPage() {
             aria-pressed={search.chart === "final_action"}
             onClick={() => update({ chart: "final_action" })}
           >
-            Approval cutoff · Final action dates
+            Approval cutoff
           </button>
           <button
             className="chip"
             aria-pressed={search.chart === "dates_for_filing"}
             onClick={() => update({ chart: "dates_for_filing" })}
           >
-            Filing cutoff · Dates for filing
+            Filing cutoff
           </button>
         </div>
       </div>
+      <details>
+        <summary>About these numbers</summary>
+        <p>
+          Approval cutoff is officially called Final action dates; filing cutoff
+          is Dates for filing.
+        </p>
+      </details>
       <p>
         Cases with a priority date before the cutoff can move ahead; these are
         not approval estimates. Check{" "}

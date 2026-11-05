@@ -205,7 +205,7 @@ function Home() {
             className="primary"
             disabled={forms.isLoading || forms.isError || !effectiveForm}
           >
-            See my estimate
+            Check wait time
           </button>
         </form>
       </section>

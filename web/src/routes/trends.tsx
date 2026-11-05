@@ -23,6 +23,7 @@ import {
 import { formHue, formInk } from "@/lib/palette"
 import { visaLabels } from "@/lib/labels"
 import { JourneyPicker } from "@/components/journey-picker"
+import { Insight } from "@/components/insights"
 import {
   availableJourneyForms,
   inferJourney,
@@ -112,6 +113,7 @@ type Search = {
   journey?: JourneyId
   series?: string
   filed?: string
+  insight?: string
 }
 export const Route = createFileRoute("/trends")({
   validateSearch: (search: Record<string, unknown>): Search => ({
@@ -121,6 +123,7 @@ export const Route = createFileRoute("/trends")({
         : "I-485",
     journey: isJourney(search.journey) ? search.journey : undefined,
     series: typeof search.series === "string" ? search.series : undefined,
+    insight: typeof search.insight === "string" ? search.insight : undefined,
     filed:
       typeof search.filed === "string" && validFiled(search.filed)
         ? search.filed
@@ -285,254 +288,317 @@ function Trends() {
             if (nextForm !== search.form) setVisa(undefined)
             update({
               journey: id,
+              insight: undefined,
               form: nextForm,
               ...(nextForm !== search.form ? { series: undefined } : {}),
             })
           }}
         />
       </div>
-      <div
-        ref={formRailRef}
-        className="chip-rail form-rail"
-        role="group"
-        aria-label="Form"
-        tabIndex={0}
-      >
-        {(journey === "all"
-          ? (forms.data?.forms
-              .filter((f) => f.featured)
-              .map((f) => ({ form: f.form, label: f.name })) ?? [])
-          : choices
-        ).map((f) => (
-          <button
-            key={f.form}
-            className="chip"
-            aria-pressed={f.form === search.form}
-            onClick={() => {
-              if (f.form !== search.form) {
-                setVisa(undefined)
-                update({ form: f.form, journey, series: undefined })
-              }
-            }}
-          >
-            {f.label} <small>· {f.form}</small>
-          </button>
-        ))}
-      </div>
-      <div className="controls">
-        {journey === "all" && (
-          <select
-            className="field"
-            aria-label="More forms"
-            value={summary && !summary.featured ? search.form : ""}
-            onChange={(e) => {
-              if (e.target.value) {
-                if (e.target.value !== search.form) {
-                  setVisa(undefined)
-                  update({ form: e.target.value, journey, series: undefined })
-                }
-              }
-            }}
-          >
-            <option value="">More forms</option>
-            {forms.data?.forms
-              .filter((f) => !f.featured)
-              .map((f) => (
-                <option key={f.form} value={f.form}>
-                  {f.name} · {f.form}
-                </option>
-              ))}
-          </select>
-        )}
-        <label className="field-label">
-          Filed{" "}
-          <FiledInput
-            className="field"
-            inputRef={filedRef}
-            value={search.filed}
-            onCommit={(filed) => update({ filed })}
-          />
-        </label>
-      </div>
-      {forms.isError && (
-        <p className="error">
-          Forms unavailable.{" "}
-          <button onClick={() => void forms.refetch()}>Try again</button>
-        </p>
-      )}
-      <h1>
-        {detail.data?.name ?? summary?.name ?? search.form}{" "}
-        {detail.data?.name && <small>· {search.form}</small>}
-      </h1>
-      {journey === "students" && search.form === "I-765" && (
-        <p>
-          OPT / STEM OPT are counted in “All other cases”; this is not an
-          OPT-only median.
-        </p>
-      )}
-      {search.form === "I-129" && (
-        <p>I-129 data includes temporary work petitions beyond H-1B.</p>
-      )}
-      {journey === "residents" && search.form === "I-131" && (
-        <p>Travel &amp; parole documents includes more than reentry permits.</p>
-      )}
-      {(detail.data?.official.length ?? 0) > 1 && (
-        <div
-          className="chip-rail"
-          role="group"
-          aria-label="Case category"
-          tabIndex={0}
-        >
-          {detail.data!.official.map((s) => (
+      {(journey === "students" || journey === "workers") && (
+        <>
+          <div className="controls" role="group" aria-label="Insights">
             <button
               className="chip"
-              aria-pressed={s.id === official?.id}
-              key={s.id}
-              onClick={() => update({ series: s.id })}
+              aria-pressed={!search.insight}
+              onClick={() => update({ insight: undefined })}
             >
-              {s.label}
+              Case wait
             </button>
-          ))}
-        </div>
+            {(journey === "students"
+              ? [
+                  ["visa-221g", "221(g) wait (older reports)"],
+                  ["student-posts", "What students post about"],
+                ]
+              : [
+                  ["h1b-pay", "H-1B offered pay"],
+                  ["h1b-employers", "Employers with H-1B approvals"],
+                ]
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                className="chip"
+                aria-pressed={search.insight === id}
+                onClick={() => update({ insight: id })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {journey === "students" && (
+            <p>
+              OPT wait estimates, lottery odds and other student tools aren't
+              available yet.
+            </p>
+          )}
+        </>
       )}
-      {detail.isLoading ? (
-        <div className="skeleton" aria-label="Loading official data" />
-      ) : detail.isError ? (
-        <p className="error">
-          Official data unavailable.{" "}
-          <button onClick={() => void detail.refetch()}>Try again</button>
-        </p>
+      {(journey === "students" &&
+        ["visa-221g", "student-posts"].includes(search.insight ?? "")) ||
+      (journey === "workers" &&
+        ["h1b-pay", "h1b-employers"].includes(search.insight ?? "")) ? (
+        <Insight id={search.insight!} />
       ) : (
         <>
-          <div className="workspace-grid">
-            <section
-              className="panel estimate"
-              style={{ color: formInk(search.form) }}
+          <div
+            ref={formRailRef}
+            className="chip-rail form-rail"
+            role="group"
+            aria-label="Form"
+            tabIndex={0}
+          >
+            {(journey === "all"
+              ? (forms.data?.forms
+                  .filter((f) => f.featured)
+                  .map((f) => ({ form: f.form, label: f.name })) ?? [])
+              : choices
+            ).map((f) => (
+              <button
+                key={f.form}
+                className="chip"
+                aria-pressed={f.form === search.form}
+                onClick={() => {
+                  if (f.form !== search.form) {
+                    setVisa(undefined)
+                    update({ form: f.form, journey, series: undefined })
+                  }
+                }}
+              >
+                {f.label} <small>· {f.form}</small>
+              </button>
+            ))}
+          </div>
+          <div className="controls">
+            {journey === "all" && (
+              <select
+                className="field"
+                aria-label="More forms"
+                value={summary && !summary.featured ? search.form : ""}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    if (e.target.value !== search.form) {
+                      setVisa(undefined)
+                      update({
+                        form: e.target.value,
+                        journey,
+                        series: undefined,
+                      })
+                    }
+                  }
+                }}
+              >
+                <option value="">More forms</option>
+                {forms.data?.forms
+                  .filter((f) => !f.featured)
+                  .map((f) => (
+                    <option key={f.form} value={f.form}>
+                      {f.name} · {f.form}
+                    </option>
+                  ))}
+              </select>
+            )}
+            <label className="field-label">
+              Filed{" "}
+              <FiledInput
+                className="field"
+                inputRef={filedRef}
+                value={search.filed}
+                onCommit={(filed) => update({ filed })}
+              />
+            </label>
+          </div>
+          {forms.isError && (
+            <p className="error">
+              Forms unavailable.{" "}
+              <button onClick={() => void forms.refetch()}>Try again</button>
+            </p>
+          )}
+          <h1>
+            {detail.data?.name ?? summary?.name ?? search.form}{" "}
+            {detail.data?.name && <small>· {search.form}</small>}
+          </h1>
+          {journey === "students" && search.form === "I-765" && (
+            <p>
+              OPT / STEM OPT are counted in “All other cases”; this is not an
+              OPT-only median.
+            </p>
+          )}
+          {search.form === "I-129" && (
+            <p>I-129 data includes temporary work petitions beyond H-1B.</p>
+          )}
+          {journey === "residents" && search.form === "I-131" && (
+            <p>
+              Travel &amp; parole documents includes more than reentry permits.
+            </p>
+          )}
+          {(detail.data?.official.length ?? 0) > 1 && (
+            <div
+              className="chip-rail"
+              role="group"
+              aria-label="Case category"
+              tabIndex={0}
             >
-              <div>
-                <h2>
-                  {!median
-                    ? "No recent median"
-                    : date
-                      ? `Estimated around ${month(date)}`
-                      : `${formatMonths(median.processingMonths!)} months typical`}
-                </h2>
-                {date && date.getTime() < now && <p>Past the typical wait.</p>}
-              </div>
-              <div>
-                {median && (
-                  <small>
-                    Typical wait {formatMonths(median.processingMonths!)} mo ·
-                    USCIS, {quarterLabel(median.fiscalYear, median.quarter)} ·{" "}
-                    {official?.label}
-                  </small>
-                )}
-                {!search.filed && (
-                  <button
-                    className="date-nudge"
-                    type="button"
-                    onClick={() => filedRef.current?.focus()}
-                  >
-                    Add your filing date
-                  </button>
-                )}
-              </div>
-            </section>
-            <Suspense fallback={<div className="skeleton" />}>
-              <DataChart
-                title="Official wait trend · months"
-                rows={rows}
-                hue={formHue(search.form)}
-                calendar
-              />
-            </Suspense>
-          </div>
-          <div className="workspace-grid">
-            <Suspense fallback={<div className="skeleton" />}>
-              <DataChart
-                title="Quarterly volume · received and completed"
-                rows={rows.map((r) => ({
-                  ...r,
-                  value: r.received,
-                  other: r.completed,
-                }))}
-                hue={formHue(search.form)}
-                second="Completed"
-                pending={
-                  official?.points.at(-1)?.pending?.toLocaleString() ??
-                  "unavailable"
-                }
-                calendar
-              />
-            </Suspense>
-            <section className="panel">
-              <h2>Community timelines</h2>
-              <p className="muted">Self-reported · VisaJourney</p>
-              {!community.isLoading &&
-                !community.isError &&
-                candidates.length > 0 && (
-                  <div
-                    className="controls"
-                    role="group"
-                    aria-label="Visa route"
-                  >
-                    {candidates.map((s) => (
-                      <button
-                        key={s.visaType ?? "not-stated"}
-                        className="chip"
-                        aria-pressed={s === selected}
-                        onClick={() => setVisa(s.visaType)}
-                      >
-                        {s.visaType == null
-                          ? "Not stated"
-                          : (visaLabels[s.visaType] ?? s.visaType)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              {community.isLoading ? (
-                <div className="skeleton" aria-label="Loading community data" />
-              ) : community.isError ? (
-                <p>
-                  Community data unavailable.{" "}
-                  <button onClick={() => void community.refetch()}>
-                    Try again
-                  </button>
-                </p>
-              ) : !cohort ? (
-                <p>No community timeline available.</p>
-              ) : (
-                <>
-                  <div className="big-number">{months(cohort.p50)} months</div>
-                  <p className="community-info">
-                    {cohort.p10 != null && cohort.p90 != null
-                      ? `Middle 80% of completed reports: ${months(cohort.p10)}–${months(cohort.p90)} months`
-                      : "Range unavailable"}
-                    <br />
-                    Filed in {cohort.filingYear} · {cohort.completed ?? "—"}{" "}
-                    completed / {cohort.sampleSize ?? "—"} reports
-                    <br />
-                    {cohort.pendingShare != null
-                      ? `${Math.round(cohort.pendingShare * 100)}% pending`
-                      : "Pending share unavailable"}
-                    <br />
-                    {selected?.meaning}
-                  </p>
-                </>
-              )}
-            </section>
-          </div>
-          {cohort && (
-            <div className="workspace-grid single-chart">
-              <Suspense fallback={<div className="skeleton" />}>
-                <DataChart
-                  title="Community wait times · months"
-                  rows={communityRows}
-                  hue={formHue(search.form)}
-                  band
-                />
-              </Suspense>
+              {detail.data!.official.map((s) => (
+                <button
+                  className="chip"
+                  aria-pressed={s.id === official?.id}
+                  key={s.id}
+                  onClick={() => update({ series: s.id })}
+                >
+                  {s.label}
+                </button>
+              ))}
             </div>
+          )}
+          {detail.isLoading ? (
+            <div className="skeleton" aria-label="Loading official data" />
+          ) : detail.isError ? (
+            <p className="error">
+              Official data unavailable.{" "}
+              <button onClick={() => void detail.refetch()}>Try again</button>
+            </p>
+          ) : (
+            <>
+              <div className="workspace-grid">
+                <section
+                  className="panel estimate"
+                  style={{ color: formInk(search.form) }}
+                >
+                  <div>
+                    <h2>
+                      {!median
+                        ? "No recent median"
+                        : date
+                          ? `Estimated around ${month(date)}`
+                          : `${formatMonths(median.processingMonths!)} months typical`}
+                    </h2>
+                    {date && date.getTime() < now && (
+                      <p>Past the typical wait.</p>
+                    )}
+                  </div>
+                  <div>
+                    {median && (
+                      <small>
+                        Typical wait {formatMonths(median.processingMonths!)} mo
+                        · USCIS,{" "}
+                        {quarterLabel(median.fiscalYear, median.quarter)} ·{" "}
+                        {official?.label}
+                      </small>
+                    )}
+                    {!search.filed && (
+                      <button
+                        className="date-nudge"
+                        type="button"
+                        onClick={() => filedRef.current?.focus()}
+                      >
+                        Add your filing date
+                      </button>
+                    )}
+                  </div>
+                </section>
+                <Suspense fallback={<div className="skeleton" />}>
+                  <DataChart
+                    title="Official wait trend · months"
+                    rows={rows}
+                    hue={formHue(search.form)}
+                    calendar
+                  />
+                </Suspense>
+              </div>
+              <div className="workspace-grid">
+                <Suspense fallback={<div className="skeleton" />}>
+                  <DataChart
+                    title="Quarterly volume · received and completed"
+                    rows={rows.map((r) => ({
+                      ...r,
+                      value: r.received,
+                      other: r.completed,
+                    }))}
+                    hue={formHue(search.form)}
+                    second="Completed"
+                    pending={
+                      official?.points.at(-1)?.pending?.toLocaleString() ??
+                      "unavailable"
+                    }
+                    calendar
+                  />
+                </Suspense>
+                <section className="panel">
+                  <h2>Reported waits</h2>
+                  <p className="muted">Self-reported · VisaJourney</p>
+                  {!community.isLoading &&
+                    !community.isError &&
+                    candidates.length > 0 && (
+                      <div
+                        className="controls"
+                        role="group"
+                        aria-label="Visa route"
+                      >
+                        {candidates.map((s) => (
+                          <button
+                            key={s.visaType ?? "not-stated"}
+                            className="chip"
+                            aria-pressed={s === selected}
+                            onClick={() => setVisa(s.visaType)}
+                          >
+                            {s.visaType == null
+                              ? "Not stated"
+                              : (visaLabels[s.visaType] ?? s.visaType)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  {community.isLoading ? (
+                    <div
+                      className="skeleton"
+                      aria-label="Loading community data"
+                    />
+                  ) : community.isError ? (
+                    <p>
+                      Community data unavailable.{" "}
+                      <button onClick={() => void community.refetch()}>
+                        Try again
+                      </button>
+                    </p>
+                  ) : !cohort ? (
+                    <p>No community timeline available.</p>
+                  ) : (
+                    <>
+                      <div className="big-number">
+                        {months(cohort.p50)} months
+                      </div>
+                      <p className="community-info">
+                        {cohort.p10 != null && cohort.p90 != null
+                          ? `Middle 80%: ${months(cohort.p10)}–${months(cohort.p90)} months`
+                          : "Range unavailable"}
+                        <br />
+                        Filed in {cohort.filingYear} · {cohort.completed ?? "—"}{" "}
+                        finished reports
+                        <details>
+                          <summary>About these numbers</summary>
+                          {cohort.pendingShare != null
+                            ? `${Math.round(cohort.pendingShare * 100)}% pending. `
+                            : "Pending share unavailable. "}
+                          {selected?.meaning}
+                        </details>
+                      </p>
+                    </>
+                  )}
+                </section>
+              </div>
+              {cohort && (
+                <div className="workspace-grid single-chart">
+                  <Suspense fallback={<div className="skeleton" />}>
+                    <DataChart
+                      title="Community wait times · months"
+                      rows={communityRows}
+                      hue={formHue(search.form)}
+                      band
+                    />
+                  </Suspense>
+                </div>
+              )}
+            </>
           )}
         </>
       )}

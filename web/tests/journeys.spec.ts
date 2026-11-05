@@ -47,7 +47,7 @@ test("journey navigation preserves an explicit series without refetching the for
     .getByRole("button", { name: /I-485/ })
     .click()
   await page.locator('input[name="filed"]').fill("2024-01-15")
-  await page.getByRole("button", { name: "See my estimate" }).click()
+  await page.getByRole("button", { name: "Check wait time" }).click()
   await expect(page).toHaveURL(/journey=workers/)
   await expect(page).toHaveURL(/form=I-485/)
   await expect(page).toHaveURL(/filed=2024-01-15/)
@@ -75,4 +75,100 @@ test("journey navigation preserves an explicit series without refetching the for
       .getByRole("button", { name: "Family", exact: true })
   ).toHaveAttribute("aria-pressed", "true")
   expect(requests).toBe(before)
+})
+
+test("student insights keep history and distinguish uncovered weeks", async ({
+  page,
+}) => {
+  await page.route("**/api/x/uscis/**", async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (path.endsWith("/forms"))
+      return route.fulfill({
+        json: {
+          forms: [
+            {
+              form: "I-765",
+              name: "Work permit",
+              featured: true,
+              defaultSeries: "all",
+            },
+          ],
+        },
+      })
+    if (path.endsWith("/student-posts"))
+      return route.fulfill({
+        json: {
+          from: "2024-01-01",
+          to: "2024-01-14",
+          topics: {
+            sevis: { posts: 5 },
+            cpt: { posts: 0 },
+            policy: { posts: 0 },
+          },
+          weeks: [
+            {
+              week: "2024-01-01",
+              covered: false,
+              all: null,
+              sevis: null,
+              cpt: null,
+              policy: null,
+              z: { sevis: null, cpt: null, policy: null },
+            },
+            {
+              week: "2024-01-08",
+              covered: true,
+              all: 5,
+              sevis: 5,
+              cpt: 0,
+              policy: 0,
+              z: { sevis: 3, cpt: null, policy: null },
+            },
+          ],
+        },
+      })
+    if (path.endsWith("/community"))
+      return route.fulfill({
+        json: {
+          series: [
+            {
+              visaType: "F-1",
+              meaning: "Filed to decision",
+              points: [
+                {
+                  filingYear: 2024,
+                  p50: 100,
+                  p10: 50,
+                  p90: 150,
+                  completed: 40,
+                  sampleSize: 50,
+                  pendingShare: 0.2,
+                },
+              ],
+            },
+          ],
+        },
+      })
+    return route.fulfill({ json: { name: "Work permit", official: [] } })
+  })
+  await page.goto("/trends?journey=students&form=I-765")
+  await expect(
+    page.getByRole("button", { name: "Came on F-1 · not OPT data" })
+  ).toBeVisible()
+  await page.getByRole("button", { name: "What students post about" }).click()
+  await expect(page).toHaveURL(/insight=student-posts/)
+  await expect(
+    page.getByRole("row", { name: /2024-01-01 Not covered/ })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("cell", { name: "More posts than usual" })
+  ).toBeVisible()
+  await page.goBack()
+  await expect(
+    page.getByRole("button", { name: "Came on F-1 · not OPT data" })
+  ).toBeVisible()
+  await page.goForward()
+  await expect(
+    page.getByRole("heading", { name: "What students post about" })
+  ).toBeVisible()
 })

@@ -61,6 +61,12 @@
 .social-card h3 {
   margin: 0 0 12px;
 }
+.social-card h2,
+.social-card a,
+.social-meta span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .social-form {
   display: grid;
   gap: 12px;
@@ -106,6 +112,11 @@
 .social-actions a {
   font-size: 14px;
 }
+.social-actions .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 .social-body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -119,6 +130,9 @@
 }
 .social-error {
   color: #c33b3b;
+}
+.dark .social-error {
+  color: #ff8a80;
 }
 .social-tag {
   border-radius: 99px;

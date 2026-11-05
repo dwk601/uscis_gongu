@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useState, type FormEvent } from "react"
 import { PostCard, SignIn } from "@/components/social-post"
-import { useAuth, errorMessage } from "@/lib/auth"
+import { useAuth, mutationErrorMessage } from "@/lib/auth"
 import { relativeTime, type Post, type Comment } from "@/lib/community"
 import { pb } from "@/lib/pb"
 
@@ -19,6 +19,8 @@ function Detail() {
   const post = useQuery({
     queryKey: ["post_feed", postId],
     queryFn: () => pb.collection("post_feed").getOne<Post>(postId),
+    retry: (count, error) =>
+      (error as { status?: number }).status !== 404 && count < 3,
   })
   const comments = useQuery({
     queryKey: ["comment_feed", postId],
@@ -49,7 +51,7 @@ function Detail() {
       form.reset()
       await refresh()
     } catch (err) {
-      setError(errorMessage(err))
+      setError(await mutationErrorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -65,11 +67,12 @@ function Detail() {
     setError("")
     try {
       await pb.collection(collection).delete(id)
-      await refresh()
-      if (collection === "posts")
+      if (collection === "posts") {
         await navigate({ to: "/community", search: { sort: "new", form: "" } })
+      }
+      await refresh()
     } catch (err) {
-      setError(errorMessage(err))
+      setError(await mutationErrorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -97,7 +100,8 @@ function Detail() {
           {comments.data?.map((c) => (
             <article className="social-card" key={c.id}>
               <div className="social-meta">
-                {c.author_name || "member"} · {relativeTime(c.created)}
+                <span>{c.author_name || "member"}</span>
+                <span>{relativeTime(c.created)}</span>
               </div>
               <p className="social-body">{c.body}</p>
               {user?.id === c.author && (

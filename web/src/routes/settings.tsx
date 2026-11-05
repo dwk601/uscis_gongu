@@ -1,8 +1,13 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useNavigate,
+} from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import { useState, type FormEvent } from "react"
 import { useTheme } from "@/components/theme-provider"
-import { authReady, useAuth, errorMessage } from "@/lib/auth"
+import { authReady, useAuth, mutationErrorMessage } from "@/lib/auth"
 import { pb } from "@/lib/pb"
 
 export const Route = createFileRoute("/settings")({
@@ -28,7 +33,7 @@ function Settings() {
     try {
       await fn()
     } catch (e) {
-      setError(errorMessage(e))
+      setError(await mutationErrorMessage(e))
     } finally {
       setBusy(false)
     }
@@ -72,6 +77,13 @@ function Settings() {
     return (
       <main className="workspace social">
         <p>Sign in to manage your settings.</p>
+        <Link
+          className="primary"
+          to="/login"
+          search={{ redirect: "/settings" }}
+        >
+          Sign in
+        </Link>
       </main>
     )
   return (

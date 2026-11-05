@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useState, type FormEvent } from "react"
-import { useAuth, errorMessage } from "@/lib/auth"
+import { useAuth, mutationErrorMessage } from "@/lib/auth"
 import { forms, listPosts } from "@/lib/community"
 import { pb } from "@/lib/pb"
 import { PostCard, SignIn } from "@/components/social-post"
@@ -46,7 +46,7 @@ function Community() {
       form.reset()
       await client.invalidateQueries({ queryKey: ["post_feed"] })
     } catch (err) {
-      setError(errorMessage(err))
+      setError(await mutationErrorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -73,11 +73,6 @@ function Community() {
               ))}
             </select>
           </label>
-          {error && (
-            <p className="social-error" role="alert">
-              {error}
-            </p>
-          )}
           <button className="primary" disabled={busy}>
             {busy ? "Posting…" : "Post"}
           </button>
@@ -86,6 +81,11 @@ function Community() {
         <div className="social-actions">
           <SignIn action="post" />
         </div>
+      )}
+      {error && (
+        <p className="social-error" role="alert">
+          {error}
+        </p>
       )}
       <div className="chip-rail" aria-label="Sort posts">
         {(["new", "top"] as const).map((sort) => (

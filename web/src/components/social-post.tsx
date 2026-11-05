@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useRouterState } from "@tanstack/react-router"
 import { useState } from "react"
-import { useAuth, errorMessage } from "@/lib/auth"
+import { ArrowUp } from "lucide-react"
+import { useAuth, mutationErrorMessage } from "@/lib/auth"
 import { listVotes, relativeTime, type Post } from "@/lib/community"
 import { formHue, formInk } from "@/lib/palette"
 import { pb } from "@/lib/pb"
@@ -44,9 +45,9 @@ export function PostCard({
       setError("")
       setOptimistic({ voted: !vote, count: post.votes + (vote ? -1 : 1) })
     },
-    onError: (e) => {
+    onError: async (e) => {
       setOptimistic(null)
-      setError(errorMessage(e))
+      setError(await mutationErrorMessage(e))
     },
     onSettled: async () => {
       await Promise.all([
@@ -92,16 +93,22 @@ export function PostCard({
         {user ? (
           <button
             className="chip"
+            aria-label={`${voted ? "Remove upvote" : "Upvote"}, ${count} ${count === 1 ? "vote" : "votes"}`}
             aria-pressed={voted}
             disabled={mutation.isPending || votes.isLoading || votes.isError}
             onClick={() => mutation.mutate()}
             type="button"
           >
-            ↑ {count}
+            <ArrowUp aria-hidden="true" size={16} /> {count}
           </button>
         ) : (
-          <Link className="chip" to="/login" search={{ redirect: location }}>
-            ↑ {post.votes}
+          <Link
+            className="chip"
+            to="/login"
+            search={{ redirect: location }}
+            aria-label={`Sign in to upvote, ${post.votes} ${post.votes === 1 ? "vote" : "votes"}`}
+          >
+            <ArrowUp aria-hidden="true" size={16} /> {post.votes}
           </Link>
         )}
         <Link to="/community/$postId" params={{ postId: post.id }}>

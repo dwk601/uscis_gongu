@@ -1,0 +1,17 @@
+# Coolify deployment. The external network is the uscis-etl Coolify resource, so `postgres` resolves to its database.
+services:
+  app:
+    build: .
+    expose: ["8090"]
+    environment:
+      USCIS_DATABASE_URL: ${USCIS_DATABASE_URL:?USCIS_DATABASE_URL is required}
+      PB_ENCRYPTION_KEY: ${PB_ENCRYPTION_KEY:?PB_ENCRYPTION_KEY must be exactly 32 characters}
+    volumes:
+      - pb_data:/app/pb_data
+    networks: [uscis_etl]
+volumes:
+  pb_data:
+networks:
+  uscis_etl:
+    external: true
+    name: 49e3h3jscnvtcabjvrcyjtoj

@@ -195,8 +195,8 @@ test("insight edge states and employer year retain focus", async ({ page }) => {
           status: "ready",
           historical: true,
           source: "Immihelp",
-          from: "2010-01-01",
-          to: "2012-01-01",
+          from: null,
+          to: null,
           excluded: 0,
           groups: [
             {
@@ -242,8 +242,8 @@ test("insight edge states and employer year retain focus", async ({ page }) => {
     if (path.endsWith("/student-posts"))
       return route.fulfill({
         json: {
-          from: "",
-          to: "",
+          from: null,
+          to: null,
           weeks: [],
           topics: {
             sevis: { posts: 0 },
@@ -256,6 +256,9 @@ test("insight edge states and employer year retain focus", async ({ page }) => {
   })
   await page.goto("/trends?journey=students&form=I-765&insight=visa-221g")
   await expect(page.getByText("Most are still waiting")).toBeVisible()
+  await expect(
+    page.getByText("Older self-reports · not a current forecast")
+  ).toBeVisible()
   await page.getByText("Data", { exact: true }).click()
   await expect(
     page

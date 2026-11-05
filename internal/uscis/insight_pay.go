@@ -113,7 +113,7 @@ func (a *api) pay(r *core.RequestEvent) error {
 	if !found {
 		return r.Error(http.StatusBadRequest, "Invalid year or title.", nil)
 	}
-	value, err = a.load(r.Request.Context(), "pay-"+strconv.Itoa(int(year))+"-"+key, func(ctx context.Context) (any, error) {
+	value, err = a.load(r.Request.Context(), "pay-detail:"+strconv.Itoa(int(year))+"-"+key, func(ctx context.Context) (any, error) {
 		return a.q.PayTitle(ctx, db.PayTitleParams{FiscalYear: &year, TitleKey: &key})
 	})
 	if err != nil {

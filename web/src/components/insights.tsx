@@ -81,8 +81,11 @@ function Visa() {
                   : `Typical wait: ${group.medianDays} days`}
               </h2>
               <p className="muted">
-                Older self-reports ({q.data.from.slice(0, 4)}–
-                {q.data.to.slice(0, 4)}) · not a current forecast
+                Older self-reports
+                {q.data.from &&
+                  q.data.to &&
+                  ` (${q.data.from.slice(0, 4)}–${q.data.to.slice(0, 4)})`}{" "}
+                · not a current forecast
               </p>
               <p>Still waiting</p>
               <svg

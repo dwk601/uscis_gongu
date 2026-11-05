@@ -28,6 +28,8 @@ ETL checkout: `/Users/dwk/Personal/etl/uscis`. Read `src/uscis_etl/schema.sql` f
 | `visajourney_timeline`, `visajourney_timeline_stats` | Plain typed views; one selected snapshot per VisaJourney profile across trackers, not one person per tracker. Stages: `k1`, `aos`, `ead`, `ap`, `lift`, `n400`. |
 | `immihelp_timeline`, `immihelp_timeline_stats` | Plain typed views; start/end meanings vary by tracker. Stats category NULL is the all-categories rollup; `unspecified` is missing category. Do not sum rollups with category rows. |
 | `dol_perm_case`, `dol_lca_case`, `h1b_employer` | Materialized views. PERM/LCA deduplicate case numbers; H-1B rows describe employer/location/fiscal-year aggregates, not individual case timelines. |
+| `dol_lca_pay_stats` | Materialized H-1B certified full-time annual offered-pay quantiles by fiscal year, title and state; all-states rows have NULL state, and each row requires 30 cases. |
+| `student_post_week` | Materialized weekly Reddit topic counts; uncovered weeks have NULL posts and must not be treated as zero. |
 | `visa_bulletin_series` | Plain typed view with stable category/country codes. Keep `final_action` and `dates_for_filing` separate. `C` = current; `U` = unavailable; neither is a cutoff date. |
 | `uscis_form_quarter` | Plain typed view; fiscal quarters, quarterly and FYTD measures are distinct. Suppressed cells are NULL; `processing_months` is the quarter's reported median. |
 | `processing_time_published` | Plain filtered view, not a latest-version selector; excludes template rows but retains publication versions. Choose publication explicitly to avoid double counting. |
@@ -37,7 +39,7 @@ This is an integration index, not permission to expose every column. `dataset_fi
 
 ## Refresh and unsafe operations
 
-- ETL owns post-load refreshes, not web requests. Existing mapping: `dol_perm` → `dol_perm_case`; `dol_lca` → `dol_lca_case`; `uscis_h1b_hub` → `h1b_employer`. Plain views require no refresh.
+- ETL owns post-load refreshes, not web requests. Contract mapping: `dol_perm` → `dol_perm_case`; `dol_lca` → `dol_lca_case`, then `dol_lca_pay_stats`; `uscis_h1b_hub` → `h1b_employer`; `reddit` → `student_post_week`. Plain views require no refresh. Verify the deployed schema and grants; the two new insights views may not yet be deployed.
 - `datasets.runner` refreshes after processing files, including when some files failed, then raises for those failures. `etl_run` records `running|succeeded|failed` per source, not one atomic all-source snapshot. Plain views can reflect committed partial loads. Do not equate a refreshed view with a fully successful source run.
 - `refresh_derived` uses ordinary blocking refresh and commits it. No separate last-successful-refresh timestamp is recorded. Do not fabricate freshness from run completion or add a duplicate app refresh scheduler. Before changing concurrency, inspect prerequisites: PERM/LCA have unique case-number indexes; H-1B currently has no unique index.
 - Do not run ETL `init-db` from app startup: schema initialization can drop/recreate versioned materialized views. Schema changes belong to the ETL owner. Altering/dropping ETL objects, changing privileges, or manually refreshing production requires explicit authorization for target and scope.
@@ -47,7 +49,7 @@ This is an integration index, not permission to expose every column. `dataset_fi
 - Preserve case-type grouping, source population, time window, and date meanings. Keep self-reported timelines distinct from official USCIS/DOS/DOL statistics. Missing/suppressed data is not zero; older unmapped DOL fields can legitimately be NULL.
 - Both timeline stats views require at least 30 included reports for a group; percentiles require at least 30 completed reports. Percentiles describe completed reports only, not survival-adjusted predictions. Immihelp completion includes approved and denied outcomes.
 - `pending` is three-valued: true = self-reported pending under the view's rules, false = usable completion, NULL = excluded/uncertain. Stale or abandoned reports remain; do not label them verified active USCIS cases or turn NULL into false.
-- Present predicted dates as estimates, not USCIS commitments or observed events. These views provide descriptive statistics, not a defined personalized prediction algorithm. Confirm the method before implementing calculations or claiming accuracy.
+- Historical F-1 221(g) insights use Kaplan–Meier with updated-date/scrape-date censoring and a 95% log-log Greenwood band; groups need 30 reports, and median/p90 need 30 decisions. This is descriptive, not a personalized forecast. Present predicted dates as estimates, not USCIS commitments or observed events; confirm any other method before claiming accuracy.
 - Preserve ETL privacy protections: source authors are not stored and receipt numbers in timeline/forum content are masked. Do not reconstruct identities or link source profile IDs to app accounts. Official file rows are not covered by that masking; view access alone does not make every field safe to publish.
 
 ## Verification
@@ -56,7 +58,7 @@ Verify the real data/API boundary: approved views only, writes denied, source se
 
 The pool lives in `internal/uscis` (`USCIS_DATABASE_URL`, sessions forced read-only). App login `gongu_reader` inherits SELECT on the approved views from group `uscis_app_reader`; the ETL `schema.sql` re-grants that group on every init because recreated materialized views lose privileges, so exposing a new surface means changing that grant list. Local testing reaches the server database through `make db-tunnel` (`.env.local`); production connects as host `postgres` on the uscis-etl Coolify network. sqlc is configured in `sqlc.yaml`; run `make sqlc` to regenerate. Its schema input is derived from `information_schema` because sqlc cannot parse the ETL view bodies. Endpoints live in `internal/uscis/api.go`.
 
-verify: Compare live endpoint responses with corresponding `psql` queries against the approved views; no automated test covers this boundary.
+verify: `GONGU_TEST_ADMIN_DATABASE_URL=postgresql:///postgres go test ./internal/uscis -run '^TestInsightsContract$' -count=1` exercises registered HTTP handlers against isolated read-only fixture views; compare live endpoint responses with `psql` separately because fixtures do not verify deployed views or grants.
 
 Upstream view-contract check, only when changing ETL contracts: `cd /Users/dwk/Personal/etl/uscis && uv run pytest tests/test_derived_views.py`. Requires local PostgreSQL and creates `uscis_etl_test` with isolated schemas; inspect that repo's test setup first. This is not an app check or a production refresh command.
 

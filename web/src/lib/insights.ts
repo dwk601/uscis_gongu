@@ -13,8 +13,8 @@ export type VisaInsight = {
   status: "ready" | "insufficient_data"
   historical: boolean
   source: string
-  from: string
-  to: string
+  from: string | null
+  to: string | null
   excluded: number
   groups: {
     office: string
@@ -61,8 +61,8 @@ export type Employers = {
 }
 export type Topic = "sevis" | "cpt" | "policy"
 export type StudentPosts = {
-  from: string
-  to: string
+  from: string | null
+  to: string | null
   weeks: ({
     week: string
     covered: boolean

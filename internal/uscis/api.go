@@ -23,22 +23,30 @@ type entry struct {
 	expires time.Time
 }
 type api struct {
-	q       *db.Queries
-	mu      sync.Mutex
-	cache   map[string]entry
-	flights singleflight.Group
+	q        *db.Queries
+	mu       sync.Mutex
+	cache    map[string]entry
+	payCache map[string]entry
+	flights  singleflight.Group
 }
 
 func (a *api) load(ctx context.Context, key string, fetch func(context.Context) (any, error)) (any, error) {
 	a.mu.Lock()
-	item, ok := a.cache[key]
+	cache, limit := a.cache, 224
+	if strings.HasPrefix(key, "pay-detail:") {
+		if a.payCache == nil {
+			a.payCache = make(map[string]entry)
+		}
+		cache, limit = a.payCache, 32
+	}
+	item, ok := cache[key]
 	a.mu.Unlock()
 	if ok && time.Now().Before(item.expires) {
 		return item.value, nil
 	}
 	ch := a.flights.DoChan(key, func() (any, error) {
 		a.mu.Lock()
-		item, ok := a.cache[key]
+		item, ok := cache[key]
 		a.mu.Unlock()
 		if ok && time.Now().Before(item.expires) {
 			return item.value, nil
@@ -55,17 +63,17 @@ func (a *api) load(ctx context.Context, key string, fetch func(context.Context) 
 			now := time.Now()
 			var oldest string
 			var oldestExpiry time.Time
-			for k, item := range a.cache {
+			for k, item := range cache {
 				if !now.Before(item.expires) {
-					delete(a.cache, k)
+					delete(cache, k)
 				} else if oldest == "" || item.expires.Before(oldestExpiry) {
 					oldest, oldestExpiry = k, item.expires
 				}
 			}
-			if len(a.cache) >= 256 {
-				delete(a.cache, oldest)
+			if len(cache) >= limit {
+				delete(cache, oldest)
 			}
-			a.cache[key] = entry{v, now.Add(time.Hour)}
+			cache[key] = entry{v, now.Add(time.Hour)}
 			a.mu.Unlock()
 		}
 		return v, err

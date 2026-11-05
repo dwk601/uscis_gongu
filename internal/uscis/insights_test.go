@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -24,6 +25,151 @@ import (
 )
 
 func TestInsightsContract(t *testing.T) {
+	// These shapes are the browser's JSON contract, independent of handler types.
+	type curvePoint struct {
+		Day     int      `json:"day"`
+		Waiting float64  `json:"waiting"`
+		Low     *float64 `json:"low"`
+		High    *float64 `json:"high"`
+		AtRisk  int      `json:"atRisk"`
+	}
+	type visaGroupJSON struct {
+		Office     string       `json:"office"`
+		Included   int          `json:"included"`
+		Decisions  int          `json:"decisions"`
+		Censored   int          `json:"censored"`
+		MedianDays *int         `json:"medianDays"`
+		P90Days    *int         `json:"p90Days"`
+		Curve      []curvePoint `json:"curve"`
+	}
+	type visaJSON struct {
+		Status     string          `json:"status"`
+		Historical bool            `json:"historical"`
+		Source     string          `json:"source"`
+		From       *string         `json:"from"`
+		To         *string         `json:"to"`
+		Excluded   int             `json:"excluded"`
+		Groups     []visaGroupJSON `json:"groups"`
+	}
+	type titleJSON struct {
+		Key   string `json:"key"`
+		Title string `json:"title"`
+		Cases int    `json:"cases"`
+	}
+	type yearJSON struct {
+		Year   int         `json:"year"`
+		From   string      `json:"from"`
+		To     string      `json:"to"`
+		Titles []titleJSON `json:"titles"`
+	}
+	type catalogJSON struct {
+		Years []yearJSON `json:"years"`
+	}
+	type boxJSON struct {
+		Cases *int     `json:"cases"`
+		P10   *float64 `json:"p10"`
+		P25   *float64 `json:"p25"`
+		P50   *float64 `json:"p50"`
+		P75   *float64 `json:"p75"`
+		P90   *float64 `json:"p90"`
+	}
+	type stateJSON struct {
+		State string   `json:"state"`
+		Cases *int     `json:"cases"`
+		P10   *float64 `json:"p10"`
+		P25   *float64 `json:"p25"`
+		P50   *float64 `json:"p50"`
+		P75   *float64 `json:"p75"`
+		P90   *float64 `json:"p90"`
+	}
+	type payJSON struct {
+		Year   int         `json:"year"`
+		Key    string      `json:"key"`
+		Title  string      `json:"title"`
+		All    boxJSON     `json:"all"`
+		States []stateJSON `json:"states"`
+	}
+	type employerJSON struct {
+		Name                string `json:"name"`
+		InitialApprovals    int64  `json:"initialApprovals"`
+		InitialDenials      int64  `json:"initialDenials"`
+		ContinuingApprovals int64  `json:"continuingApprovals"`
+	}
+	type employersJSON struct {
+		Years     []int32        `json:"years"`
+		Year      *int32         `json:"year"`
+		Employers []employerJSON `json:"employers"`
+	}
+	type zJSON struct {
+		Sevis  *float64 `json:"sevis"`
+		CPT    *float64 `json:"cpt"`
+		Policy *float64 `json:"policy"`
+	}
+	type weekJSON struct {
+		Week    string `json:"week"`
+		Covered bool   `json:"covered"`
+		All     *int   `json:"all"`
+		Sevis   *int   `json:"sevis"`
+		CPT     *int   `json:"cpt"`
+		Policy  *int   `json:"policy"`
+		Z       zJSON  `json:"z"`
+	}
+	type totalJSON struct {
+		Posts int64 `json:"posts"`
+	}
+	type topicsJSON struct {
+		Sevis  totalJSON `json:"sevis"`
+		CPT    totalJSON `json:"cpt"`
+		Policy totalJSON `json:"policy"`
+	}
+	type studentJSON struct {
+		From   *string    `json:"from"`
+		To     *string    `json:"to"`
+		Weeks  []weekJSON `json:"weeks"`
+		Topics topicsJSON `json:"topics"`
+	}
+	var requireKeys func(*testing.T, json.RawMessage, reflect.Type)
+	requireKeys = func(t *testing.T, raw json.RawMessage, typ reflect.Type) {
+		t.Helper()
+		if typ.Kind() == reflect.Pointer {
+			if string(raw) == "null" {
+				return
+			}
+			typ = typ.Elem()
+		}
+		switch typ.Kind() {
+		case reflect.Struct:
+			var fields map[string]json.RawMessage
+			if err := json.Unmarshal(raw, &fields); err != nil || fields == nil {
+				t.Fatalf("expected object: %s (%v)", raw, err)
+			}
+			for i := 0; i < typ.NumField(); i++ {
+				field := typ.Field(i)
+				key := field.Tag.Get("json")
+				value, ok := fields[key]
+				if !ok {
+					t.Fatalf("missing JSON key %q in %s", key, raw)
+				}
+				requireKeys(t, value, field.Type)
+			}
+		case reflect.Slice:
+			var values []json.RawMessage
+			if err := json.Unmarshal(raw, &values); err != nil || values == nil {
+				t.Fatalf("expected array: %s (%v)", raw, err)
+			}
+			for _, value := range values {
+				requireKeys(t, value, typ.Elem())
+			}
+		}
+	}
+	decode := func(t *testing.T, raw []byte, out any) error {
+		t.Helper()
+		if err := json.Unmarshal(raw, out); err != nil {
+			return err
+		}
+		requireKeys(t, raw, reflect.TypeOf(out).Elem())
+		return nil
+	}
 	ctx := context.Background()
 	adminURL := os.Getenv("GONGU_TEST_ADMIN_DATABASE_URL")
 	if adminURL == "" {
@@ -157,8 +303,8 @@ func TestInsightsContract(t *testing.T) {
 	}
 	cases := []testCase{
 		{name: "visa KM and censoring", path: "/api/x/uscis/insights/visa-221g", status: 200, check: func(t *testing.T, b []byte) {
-			var v visaResponse
-			if err := json.Unmarshal(b, &v); err != nil {
+			var v visaJSON
+			if err := decode(t, b, &v); err != nil {
 				t.Fatal(err)
 			}
 			if v.Status != "ready" || v.Excluded != 4 || len(v.Groups) != 3 || v.From == nil || *v.From != "2024-01-01" || v.To == nil || *v.To != "2024-01-01" {
@@ -175,42 +321,66 @@ func TestInsightsContract(t *testing.T) {
 		}},
 		{name: "invalid query", path: "/api/x/uscis/insights/visa-221g?year=2025", status: 400},
 		{name: "pay catalog", path: "/api/x/uscis/insights/h1b-pay", status: 200, check: func(t *testing.T, b []byte) {
-			var v payCatalog
-			if err := json.Unmarshal(b, &v); err != nil || len(v.Years) != 2 || v.Years[0].Year != 2026 || v.Years[1].Year != 2025 || len(v.Years[1].Titles) != 2 || v.Years[1].Titles[0].Key != "SOFTWARE ENGINEER" || v.Years[1].From != "2024-10-01" || v.Years[1].To != "2025-09-30" {
+			var v catalogJSON
+			if err := decode(t, b, &v); err != nil || len(v.Years) != 2 || v.Years[0].Year != 2026 || v.Years[1].Year != 2025 || len(v.Years[1].Titles) != 2 || v.Years[1].Titles[0].Key != "SOFTWARE ENGINEER" || v.Years[1].From != "2024-10-01" || v.Years[1].To != "2025-09-30" {
 				t.Fatalf("catalog: %s (%v)", b, err)
 			}
 		}},
 		{name: "pay title", path: "/api/x/uscis/insights/h1b-pay?year=2025&title=SOFTWARE%20ENGINEER", status: 200, check: func(t *testing.T, b []byte) {
-			var v payDetail
-			if err := json.Unmarshal(b, &v); err != nil || len(v.States) != 2 || v.States[0].State != "CA" || v.All.Cases == nil || *v.All.Cases != 100 {
+			var v payJSON
+			if err := decode(t, b, &v); err != nil || len(v.States) != 2 || v.States[0].State != "CA" || v.All.Cases == nil || *v.All.Cases != 100 {
 				t.Fatalf("pay: %s (%v)", b, err)
 			}
 		}},
 		{name: "pay requires title", path: "/api/x/uscis/insights/h1b-pay?year=2025", status: 400},
 		{name: "unknown title", path: "/api/x/uscis/insights/h1b-pay?year=2025&title=NOPE", status: 400},
 		{name: "employer ranking and latest year", path: "/api/x/uscis/insights/h1b-employers", status: 200, check: func(t *testing.T, b []byte) {
-			var v employersResponse
-			if err := json.Unmarshal(b, &v); err != nil || v.Year == nil || *v.Year != 2025 || len(v.Years) != 2 || v.Years[0] != 2025 || v.Years[1] != 2024 || len(v.Employers) != 20 || v.Employers[0].Name != "Employer 01" || v.Employers[0].InitialApprovals != 101 || v.Employers[1].Name != "A Employer" || v.Employers[2].Name != "Employer 25" || strings.Contains(string(b), "secret") || strings.Contains(string(b), "tax") {
+			var v employersJSON
+			if err := decode(t, b, &v); err != nil || v.Year == nil || *v.Year != 2025 || len(v.Years) != 2 || v.Years[0] != 2025 || v.Years[1] != 2024 || len(v.Employers) != 20 || v.Employers[0].Name != "Employer 01" || v.Employers[0].InitialApprovals != 101 || v.Employers[1].Name != "A Employer" || v.Employers[2].Name != "Employer 25" || strings.Contains(string(b), "secret") || strings.Contains(string(b), "tax") {
 				t.Fatalf("employers: %s (%v)", b, err)
 			}
 		}},
 		{name: "unknown employer year", path: "/api/x/uscis/insights/h1b-employers?year=1900", status: 400},
 		{name: "student baseline", path: "/api/x/uscis/insights/student-posts", status: 200, check: func(t *testing.T, b []byte) {
-			var v studentResponse
-			if err := json.Unmarshal(b, &v); err != nil || len(v.Weeks) != 15 {
+			var v studentJSON
+			if err := decode(t, b, &v); err != nil || len(v.Weeks) != 15 {
 				t.Fatalf("student: %s (%v)", b, err)
 			}
 			z := v.Weeks[12].Z.Sevis
-			if z == nil || math.Abs(*z-18.5/math.Sqrt(13)) > 1e-9 || v.Weeks[12].Z.CPT != nil || v.Topics["cpt"].Posts != 6 || v.Weeks[12].Z.Policy != nil || v.Topics["policy"].Posts != 42 || v.Weeks[13].Covered || v.Weeks[13].Sevis != nil || v.Weeks[14].Z.Sevis != nil {
+			if z == nil || math.Abs(*z-18.5/math.Sqrt(13)) > 1e-9 || v.Weeks[12].Z.CPT != nil || v.Topics.CPT.Posts != 6 || v.Weeks[12].Z.Policy != nil || v.Topics.Policy.Posts != 42 || v.Weeks[13].Covered || v.Weeks[13].Sevis != nil || v.Weeks[14].Z.Sevis != nil {
 				t.Fatalf("student z: %s", b)
 			}
+		}},
+		{name: "pay browsing preserves shared cache", path: "/api/x/uscis/insights/h1b-pay", status: 200, setup: func() {
+			execSQL(fixture, "ALTER VIEW public.dol_lca_pay_stats RENAME TO saved_pay")
+			execSQL(fixture, `CREATE VIEW public.dol_lca_pay_stats AS SELECT fiscal_year, ('TITLE ' || n)::text AS title_key, job_title, n::int AS title_rank, worksite_state, cases, p10, p25, p50, p75, p90, first_received, last_received FROM public.saved_pay CROSS JOIN generate_series(1,260) n WHERE title_key='SOFTWARE ENGINEER' AND worksite_state IS NULL`)
+			execSQL(fixture, "GRANT SELECT ON public.dol_lca_pay_stats TO "+roleIdent)
+			mux = newMux()
+		}, check: func(t *testing.T, _ []byte) {
+			if res := request(mux, "/api/x/uscis/insights/h1b-employers"); res.Code != 200 {
+				t.Fatalf("prime employer cache: %d %s", res.Code, res.Body.String())
+			}
+			for i := 1; i <= 260; i++ {
+				res := request(mux, fmt.Sprintf("/api/x/uscis/insights/h1b-pay?year=2025&title=TITLE%%20%d", i))
+				if res.Code != 200 {
+					t.Fatalf("pay title %d: %d %s", i, res.Code, res.Body.String())
+				}
+			}
+			execSQL(fixture, "ALTER VIEW public.h1b_employer RENAME TO saved_employer_cache")
+			if res := request(mux, "/api/x/uscis/insights/h1b-employers"); res.Code != 200 {
+				t.Fatalf("shared employer cache evicted: %d %s", res.Code, res.Body.String())
+			}
+			execSQL(fixture, "ALTER VIEW public.saved_employer_cache RENAME TO h1b_employer")
+			execSQL(fixture, "DROP VIEW public.dol_lca_pay_stats")
+			execSQL(fixture, "ALTER VIEW public.saved_pay RENAME TO dol_lca_pay_stats")
+			mux = newMux()
 		}},
 		{name: "KM exact thresholds", path: "/api/x/uscis/insights/visa-221g", status: 200, setup: func() {
 			replace("immihelp_timeline", `SELECT '221g-tracker'::text tracker,'F1'::text category, office, '2024-01-01'::date start_date, ('2024-01-01'::date + CASE WHEN office='Threshold' THEN CASE WHEN n<=20 THEN 0 WHEN n<=50 THEN 1 WHEN n<=80 THEN 2 WHEN n<=91 THEN 3 ELSE 4 END ELSE CASE WHEN n<=21 THEN 0 WHEN n<=50 THEN 1 WHEN n<=96 THEN 2 WHEN n<=98 THEN 3 WHEN n<=99 THEN 4 ELSE 5 END END)::date decision_date, '2024-02-01'::timestamptz first_seen_at, NULL::timestamptz updated_at, false pending FROM generate_series(1,100) n CROSS JOIN (VALUES ('Threshold'::text),('Precision'::text)) o(office)`)
 			mux = newMux()
 		}, check: func(t *testing.T, b []byte) {
-			var v visaResponse
-			if err := json.Unmarshal(b, &v); err != nil || len(v.Groups) != 3 {
+			var v visaJSON
+			if err := decode(t, b, &v); err != nil || len(v.Groups) != 3 {
 				t.Fatalf("thresholds: %s (%v)", b, err)
 			}
 			for _, g := range v.Groups[1:] {
@@ -228,8 +398,8 @@ func TestInsightsContract(t *testing.T) {
 			execSQL(fixture, "GRANT SELECT ON public.immihelp_timeline TO "+roleIdent)
 			mux = newMux()
 		}, check: func(t *testing.T, b []byte) {
-			var v visaResponse
-			if err := json.Unmarshal(b, &v); err != nil || v.Status != "insufficient_data" || len(v.Groups) != 0 {
+			var v visaJSON
+			if err := decode(t, b, &v); err != nil || v.Status != "insufficient_data" || len(v.Groups) != 0 {
 				t.Fatalf("insufficient: %s (%v)", b, err)
 			}
 		}},
@@ -239,8 +409,8 @@ func TestInsightsContract(t *testing.T) {
 			execSQL(fixture, "GRANT SELECT ON public.student_post_week TO "+roleIdent)
 			mux = newMux()
 		}, check: func(t *testing.T, b []byte) {
-			var v studentResponse
-			if err := json.Unmarshal(b, &v); err != nil || len(v.Weeks) != 14 || !v.Weeks[13].Covered || v.Weeks[13].Z.Sevis != nil {
+			var v studentJSON
+			if err := decode(t, b, &v); err != nil || len(v.Weeks) != 14 || !v.Weeks[13].Covered || v.Weeks[13].Z.Sevis != nil {
 				t.Fatalf("gap: %s (%v)", b, err)
 			}
 		}},

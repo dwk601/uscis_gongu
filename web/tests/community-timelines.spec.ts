@@ -60,6 +60,7 @@ test("visa routes remain usable across form history", async ({ page }) => {
   await page.goto("/trends?form=N-400")
   await expect(page.getByRole("button", { name: /IR-1\/CR-1/ })).toBeVisible()
   await expect(page.getByRole("button", { name: /K1|K-1/ })).toBeVisible()
+  await page.getByRole("button", { name: "All forms" }).click()
   await page.getByRole("button", { name: /I-485/ }).click()
   await page.getByRole("button", { name: /K3|K-3/ }).click()
   await page.goBack()

@@ -11,6 +11,8 @@ import {
 import { formatMonths, latestMedian, quarterLabel } from "@/lib/estimate"
 import { categoryHue, formHue } from "@/lib/palette"
 import { categoryLabel } from "@/lib/labels"
+import { JourneyPicker } from "@/components/journey-picker"
+import { journeyFor, type JourneyId } from "@/lib/journeys"
 
 export const Route = createFileRoute("/")({ component: Home })
 
@@ -90,7 +92,15 @@ function MiniTrend({ values }: { values: (number | null)[] }) {
 function Home() {
   const navigate = useNavigate()
   const [form, setForm] = useState("I-485")
+  const [journey, setJourney] = useState<JourneyId>("all")
+  const choices = journeyFor(journey)?.forms ?? []
   const forms = useQuery(formsQuery())
+  const available =
+    journey === "all"
+      ? (forms.data?.forms.map((f) => ({ form: f.form, label: f.name })) ?? [])
+      : choices.filter((choice) =>
+          forms.data?.forms.some((f) => f.form === choice.form)
+        )
   const detail = useQuery(formQuery("I-485"))
   const bulletin = useQuery(bulletinQuery("EB2", "final_action"))
   const series = detail.data?.official.find(
@@ -112,6 +122,26 @@ function Home() {
       <section className="hero">
         <h1>Know when your case lands.</h1>
         <p>Free case insights. No sign-up needed.</p>
+        <div className="landing-journeys">
+          <h2>What brings you here?</h2>
+          <JourneyPicker
+            value={journey}
+            variant="cards"
+            onChange={(id) => {
+              setJourney(id)
+              const next =
+                id === "all"
+                  ? forms.data?.forms
+                  : journeyFor(id)?.forms.filter((f) =>
+                      forms.data?.forms.some(
+                        (available) => available.form === f.form
+                      )
+                    )
+              if (next?.length && !next.some((f) => f.form === form))
+                setForm(next[0].form)
+            }}
+          />
+        </div>
         <form
           className="checker"
           onSubmit={(event) => {
@@ -121,34 +151,60 @@ function Home() {
               to: "/trends",
               search: {
                 form,
+                journey,
                 filed: typeof filed === "string" && filed ? filed : undefined,
                 series: undefined,
               },
             })
           }}
         >
-          <select
-            aria-label="Case form"
-            value={form}
-            onChange={(e) => setForm(e.target.value)}
-          >
-            {forms.data?.forms
-              .filter((f) => f.featured)
-              .map((f) => (
-                <option value={f.form} key={f.form}>
-                  {f.name} · {f.form}
-                </option>
-              )) ?? (
-              <option value="I-485">Green card application · I-485</option>
-            )}
-          </select>
+          {forms.isLoading ? (
+            <span role="status">Loading forms…</span>
+          ) : forms.isError ? (
+            <span className="error">
+              Forms unavailable.{" "}
+              <button type="button" onClick={() => void forms.refetch()}>
+                Try again
+              </button>
+            </span>
+          ) : available.length === 0 ? (
+            <span role="status">No forms available for this journey.</span>
+          ) : (
+            <div
+              className="landing-form-choices"
+              role="group"
+              aria-label="Case form"
+            >
+              {available.map((f) => (
+                <button
+                  type="button"
+                  className="chip"
+                  key={f.form}
+                  aria-pressed={form === f.form}
+                  onClick={() => setForm(f.form)}
+                >
+                  {f.label} · {f.form}
+                </button>
+              ))}
+            </div>
+          )}
           <label className="landing-date">
             Filed (optional)
             <input name="filed" type="date" />
           </label>
-          <button className="primary">See my estimate</button>
+          <button
+            className="primary"
+            disabled={
+              forms.isLoading ||
+              forms.isError ||
+              !available.some((f) => f.form === form)
+            }
+          >
+            See my estimate
+          </button>
         </form>
       </section>
+      <p className="examples-label">Explore examples</p>
       <div className="tray">
         <Link
           className="artifact"

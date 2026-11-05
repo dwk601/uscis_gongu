@@ -22,6 +22,13 @@ import {
 } from "@/lib/estimate"
 import { formHue, formInk } from "@/lib/palette"
 import { visaLabels } from "@/lib/labels"
+import { JourneyPicker } from "@/components/journey-picker"
+import {
+  inferJourney,
+  isJourney,
+  journeyFor,
+  type JourneyId,
+} from "@/lib/journeys"
 
 function validFiled(value: unknown): boolean {
   if (
@@ -99,13 +106,19 @@ function FiledInput({
 }
 
 const DataChart = lazy(() => import("@/components/data-chart"))
-type Search = { form: string; series?: string; filed?: string }
+type Search = {
+  form: string
+  journey?: JourneyId
+  series?: string
+  filed?: string
+}
 export const Route = createFileRoute("/trends")({
   validateSearch: (search: Record<string, unknown>): Search => ({
     form:
       typeof search.form === "string" && /^[-A-Z0-9]+$/.test(search.form)
         ? search.form
         : "I-485",
+    journey: isJourney(search.journey) ? search.journey : undefined,
     series: typeof search.series === "string" ? search.series : undefined,
     filed:
       typeof search.filed === "string" && validFiled(search.filed)
@@ -189,8 +202,26 @@ function Trends() {
     }
   }, [search.form, forms.data])
   const summary = forms.data?.forms.find((f) => f.form === search.form)
+  const requestedJourney = search.journey ?? inferJourney(search.form)
+  const journey =
+    requestedJourney !== "all" &&
+    !journeyFor(requestedJourney)?.forms.some((f) => f.form === search.form)
+      ? "all"
+      : requestedJourney
+  const choices =
+    journeyFor(journey)?.forms.filter((f) =>
+      forms.data?.forms.some((available) => available.form === f.form)
+    ) ?? []
+  const preferred = choices.find((f) => f.form === search.form)
   const official =
     detail.data?.official.find((s) => s.id === search.series) ??
+    (search.series === undefined &&
+    preferred &&
+    "preferredSeriesLabel" in preferred
+      ? detail.data?.official.find(
+          (s) => s.label === preferred.preferredSeriesLabel
+        )
+      : undefined) ??
     detail.data?.official.find((s) => s.id === summary?.defaultSeries) ??
     detail.data?.official[0]
   const median = latestMedian(official?.points ?? [])
@@ -237,6 +268,27 @@ function Trends() {
       className="workspace trend-workspace"
       style={{ "--hue": formHue(search.form) } as CSSProperties}
     >
+      <JourneyPicker
+        variant="compact"
+        value={journey}
+        onChange={(id) => {
+          const available =
+            id === "all"
+              ? forms.data?.forms
+              : journeyFor(id)?.forms.filter((f) =>
+                  forms.data?.forms.some((a) => a.form === f.form)
+                )
+          const nextForm = available?.some((f) => f.form === search.form)
+            ? search.form
+            : (available?.[0]?.form ?? search.form)
+          if (nextForm !== search.form) setVisa(undefined)
+          update({
+            journey: id,
+            form: nextForm,
+            ...(nextForm !== search.form ? { series: undefined } : {}),
+          })
+        }}
+      />
       <div
         ref={formRailRef}
         className="chip-rail form-rail"
@@ -244,43 +296,52 @@ function Trends() {
         aria-label="Form"
         tabIndex={0}
       >
-        {forms.data?.forms
-          .filter((f) => f.featured)
-          .map((f) => (
-            <button
-              key={f.form}
-              className="chip"
-              aria-pressed={f.form === search.form}
-              onClick={() => {
+        {(journey === "all"
+          ? (forms.data?.forms
+              .filter((f) => f.featured)
+              .map((f) => ({ form: f.form, label: f.name })) ?? [])
+          : choices
+        ).map((f) => (
+          <button
+            key={f.form}
+            className="chip"
+            aria-pressed={f.form === search.form}
+            onClick={() => {
+              if (f.form !== search.form) {
                 setVisa(undefined)
                 update({ form: f.form, series: undefined })
-              }}
-            >
-              {f.name} <small>· {f.form}</small>
-            </button>
-          ))}
+              }
+            }}
+          >
+            {f.label} <small>· {f.form}</small>
+          </button>
+        ))}
       </div>
       <div className="controls">
-        <select
-          className="field"
-          aria-label="More forms"
-          value={summary && !summary.featured ? search.form : ""}
-          onChange={(e) => {
-            if (e.target.value) {
-              setVisa(undefined)
-              update({ form: e.target.value, series: undefined })
-            }
-          }}
-        >
-          <option value="">More forms</option>
-          {forms.data?.forms
-            .filter((f) => !f.featured)
-            .map((f) => (
-              <option key={f.form} value={f.form}>
-                {f.name} · {f.form}
-              </option>
-            ))}
-        </select>
+        {journey === "all" && (
+          <select
+            className="field"
+            aria-label="More forms"
+            value={summary && !summary.featured ? search.form : ""}
+            onChange={(e) => {
+              if (e.target.value) {
+                if (e.target.value !== search.form) {
+                  setVisa(undefined)
+                  update({ form: e.target.value, series: undefined })
+                }
+              }
+            }}
+          >
+            <option value="">More forms</option>
+            {forms.data?.forms
+              .filter((f) => !f.featured)
+              .map((f) => (
+                <option key={f.form} value={f.form}>
+                  {f.name} · {f.form}
+                </option>
+              ))}
+          </select>
+        )}
         <label className="field-label">
           Filed{" "}
           <FiledInput
@@ -301,6 +362,19 @@ function Trends() {
         {detail.data?.name ?? summary?.name ?? search.form}{" "}
         {detail.data?.name && <small>· {search.form}</small>}
       </h1>
+      {journey === "students" && search.form === "I-765" && (
+        <p>
+          OPT / STEM OPT are counted in “All other cases”; this is not an
+          OPT-only median.
+        </p>
+      )}
+      {search.form === "I-129" && (
+        <p>I-129 data includes temporary work petitions beyond H-1B.</p>
+      )}
+      {journey === "residents" && search.form === "I-131" && (
+        <p>Travel &amp; parole documents includes more than reentry permits.</p>
+      )}
+      {official && <p className="muted">Official series: {official.label}</p>}
       {(detail.data?.official.length ?? 0) > 1 && (
         <div
           className="chip-rail"

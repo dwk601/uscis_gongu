@@ -682,3 +682,127 @@ td {
     min-height: 44px;
   }
 }
+
+.landing-journeys {
+  max-width: 900px;
+  margin: 0 auto 18px;
+  text-align: left;
+}
+
+.landing-journeys h2 {
+  font-size: 1.35rem;
+  margin: 0 0 12px;
+}
+
+.journey-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.journey-picker button {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  text-align: left;
+}
+
+.journey-picker button:hover {
+  border-color: var(--ink);
+}
+
+.journey-picker button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--ground);
+  border-color: var(--ink);
+}
+
+.journey-picker--cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.journey-picker--cards button {
+  border-radius: 12px;
+  padding: 12px 14px;
+  min-height: 72px;
+}
+
+.journey-picker--cards span,
+.journey-picker--cards small {
+  display: block;
+}
+
+.journey-picker--cards span {
+  font-weight: 600;
+}
+
+.journey-picker--cards small {
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+.journey-picker--compact {
+  overflow-x: auto;
+  padding: 4px 3px 10px;
+  margin-bottom: 5px;
+}
+
+.journey-picker--compact button {
+  flex: none;
+  border-radius: 99px;
+  padding: 9px 15px;
+}
+
+.checker {
+  max-width: 900px;
+  width: 100%;
+  border-radius: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.landing-form-choices {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.examples-label {
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0 0 12px;
+}
+
+@media (max-width: 700px) {
+  .hero {
+    padding: 25px 20px 28px;
+  }
+  .hero h1 {
+    font-size: 2.5rem;
+  }
+  .hero p {
+    margin: 10px 0 16px;
+  }
+  .journey-picker--cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .journey-picker--cards button {
+    min-height: 54px;
+    padding: 7px 10px;
+  }
+  .journey-picker--cards small {
+    line-height: 1.15;
+  }
+  .landing-form-choices {
+    justify-content: flex-start;
+    max-height: 125px;
+    overflow: auto;
+  }
+  .landing-form-choices .chip {
+    text-align: left;
+  }
+}

@@ -7,6 +7,18 @@ import { categoryLabel, countryLabel } from "@/lib/labels"
 
 const DataChart = lazy(() => import("@/components/data-chart"))
 const olderInvestors = new Set(["EB5-NON-RC", "EB5-RC", "EB5-UNRESERVED-RC"])
+const groups = [
+  "Family preference",
+  "Work & special immigrants",
+  "Investors",
+] as const
+function groupFor(code: string) {
+  return code.startsWith("F")
+    ? groups[0]
+    : code.startsWith("EB5")
+      ? groups[2]
+      : groups[1]
+}
 type Search = { category: string; chart: string; country: string }
 export const Route = createFileRoute("/bulletin")({
   validateSearch: (search: Record<string, unknown>): Search => ({
@@ -41,7 +53,13 @@ function BulletinPage() {
   const navigate = Route.useNavigate()
   const update = (next: Partial<Search>) =>
     void navigate({ search: (previous) => ({ ...previous, ...next }) })
-  const bulletin = useQuery(bulletinQuery(search.category, search.chart))
+  const catalog = useQuery(bulletinQuery("EB2", search.chart))
+  const categories = catalog.data?.categories
+  const category = categories?.some((c) => c.code === search.category)
+    ? search.category
+    : "EB2"
+  const group = groupFor(categories ? category : search.category)
+  const bulletin = useQuery(bulletinQuery(category, search.chart))
   const series =
     bulletin.data?.series.find((s) => s.country === search.country) ??
     bulletin.data?.series[0]
@@ -112,6 +130,38 @@ function BulletinPage() {
         </a>{" "}
         before applying for a green card in the U.S.
       </p>
+      <p>
+        Family-preference F1 is not student F-1. Immediate relatives of U.S.
+        citizens are not subject to these cutoffs.
+      </p>
+      <div className="controls" role="group" aria-label="Bulletin group">
+        {groups.map((item) => (
+          <button
+            type="button"
+            className="chip"
+            key={item}
+            aria-pressed={group === item}
+            disabled={
+              !categories || !categories.some((c) => groupFor(c.code) === item)
+            }
+            onClick={() => {
+              const options =
+                categories?.filter((c) => groupFor(c.code) === item) ?? []
+              const preferred =
+                item === groups[0]
+                  ? "F2A"
+                  : item === groups[1]
+                    ? "EB2"
+                    : "EB5-UNRESERVED"
+              const next =
+                options.find((c) => c.code === preferred) ?? options[0]
+              if (next) update({ category: next.code })
+            }}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
       {bulletin.isLoading ? (
         <div className="skeleton" aria-label="Loading bulletin" />
       ) : bulletin.isError ? (
@@ -126,37 +176,24 @@ function BulletinPage() {
             <select
               className="field"
               aria-label="Category"
-              value={search.category}
+              value={category}
               onChange={(e) => update({ category: e.target.value })}
             >
-              {["Family", "Work & special immigrants", "Investors"].map(
-                (group) => (
-                  <optgroup key={group} label={group}>
-                    {bulletin.data?.categories
-                      .filter((c) =>
-                        group === "Family"
-                          ? c.code.startsWith("F")
-                          : group === "Investors"
-                            ? c.code.startsWith("EB5")
-                            : !c.code.startsWith("F") &&
-                              !c.code.startsWith("EB5")
-                      )
-                      .sort(
-                        (a, b) =>
-                          Number(olderInvestors.has(a.code)) -
-                          Number(olderInvestors.has(b.code))
-                      )
-                      .map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {categoryLabel(c.code)}
-                        </option>
-                      ))}
-                  </optgroup>
+              {bulletin.data?.categories
+                .filter((c) => groupFor(c.code) === group)
+                .sort(
+                  (a, b) =>
+                    Number(olderInvestors.has(a.code)) -
+                    Number(olderInvestors.has(b.code))
                 )
-              )}
+                .map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {categoryLabel(c.code)}
+                  </option>
+                ))}
             </select>
           </label>
-          <p className="selected-category">{categoryLabel(search.category)}</p>
+          <p className="selected-category">{categoryLabel(category)}</p>
           <div
             className="controls bulletin-rail"
             role="group"

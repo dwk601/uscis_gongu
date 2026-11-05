@@ -199,6 +199,21 @@ function Trends() {
     !journeyFor(requestedJourney)?.forms.some((f) => f.form === search.form)
       ? "all"
       : requestedJourney
+  const insightOptions =
+    journey === "students"
+      ? [
+          ["visa-221g", "221(g) wait (older reports)"],
+          ["student-posts", "What students post about"],
+        ]
+      : journey === "workers"
+        ? [
+            ["h1b-pay", "H-1B offered pay"],
+            ["h1b-employers", "Employers with H-1B approvals"],
+          ]
+        : []
+  const insight = insightOptions.some(([id]) => id === search.insight)
+    ? search.insight
+    : undefined
   useEffect(() => {
     if (!window.matchMedia("(max-width: 700px)").matches) return
     let cancelled = false
@@ -300,25 +315,16 @@ function Trends() {
           <div className="controls" role="group" aria-label="Insights">
             <button
               className="chip"
-              aria-pressed={!search.insight}
+              aria-pressed={!insight}
               onClick={() => update({ insight: undefined })}
             >
               Case wait
             </button>
-            {(journey === "students"
-              ? [
-                  ["visa-221g", "221(g) wait (older reports)"],
-                  ["student-posts", "What students post about"],
-                ]
-              : [
-                  ["h1b-pay", "H-1B offered pay"],
-                  ["h1b-employers", "Employers with H-1B approvals"],
-                ]
-            ).map(([id, label]) => (
+            {insightOptions.map(([id, label]) => (
               <button
                 key={id}
                 className="chip"
-                aria-pressed={search.insight === id}
+                aria-pressed={insight === id}
                 onClick={() => update({ insight: id })}
               >
                 {label}
@@ -333,11 +339,8 @@ function Trends() {
           )}
         </>
       )}
-      {(journey === "students" &&
-        ["visa-221g", "student-posts"].includes(search.insight ?? "")) ||
-      (journey === "workers" &&
-        ["h1b-pay", "h1b-employers"].includes(search.insight ?? "")) ? (
-        <Insight id={search.insight!} />
+      {insight ? (
+        <Insight id={insight} />
       ) : (
         <>
           <div
@@ -574,14 +577,14 @@ function Trends() {
                         <br />
                         Filed in {cohort.filingYear} · {cohort.completed ?? "—"}{" "}
                         finished reports
-                        <details>
-                          <summary>About these numbers</summary>
-                          {cohort.pendingShare != null
-                            ? `${Math.round(cohort.pendingShare * 100)}% pending. `
-                            : "Pending share unavailable. "}
-                          {selected?.meaning}
-                        </details>
                       </p>
+                      <details>
+                        <summary>About these numbers</summary>
+                        {cohort.pendingShare != null
+                          ? `${Math.round(cohort.pendingShare * 100)}% pending. `
+                          : "Pending share unavailable. "}
+                        {selected?.meaning}
+                      </details>
                     </>
                   )}
                 </section>

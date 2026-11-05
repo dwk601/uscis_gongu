@@ -652,7 +652,7 @@ td {
   .account-signin,
   .account-menu summary,
   .account-menu a,
-  .chart-panel summary,
+  .workspace summary,
   .social-actions a,
   .social-back {
     min-height: 44px;
@@ -667,7 +667,7 @@ td {
     display: inline-flex;
     align-items: center;
   }
-  .chart-panel summary {
+  .workspace summary {
     align-content: center;
   }
   button,
@@ -854,4 +854,10 @@ td {
 }
 .insight-panel .insight-chart {
   max-height: 260px;
+}
+.insight-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-top: -16px;
 }

@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query"
 import { pb } from "./pb"
+import { retry } from "./api"
 
 export type CurvePoint = {
   day: number
@@ -50,7 +51,7 @@ export type Pay = {
 }
 export type Employers = {
   years: number[]
-  year: number
+  year: number | null
   employers: {
     name: string
     initialApprovals: number
@@ -78,6 +79,7 @@ function insightQuery<T>(
   return queryOptions({
     queryKey: ["uscis", "insights", endpoint, query],
     staleTime: 60 * 60 * 1000,
+    retry,
     queryFn: ({ signal }) =>
       pb.send<T>(`/api/x/uscis/insights/${endpoint}`, { signal, query }),
   })

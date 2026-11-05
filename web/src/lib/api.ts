@@ -65,7 +65,7 @@ export type Bulletin = {
 }
 
 const staleTime = 60 * 60 * 1000
-const retry = (count: number, error: Error) => {
+export const retry = (count: number, error: Error) => {
   const status =
     "status" in error && typeof error.status === "number" ? error.status : 0
   return !(status >= 400 && status < 500) && count < 3

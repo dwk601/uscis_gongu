@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query"
+import { keepPreviousData, useQuery } from "@tanstack/react-query"
+import { Fragment } from "react"
 import { useState } from "react"
 import {
   employersQuery,
@@ -74,7 +75,9 @@ function Visa() {
             <>
               <h2>
                 {group.medianDays == null
-                  ? "Not enough decisions yet"
+                  ? group.decisions < 30
+                    ? "Not enough decisions yet"
+                    : "Most are still waiting"
                   : `Typical wait: ${group.medianDays} days`}
               </h2>
               <p className="muted">
@@ -84,7 +87,7 @@ function Visa() {
               <p>Still waiting</p>
               <svg
                 className="insight-chart"
-                viewBox="0 0 600 210"
+                viewBox="0 0 600 200"
                 role="img"
                 aria-label="Share still waiting by days; details in data table"
               >
@@ -95,13 +98,11 @@ function Visa() {
                   stroke="var(--focus)"
                   strokeWidth="3"
                 />
-                <text x="10" y="207" fill="currentColor">
-                  0 days
-                </text>
-                <text x="590" y="207" textAnchor="end" fill="currentColor">
-                  {max} days
-                </text>
               </svg>
+              <div className="insight-axis">
+                <span>0 days</span>
+                <span>{max} days</span>
+              </div>
               <details>
                 <summary>Data</summary>
                 <div className="table-wrap">
@@ -164,7 +165,7 @@ function BoxRow({ name, box, max }: { name: string; box: Box; max: number }) {
         viewBox="0 0 100 12"
         preserveAspectRatio="none"
         role="img"
-        aria-label={`${name}: middle 80% ${money(box.p10)} to ${money(box.p90)}, median ${money(box.p50)}`}
+        aria-label={`${name}: middle 80% ${money(box.p10)} to ${money(box.p90)}, middle 50% ${money(box.p25)} to ${money(box.p75)}, median ${money(box.p50)}`}
       >
         <line
           x1={pos(box.p10)}
@@ -186,7 +187,7 @@ function BoxRow({ name, box, max }: { name: string; box: Box; max: number }) {
           x2={pos(box.p50)}
           y1="1"
           y2="11"
-          stroke="currentColor"
+          stroke="var(--ground)"
           strokeWidth="1"
         />
       </svg>
@@ -244,7 +245,8 @@ function Pay() {
         error={q.isError}
         retry={() => void q.refetch()}
       />
-      {selectedYear && (
+      {q.data && !selected && <p>Nothing to show yet.</p>}
+      {selectedYear && selected && (
         <>
           <div className="controls">
             <label>
@@ -313,7 +315,10 @@ function Pay() {
 }
 function EmployerInsight() {
   const [year, setYear] = useState<number>()
-  const q = useQuery(employersQuery(year))
+  const q = useQuery({
+    ...employersQuery(year),
+    placeholderData: keepPreviousData,
+  })
   const max = Math.max(
     1,
     ...(q.data?.employers.map((e) => e.initialApprovals) ?? [])
@@ -329,31 +334,39 @@ function EmployerInsight() {
       />
       {q.data && (
         <>
-          <label>
-            Year{" "}
-            <select
-              className="field"
-              value={q.data.year}
-              onChange={(e) => setYear(Number(e.target.value))}
-            >
-              {q.data.years.map((y) => (
-                <option key={y}>{y}</option>
-              ))}
-            </select>
-          </label>
-          <h2>Initial approvals</h2>
-          <ol className="employer-list">
-            {q.data.employers.map((e) => (
-              <li key={e.name}>
-                <strong>{e.name}</strong>
-                <div
-                  className="employer-bar"
-                  style={{ width: `${(e.initialApprovals / max) * 100}%` }}
-                />
-                <span>{e.initialApprovals.toLocaleString()}</span>
-              </li>
-            ))}
-          </ol>
+          {q.data.years.length > 0 && (
+            <label>
+              Year{" "}
+              <select
+                className="field"
+                value={year ?? q.data.year ?? ""}
+                onChange={(e) => setYear(Number(e.target.value))}
+              >
+                {q.data.years.map((y) => (
+                  <option key={y}>{y}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          {q.data.employers.length === 0 ? (
+            <p>Nothing to show yet.</p>
+          ) : (
+            <>
+              <h2>Initial approvals</h2>
+              <ol className="employer-list">
+                {q.data.employers.map((e) => (
+                  <li key={e.name}>
+                    <strong>{e.name}</strong>
+                    <div
+                      className="employer-bar"
+                      style={{ width: `${(e.initialApprovals / max) * 100}%` }}
+                    />
+                    <span>{e.initialApprovals.toLocaleString()}</span>
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
         </>
       )}
     </section>
@@ -385,69 +398,96 @@ function Posts() {
         error={q.isError}
         retry={() => void q.refetch()}
       />
-      {q.data && (
-        <>
-          <svg
-            className="insight-chart"
-            viewBox="0 0 600 180"
-            role="img"
-            aria-label="Weekly post counts; gaps indicate uncovered weeks"
-          >
-            <polyline fill="none" stroke="none" points="" />
-            {weeks.map((w, i) =>
-              w.covered && w[topic] != null ? (
-                <rect
-                  key={w.week}
-                  x={(i / Math.max(1, weeks.length)) * 600}
-                  y={165 - (w[topic]! / max) * 150}
-                  width={Math.max(1, 590 / weeks.length)}
-                  height={Math.max(1, (w[topic]! / max) * 150)}
-                  fill={
-                    (w.z[topic] ?? -Infinity) >= 3
-                      ? "var(--ink)"
-                      : "var(--focus)"
-                  }
-                />
-              ) : null
-            )}
-          </svg>
-          <details open>
-            <summary>Weekly counts</summary>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Week</th>
-                    <th>Posts</th>
-                    <th>Note</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {weeks.map((w) => (
-                    <tr key={w.week}>
-                      <td>{w.week}</td>
-                      <td>{w.covered ? (w[topic] ?? "—") : "Not covered"}</td>
-                      <td>
-                        {(w.z[topic] ?? -Infinity) >= 3
-                          ? "More posts than usual"
-                          : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </details>
-          <details>
-            <summary>About these numbers</summary>
-            <p>
-              Counts are mentions, not people. A week is covered only when both
-              communities are covered. More posts than usual means at least
-              three standard deviations above the previous 12 weeks.
+      {q.data &&
+        (weeks.length === 0 ? (
+          <p>Nothing to show yet.</p>
+        ) : (
+          <>
+            <svg
+              className="insight-chart"
+              viewBox="0 0 600 180"
+              role="img"
+              aria-label="Weekly post counts; gaps indicate uncovered weeks, baseline marks indicate zero, and triangles mark more posts than usual"
+            >
+              {weeks.map((w, i) => {
+                const count = w[topic]
+                if (!w.covered || count == null) return null
+                const x = (i / weeks.length) * 600
+                const width = Math.max(1, 590 / weeks.length)
+                const top = 165 - (count / max) * 140
+                const spike = (w.z[topic] ?? -Infinity) >= 3
+                return (
+                  <Fragment key={w.week}>
+                    {count === 0 ? (
+                      <line
+                        x1={x}
+                        x2={x + width}
+                        y1="165"
+                        y2="165"
+                        stroke="var(--ink)"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    ) : (
+                      <rect
+                        x={x}
+                        y={top}
+                        width={width}
+                        height={165 - top}
+                        fill="var(--focus)"
+                      />
+                    )}
+                    {spike && (
+                      <path
+                        d={`M ${x + width / 2} ${top - 10} l -5 -8 h 10 Z`}
+                        fill="var(--ink)"
+                      />
+                    )}
+                  </Fragment>
+                )
+              })}
+            </svg>
+            <p className="muted">
+              Triangle: More posts than usual · baseline: zero posts
             </p>
-          </details>
-        </>
-      )}
+            <details open>
+              <summary>Weekly counts</summary>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Week</th>
+                      <th>Posts</th>
+                      <th>Note</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {weeks.map((w) => (
+                      <tr key={w.week}>
+                        <td>{w.week}</td>
+                        <td>{w.covered ? (w[topic] ?? "—") : "Not covered"}</td>
+                        <td>
+                          {(w.z[topic] ?? -Infinity) >= 3
+                            ? "More posts than usual"
+                            : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+            <details>
+              <summary>About these numbers</summary>
+              <p>
+                Counts are mentions, not people. A week is covered only when
+                both communities are covered. More posts than usual means at
+                least three standard deviations above the previous 12 weeks.
+              </p>
+            </details>
+          </>
+        ))}
     </section>
   )
 }

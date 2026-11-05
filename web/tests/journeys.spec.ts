@@ -172,3 +172,111 @@ test("student insights keep history and distinguish uncovered weeks", async ({
     page.getByRole("heading", { name: "What students post about" })
   ).toBeVisible()
 })
+
+test("insight edge states and employer year retain focus", async ({ page }) => {
+  let releaseYear: (() => void) | undefined
+  await page.route("**/api/x/uscis/**", async (route) => {
+    const url = new URL(route.request().url())
+    const path = url.pathname
+    if (path.endsWith("/forms"))
+      return route.fulfill({
+        json: {
+          forms: [
+            { form: "I-765", name: "Work permit", featured: true },
+            { form: "I-129", name: "Work petition", featured: true },
+          ],
+        },
+      })
+    if (path.endsWith("/community"))
+      return route.fulfill({ json: { series: [] } })
+    if (path.endsWith("/visa-221g"))
+      return route.fulfill({
+        json: {
+          status: "ready",
+          historical: true,
+          source: "Immihelp",
+          from: "2010-01-01",
+          to: "2012-01-01",
+          excluded: 0,
+          groups: [
+            {
+              office: "All consulates",
+              included: 100,
+              decisions: 40,
+              censored: 60,
+              medianDays: null,
+              p90Days: null,
+              curve: [
+                { day: 0, waiting: 1, low: null, high: null, atRisk: 100 },
+                { day: 0, waiting: 0.99, low: 0.9, high: 1, atRisk: 99 },
+              ],
+            },
+          ],
+        },
+      })
+    if (path.endsWith("/h1b-employers")) {
+      if (url.searchParams.has("year"))
+        await new Promise<void>((resolve) => {
+          releaseYear = resolve
+        })
+      return route.fulfill({
+        json: url.searchParams.has("year")
+          ? { years: [], year: null, employers: [] }
+          : {
+              years: [2025, 2024],
+              year: 2025,
+              employers: [
+                {
+                  name: "Employer",
+                  initialApprovals: 10,
+                  initialDenials: 1,
+                  continuingApprovals: 2,
+                },
+              ],
+            },
+      })
+    }
+    if (path.endsWith("/h1b-pay")) return route.fulfill({ json: { years: [] } })
+    if (path.endsWith("/student-posts"))
+      return route.fulfill({
+        json: {
+          from: "",
+          to: "",
+          weeks: [],
+          topics: {
+            sevis: { posts: 0 },
+            cpt: { posts: 0 },
+            policy: { posts: 0 },
+          },
+        },
+      })
+    return route.fulfill({ json: { name: "Work permit", official: [] } })
+  })
+  await page.goto("/trends?journey=students&form=I-765&insight=visa-221g")
+  await expect(page.getByText("Most are still waiting")).toBeVisible()
+  await page.getByText("Data", { exact: true }).click()
+  await expect(
+    page
+      .getByRole("row")
+      .filter({ has: page.getByRole("cell", { name: "0", exact: true }) })
+  ).toHaveCount(2)
+  await page.goto("/trends?journey=students&form=I-765&insight=h1b-pay")
+  await expect(page.getByRole("button", { name: "Case wait" })).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  )
+  await page.getByRole("button", { name: "What students post about" }).click()
+  await expect(page.getByText("Nothing to show yet.")).toBeVisible()
+  await page.goto("/trends?journey=workers&form=I-129&insight=h1b-pay")
+  await expect(page.getByText("Nothing to show yet.")).toBeVisible()
+  await page
+    .getByRole("button", { name: "Employers with H-1B approvals" })
+    .click()
+  const select = page.getByLabel("Year")
+  await select.focus()
+  await select.selectOption("2024")
+  await expect(select).toBeFocused()
+  await expect.poll(() => !!releaseYear).toBe(true)
+  releaseYear!()
+  await expect(page.getByText("Nothing to show yet.")).toBeVisible()
+})

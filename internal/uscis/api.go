@@ -83,13 +83,18 @@ func slug(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return fmt.Sprintf("%s-%x", strings.Trim(nonSlug.ReplaceAllString(strings.ToLower(s), "-"), "-"), h[:4])
 }
-func label(form, s string) (result string) {
-	defer func() {
-		replacements := map[string]string{"Adjustment Of Status": "Adjustment of status", "All Other Relative": "All other relatives", "Immediate Relative": "Immediate relatives", "All Other": "All other cases", "Advance Parole": "Advance parole", "Humanitarian Parole": "Humanitarian parole", "Parole-in-Place": "Parole-in-place", "Parole in Place": "Parole in place"}
-		if replacement, ok := replacements[result]; ok {
-			result = replacement
-		}
-	}()
+
+var labelReplacements = map[string]string{"Adjustment Of Status": "Adjustment of status", "All Other Relative": "All other relatives", "Immediate Relative": "Immediate relatives", "All Other": "All other cases", "Advance Parole": "Advance parole", "Humanitarian Parole": "Humanitarian parole", "Parole-in-Place": "Parole-in-place", "Parole in Place": "Parole in place"}
+
+func label(form, s string) string {
+	value := extractedLabel(form, s)
+	if replacement, ok := labelReplacements[value]; ok {
+		return replacement
+	}
+	return value
+}
+
+func extractedLabel(form, s string) string {
 	if form == "I-131" {
 		switch s {
 		case "Application for Advance Parole Document for Aliens Inside the United States":
@@ -99,7 +104,7 @@ func label(form, s string) (result string) {
 		case "Application for Travel Document":
 			return "Travel document"
 		case "Application for Travel Documents, Parole Documents, and Arrival/Departure Records":
-			return "Travel and parole documents"
+			return "Travel & parole documents"
 		}
 	}
 	if !strings.HasSuffix(s, ")") {
@@ -124,7 +129,7 @@ func label(form, s string) (result string) {
 }
 
 var featured = []string{"I-485", "I-130", "I-765", "I-131", "N-400", "I-140", "I-129F", "I-751", "I-90", "I-539", "I-129", "I-526", "I-821D", "I-601A", "I-360"}
-var names = map[string]string{"I-485": "Green card application", "I-130": "Family petition", "I-765": "Work permit (EAD)", "I-131": "Travel & parole documents", "N-400": "Citizenship", "I-140": "Work-based green card petition", "I-129F": "Fiancé(e) or spouse petition", "I-751": "Remove green card conditions", "I-90": "Renew or replace green card", "I-539": "Extend stay or change status", "I-129": "Work visa petition", "I-526": "Investor green card petition", "I-821D": "DACA", "I-601A": "Provisional unlawful presence waiver", "I-360": "Special immigrant, widow(er) or VAWA petition"}
+var names = map[string]string{"I-485": "Green card application", "I-130": "Family petition", "I-765": "Work permit (EAD)", "I-131": "Travel & parole documents", "N-400": "Citizenship (naturalization)", "I-140": "Work-based green card petition", "I-129F": "Fiancé(e) or spouse petition", "I-751": "Remove green card conditions", "I-90": "Renew or replace green card", "I-539": "Extend stay or change status", "I-129": "Work visa petition", "I-526": "Investor green card petition", "I-821D": "DACA (childhood arrivals)", "I-601A": "Provisional unlawful presence waiver", "I-360": "Special immigrant, widow(er) or VAWA petition"}
 
 type period struct {
 	FiscalYear *int32 `json:"fiscalYear"`

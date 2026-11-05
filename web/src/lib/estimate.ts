@@ -5,6 +5,13 @@ export const formatMonths = (months: number) =>
     maximumFractionDigits: 1,
   })
 
+export function quarterLabel(year: number | null, quarter: number | null) {
+  if (year == null || quarter == null || quarter < 1 || quarter > 4)
+    return "Date unavailable"
+  const ranges = ["Oct–Dec", "Jan–Mar", "Apr–Jun", "Jul–Sep"]
+  return `${ranges[quarter - 1]} ${quarter === 1 ? year - 1 : year}`
+}
+
 /** The latest reported positive median, not a personalized prediction. */
 export function latestMedian(
   points: OfficialPoint[]

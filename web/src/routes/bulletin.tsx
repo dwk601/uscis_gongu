@@ -101,7 +101,8 @@ function BulletinPage() {
         </div>
       </div>
       <p>
-        These are priority-date cutoffs, not approval estimates; check{" "}
+        These dates show which petition filing dates may move forward, not when
+        a case will be approved; check{" "}
         <a
           className="bulletin-link"
           href="https://www.uscis.gov/visabulletininfo"
@@ -139,6 +140,23 @@ function BulletinPage() {
                             : !c.code.startsWith("F") &&
                               !c.code.startsWith("EB5")
                       )
+                      .sort(
+                        (a, b) =>
+                          Number(
+                            [
+                              "EB5-NON-RC",
+                              "EB5-RC",
+                              "EB5-UNRESERVED-RC",
+                            ].includes(a.code)
+                          ) -
+                          Number(
+                            [
+                              "EB5-NON-RC",
+                              "EB5-RC",
+                              "EB5-UNRESERVED-RC",
+                            ].includes(b.code)
+                          )
+                      )
                       .map((c) => (
                         <option key={c.code} value={c.code}>
                           {categoryLabel(c.code)}
@@ -149,7 +167,7 @@ function BulletinPage() {
               )}
             </select>
           </label>
-          <p>{categoryLabel(search.category)}</p>
+          <p className="selected-category">{categoryLabel(search.category)}</p>
           <div
             className="controls bulletin-rail"
             role="group"
@@ -190,7 +208,6 @@ function BulletinPage() {
               </p>
               <small>
                 {current?.month ? `Bulletin ${month(current.month)} · ` : ""}
-                {categoryLabel(search.category)} ·{" "}
                 {series ? countryLabel(series.country) : ""}
               </small>
             </section>

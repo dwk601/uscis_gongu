@@ -32,11 +32,18 @@ export const countryLabels: Record<string, string> = {
   "EL SALVADOR GUATEMALA HONDURAS": "El Salvador / Guatemala / Honduras",
 }
 export const visaLabels: Record<string, string> = {
-  K1: "Came on a fiancé(e) visa (K-1)",
+  K1: "Fiancé(e) visa (K-1)",
   "IR-1/CR-1": "Spouse immigrant visa (IR-1/CR-1)",
   K3: "Spouse visa (K-3)",
-  "F-1": "Student visa (F-1)",
+  "F-1": "Unmarried adult child of a U.S. citizen (F-1)",
   Other: "Other routes",
+}
+export const formLabel = (
+  code: string,
+  forms?: { form: string; name: string }[]
+) => {
+  const name = forms?.find((form) => form.form === code)?.name
+  return name ? `${name} · ${code}` : code
 }
 export const categoryLabel = (code: string) => categoryLabels[code] ?? code
 export const countryLabel = (code: string) => countryLabels[code] ?? code

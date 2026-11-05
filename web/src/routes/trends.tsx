@@ -14,7 +14,12 @@ import {
   formsQuery,
   type OfficialPoint,
 } from "@/lib/api"
-import { estimateDate, latestMedian, formatMonths } from "@/lib/estimate"
+import {
+  estimateDate,
+  latestMedian,
+  formatMonths,
+  quarterLabel,
+} from "@/lib/estimate"
 import { formHue, formInk } from "@/lib/palette"
 import { visaLabels } from "@/lib/labels"
 
@@ -166,9 +171,17 @@ function Trends() {
   const forms = useQuery(formsQuery())
   const detail = useQuery(formQuery(search.form))
   const community = useQuery(communityQuery(search.form))
-  const [visa, setVisa] = useState<{ form: string; value: string | null }>()
+  const [visa, setVisa] = useState<string | null>()
   const [now] = useState(Date.now)
   const filedRef = useRef<HTMLInputElement>(null)
+  const formRailRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!window.matchMedia("(max-width: 700px)").matches) return
+    const rail = formRailRef.current
+    const selected = rail?.querySelector<HTMLElement>('[aria-pressed="true"]')
+    if (rail && selected)
+      rail.scrollLeft = selected.offsetLeft - rail.offsetLeft - 8
+  }, [search.form, forms.data])
   const summary = forms.data?.forms.find((f) => f.form === search.form)
   const official =
     detail.data?.official.find((s) => s.id === search.series) ??
@@ -189,9 +202,9 @@ function Trends() {
       .slice()
       .sort((a, b) => (b.filingYear ?? 0) - (a.filingYear ?? 0))[0]
   const selected =
-    (visa?.form === search.form
-      ? candidates.find((s) => s.visaType === visa.value)
-      : undefined) ??
+    (visa === undefined
+      ? undefined
+      : candidates.find((s) => s.visaType === visa)) ??
     [...candidates].sort(
       (a, b) =>
         (latestCohort(b.points)?.sampleSize ?? 0) -
@@ -218,7 +231,13 @@ function Trends() {
       className="workspace trend-workspace"
       style={{ "--hue": formHue(search.form) } as CSSProperties}
     >
-      <div className="chip-rail" role="group" aria-label="Form" tabIndex={0}>
+      <div
+        ref={formRailRef}
+        className="chip-rail form-rail"
+        role="group"
+        aria-label="Form"
+        tabIndex={0}
+      >
         {forms.data?.forms
           .filter((f) => f.featured)
           .map((f) => (
@@ -322,9 +341,8 @@ function Trends() {
               <div>
                 {median && (
                   <small>
-                    {formatMonths(median.processingMonths!)} mo median · USCIS
-                    FY
-                    {String(median.fiscalYear).slice(-2)} Q{median.quarter} ·{" "}
+                    Typical wait {formatMonths(median.processingMonths!)} mo ·
+                    USCIS, {quarterLabel(median.fiscalYear, median.quarter)} ·{" "}
                     {official?.label}
                   </small>
                 )}
@@ -382,11 +400,11 @@ function Trends() {
                         key={s.visaType ?? "not-stated"}
                         className="chip"
                         aria-pressed={s === selected}
-                        onClick={() =>
-                          setVisa({ form: search.form, value: s.visaType })
-                        }
+                        onClick={() => setVisa(s.visaType)}
                       >
-                        {visaLabels[s.visaType ?? ""] ?? "Not stated"}
+                        {s.visaType == null
+                          ? "Not stated"
+                          : (visaLabels[s.visaType] ?? s.visaType)}
                       </button>
                     ))}
                   </div>

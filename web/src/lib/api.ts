@@ -50,7 +50,7 @@ export type CommunitySeries = {
   points: CommunityPoint[]
 }
 export type Bulletin = {
-  categories: { code: string; group: string }[]
+  categories: { code: string }[]
   category: string
   chart: string
   series: {

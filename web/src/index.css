@@ -267,6 +267,12 @@ button:disabled,
   margin: 0 -8px 10px;
   scrollbar-width: thin;
 }
+@media (min-width: 701px) {
+  .form-rail {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+}
 .chip-rail .chip {
   flex: none;
   white-space: nowrap;
@@ -580,9 +586,6 @@ td {
     flex: none;
     white-space: nowrap;
   }
-  .category-full {
-    display: none;
-  }
   button,
   select,
   input,
@@ -632,11 +635,51 @@ td {
 .bulletin-rail {
   overscroll-behavior-inline: contain;
 }
-.category-short {
+.selected-category {
   display: none;
 }
 @media (max-width: 700px) {
-  .category-short {
-    display: inline;
+  .selected-category {
+    display: block;
+  }
+}
+@media (max-width: 700px), (pointer: coarse) {
+  button,
+  select,
+  input,
+  textarea,
+  .brand,
+  .site-header nav a,
+  .account-signin,
+  .account-menu summary,
+  .account-menu a,
+  .chart-panel summary,
+  .social-actions a,
+  .social-back {
+    min-height: 44px;
+  }
+  .brand,
+  .account-signin,
+  .account-menu a,
+  .social-actions a,
+  .social-back {
+    display: inline-flex;
+    align-items: center;
+  }
+  .chart-panel summary {
+    align-content: center;
+  }
+  input,
+  select,
+  textarea,
+  .social-form input,
+  .social-form textarea,
+  .social-form select {
+    font-size: 16px;
+  }
+  .account-menu summary,
+  .theme-toggle {
+    min-width: 44px;
+    min-height: 44px;
   }
 }

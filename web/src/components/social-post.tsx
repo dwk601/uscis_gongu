@@ -6,6 +6,8 @@ import { useAuth, mutationErrorMessage } from "@/lib/auth"
 import { listVotes, relativeTime, type Post } from "@/lib/community"
 import { formHue, formInk } from "@/lib/palette"
 import { pb } from "@/lib/pb"
+import { formsQuery } from "@/lib/api"
+import { formLabel } from "@/lib/labels"
 
 export function SignIn({ action }: { action: string }) {
   const location = useRouterState({ select: (s) => s.location.href })
@@ -23,6 +25,7 @@ export function PostCard({
   detail?: boolean
 }) {
   const user = useAuth()
+  const forms = useQuery(formsQuery())
   const client = useQueryClient()
   const [error, setError] = useState("")
   const [optimistic, setOptimistic] = useState<{
@@ -71,7 +74,7 @@ export function PostCard({
               color: formInk(post.form),
             }}
           >
-            {post.form}
+            {formLabel(post.form, forms.data?.forms)}
           </span>
         )}
         <span>{post.author_name || "member"}</span>

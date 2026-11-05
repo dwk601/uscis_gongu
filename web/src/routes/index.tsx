@@ -8,7 +8,7 @@ import {
   formsQuery,
   type OfficialPoint,
 } from "@/lib/api"
-import { formatMonths, latestMedian } from "@/lib/estimate"
+import { formatMonths, latestMedian, quarterLabel } from "@/lib/estimate"
 import { categoryHue, formHue } from "@/lib/palette"
 import { categoryLabel } from "@/lib/labels"
 
@@ -162,7 +162,7 @@ function Home() {
               : "Explore wait times"}
           </strong>
           <small>
-            Green card application · I-485 · USCIS median
+            Green card application · I-485 · Typical wait · USCIS
             <br />
             See the data <ArrowRight size={14} aria-hidden="true" />
           </small>
@@ -179,13 +179,13 @@ function Home() {
               {trendEnds
                 .map(
                   (p) =>
-                    `${formatMonths(p!.processingMonths!)} mo · FY${p!.fiscalYear} Q${p!.quarter}`
+                    `${formatMonths(p!.processingMonths!)} mo · ${quarterLabel(p!.fiscalYear, p!.quarter)}`
                 )
                 .join(" to ")}
             </small>
           )}
           <small>
-            Green card application · I-485 · USCIS median trend
+            Green card application · I-485 · Typical wait trend · USCIS
             <br />
             Explore trends <ArrowRight size={14} aria-hidden="true" />
           </small>

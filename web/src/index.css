@@ -586,21 +586,13 @@ td {
     flex: none;
     white-space: nowrap;
   }
-  button,
-  select,
-  input,
-  textarea,
-  .site-header nav a {
-    min-height: 44px;
+  .form-rail .chip {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
-  button,
-  .site-header nav a {
-    min-width: 44px;
-  }
-  input,
-  select,
-  textarea {
-    font-size: 16px;
+  .form-rail .chip small {
+    white-space: nowrap;
   }
   .chip {
     padding: 8px 12px;
@@ -659,22 +651,29 @@ td {
     min-height: 44px;
   }
   .brand,
+  .site-header nav a,
   .account-signin,
   .account-menu a,
   .social-actions a,
-  .social-back {
+  .social-back,
+  .social-card h2 a {
     display: inline-flex;
     align-items: center;
   }
   .chart-panel summary {
     align-content: center;
   }
+  button,
+  .site-header nav a,
+  .social-card h2 a {
+    min-width: 44px;
+  }
+  .social-card h2 a {
+    min-height: 44px;
+  }
   input,
   select,
-  textarea,
-  .social-form input,
-  .social-form textarea,
-  .social-form select {
+  textarea {
     font-size: 16px;
   }
   .account-menu summary,

@@ -154,7 +154,7 @@ function chartRows(points: OfficialPoint[]) {
     }
     rows.push({
       x,
-      label: `FY${point.fiscalYear} Q${point.quarter}`,
+      label: quarterLabel(point.fiscalYear, point.quarter),
       value: point.processingMonths,
       other: point.completed,
       received: point.received,
@@ -177,10 +177,16 @@ function Trends() {
   const formRailRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!window.matchMedia("(max-width: 700px)").matches) return
-    const rail = formRailRef.current
-    const selected = rail?.querySelector<HTMLElement>('[aria-pressed="true"]')
-    if (rail && selected)
-      rail.scrollLeft = selected.offsetLeft - rail.offsetLeft - 8
+    let cancelled = false
+    void document.fonts.ready.then(() => {
+      if (!cancelled)
+        formRailRef.current
+          ?.querySelector<HTMLElement>('[aria-pressed="true"]')
+          ?.scrollIntoView({ block: "nearest", inline: "nearest" })
+    })
+    return () => {
+      cancelled = true
+    }
   }, [search.form, forms.data])
   const summary = forms.data?.forms.find((f) => f.form === search.form)
   const official =

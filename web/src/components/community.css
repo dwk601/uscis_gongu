@@ -191,13 +191,11 @@
   .social-card {
     padding: 17px;
   }
+}
+@media (max-width: 700px), (pointer: coarse) {
   .social-form input,
   .social-form textarea,
   .social-form select {
     font-size: 16px;
-  }
-  .account-menu summary {
-    width: 44px;
-    height: 44px;
   }
 }

@@ -35,7 +35,7 @@ export const visaLabels: Record<string, string> = {
   K1: "Fiancé(e) visa (K-1)",
   "IR-1/CR-1": "Spouse immigrant visa (IR-1/CR-1)",
   K3: "Spouse visa (K-3)",
-  "F-1": "Unmarried adult child of a U.S. citizen (F-1)",
+  "F-1": "Student visa (F-1)",
   Other: "Other routes",
 }
 export const formLabel = (

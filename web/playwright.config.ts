@@ -1,31 +1,22 @@
 import { createServer } from "node:net"
 import { defineConfig } from "@playwright/test"
 
-async function available(port: number) {
-  return new Promise<boolean>((resolve) => {
+async function freePort() {
+  return new Promise<number>((resolve, reject) => {
     const server = createServer()
-    server.once("error", () => resolve(false))
-    server.listen(port, "127.0.0.1", () => server.close(() => resolve(true)))
+    server.once("error", reject)
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address()
+      if (!address || typeof address === "string")
+        return reject(new Error("No free port"))
+      server.close((error) => (error ? reject(error) : resolve(address.port)))
+    })
   })
 }
 const requested = process.env.PLAYWRIGHT_PORT
-const ports = requested
-  ? [Number(requested)]
-  : Array.from({ length: 10 }, (_, i) => 8149 - i)
-let port: number | undefined
-for (const candidate of ports) {
-  if (
-    Number.isInteger(candidate) &&
-    candidate >= 8140 &&
-    candidate <= 8149 &&
-    (requested !== undefined || (await available(candidate)))
-  ) {
-    port = candidate
-    break
-  }
-}
-if (port === undefined)
-  throw new Error("No available Playwright port in 8140–8149")
+const port = requested === undefined ? await freePort() : Number(requested)
+if (!Number.isInteger(port) || port < 1 || port > 65535 || requested === "")
+  throw new Error("PLAYWRIGHT_PORT must be an integer between 1 and 65535")
 process.env.PLAYWRIGHT_PORT = String(port)
 const baseURL = `http://127.0.0.1:${port}`
 

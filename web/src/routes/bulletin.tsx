@@ -6,6 +6,7 @@ import { categoryHue } from "@/lib/palette"
 import { categoryLabel, countryLabel } from "@/lib/labels"
 
 const DataChart = lazy(() => import("@/components/data-chart"))
+const olderInvestors = new Set(["EB5-NON-RC", "EB5-RC", "EB5-UNRESERVED-RC"])
 type Search = { category: string; chart: string; country: string }
 export const Route = createFileRoute("/bulletin")({
   validateSearch: (search: Record<string, unknown>): Search => ({
@@ -101,8 +102,8 @@ function BulletinPage() {
         </div>
       </div>
       <p>
-        These dates show which petition filing dates may move forward, not when
-        a case will be approved; check{" "}
+        Cases with a priority date before the cutoff can move ahead; these are
+        not approval estimates. Check{" "}
         <a
           className="bulletin-link"
           href="https://www.uscis.gov/visabulletininfo"
@@ -142,20 +143,8 @@ function BulletinPage() {
                       )
                       .sort(
                         (a, b) =>
-                          Number(
-                            [
-                              "EB5-NON-RC",
-                              "EB5-RC",
-                              "EB5-UNRESERVED-RC",
-                            ].includes(a.code)
-                          ) -
-                          Number(
-                            [
-                              "EB5-NON-RC",
-                              "EB5-RC",
-                              "EB5-UNRESERVED-RC",
-                            ].includes(b.code)
-                          )
+                          Number(olderInvestors.has(a.code)) -
+                          Number(olderInvestors.has(b.code))
                       )
                       .map((c) => (
                         <option key={c.code} value={c.code}>

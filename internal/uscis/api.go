@@ -338,10 +338,14 @@ func validInsightQuery(r *core.RequestEvent, allowed ...string) bool {
 
 func insightSuccess(r *core.RequestEvent, response any) error {
 	data, err := json.Marshal(response)
-	if err != nil || len(data)+1 > 200*1024 {
+	if err != nil || len(data) > 200*1024 {
 		return unavailable(r)
 	}
-	return success(r, response)
+	r.Response.Header().Set("Cache-Control", "public, max-age=3600")
+	r.Response.Header().Set("Content-Type", "application/json")
+	r.Response.WriteHeader(http.StatusOK)
+	_, err = r.Response.Write(data)
+	return err
 }
 
 func (a *api) formList(r *core.RequestEvent) error {

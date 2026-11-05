@@ -80,7 +80,7 @@ func visaCurve(name string, reports []visaReport) visaGroup {
 				p.High = &high
 			}
 			if g.Decisions >= 30 {
-				if g.MedianDays == nil && s <= 0.5 {
+				if g.MedianDays == nil && s <= 0.5+1e-12 {
 					d := p.Day
 					g.MedianDays = &d
 				}

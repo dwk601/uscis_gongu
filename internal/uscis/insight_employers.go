@@ -19,7 +19,7 @@ type employer struct {
 
 type employersResponse struct {
 	Years     []int32    `json:"years"`
-	Year      int32      `json:"year"`
+	Year      *int32     `json:"year"`
 	Employers []employer `json:"employers"`
 }
 
@@ -62,10 +62,11 @@ func (a *api) employers(r *core.RequestEvent) error {
 	if !found && params.Has("year") {
 		return r.Error(http.StatusBadRequest, "Invalid year.", nil)
 	}
-	out := employersResponse{Years: years, Year: year, Employers: []employer{}}
+	out := employersResponse{Years: years, Employers: []employer{}}
 	if !found {
 		return insightSuccess(r, out)
 	}
+	out.Year = &year
 	value, err = a.load(ctx, "employers-"+strconv.Itoa(int(year)), func(ctx context.Context) (any, error) { return a.q.Employers(ctx, &year) })
 	if err != nil {
 		return unavailable(r)

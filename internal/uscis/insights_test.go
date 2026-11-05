@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -47,56 +48,75 @@ func TestInsightsContract(t *testing.T) {
 			t.Fatal("GONGU_TEST_ADMIN_DATABASE_URL must use only local hosts")
 		}
 	}
-	admin, err := pgx.ConnectConfig(ctx, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer admin.Close(ctx)
-	var random [8]byte
-	if _, err = rand.Read(random[:]); err != nil {
-		t.Fatal(err)
-	}
-	suffix := hex.EncodeToString(random[:])
-	dbname := "gongu_insights_" + suffix
-	role := "gongu_reader_" + suffix
-	password := hex.EncodeToString(random[:])
-	dbIdent := pgx.Identifier{dbname}.Sanitize()
-	roleIdent := pgx.Identifier{role}.Sanitize()
-	exec := func(conn *pgx.Conn, sql string) {
+	execSQL := func(conn *pgx.Conn, sql string) {
 		t.Helper()
 		if _, err := conn.Exec(ctx, sql); err != nil {
 			t.Fatalf("database setup: %v", err)
 		}
 	}
-	exec(admin, "CREATE ROLE "+roleIdent+" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD '"+password+"'")
-	defer func() {
-		if _, err := admin.Exec(ctx, "DROP ROLE "+roleIdent); err != nil {
-			t.Errorf("drop role: %v", err)
+	dbname := os.Getenv("GONGU_INSIGHTS_CHILD_DB")
+	role := os.Getenv("GONGU_INSIGHTS_CHILD_ROLE")
+	if dbname == "" {
+		admin, err := pgx.ConnectConfig(ctx, cfg)
+		if err != nil {
+			t.Fatal(err)
 		}
-	}()
-	exec(admin, "ALTER ROLE "+roleIdent+" SET default_transaction_read_only = on")
-	exec(admin, "CREATE DATABASE "+dbIdent)
-	defer func() {
-		if _, err := admin.Exec(ctx, "DROP DATABASE "+dbIdent+" WITH (FORCE)"); err != nil {
-			t.Errorf("drop database: %v", err)
+		t.Cleanup(func() { admin.Close(ctx) })
+		var random [8]byte
+		if _, err := rand.Read(random[:]); err != nil {
+			t.Fatal(err)
 		}
-	}()
-	exec(admin, "REVOKE TEMPORARY ON DATABASE "+dbIdent+" FROM PUBLIC")
+		suffix := hex.EncodeToString(random[:])
+		dbname = "gongu_insights_" + suffix
+		role = "gongu_reader_" + suffix
+		password := suffix
+		dbIdent := pgx.Identifier{dbname}.Sanitize()
+		roleIdent := pgx.Identifier{role}.Sanitize()
+		execSQL(admin, "CREATE ROLE "+roleIdent+" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD '"+password+"'")
+		t.Cleanup(func() {
+			if _, err := admin.Exec(ctx, "DROP ROLE "+roleIdent); err != nil {
+				t.Errorf("drop role: %v", err)
+			}
+		})
+		execSQL(admin, "ALTER ROLE "+roleIdent+" SET default_transaction_read_only = on")
+		execSQL(admin, "CREATE DATABASE "+dbIdent)
+		t.Cleanup(func() {
+			if _, err := admin.Exec(ctx, "DROP DATABASE "+dbIdent+" WITH (FORCE)"); err != nil {
+				t.Errorf("drop database: %v", err)
+			}
+		})
+		execSQL(admin, "REVOKE TEMPORARY ON DATABASE "+dbIdent+" FROM PUBLIC")
+		fixtureCfg := cfg.Copy()
+		fixtureCfg.Database = dbname
+		fixture, err := pgx.ConnectConfig(ctx, fixtureCfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { fixture.Close(ctx) })
+		sql, err := os.ReadFile(filepath.Join("testdata", "insights.sql"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		execSQL(fixture, string(sql))
+		execSQL(fixture, "GRANT SELECT ON public.immihelp_timeline, public.dol_lca_pay_stats, public.h1b_employer, public.student_post_week TO "+roleIdent)
+		appURL := url.URL{Scheme: "postgresql", User: url.UserPassword(role, password), Host: net.JoinHostPort("127.0.0.1", fmt.Sprint(cfg.Port)), Path: "/" + dbname, RawQuery: "sslmode=disable"}
+		// A separate process keeps cleanup in this parent even if a handler goroutine panics.
+		cmd := exec.Command(os.Args[0], "-test.run=^TestInsightsContract$", "-test.count=1")
+		cmd.Env = append(os.Environ(), "GONGU_INSIGHTS_CHILD_DB="+dbname, "GONGU_INSIGHTS_CHILD_ROLE="+role, databaseURLEnv+"="+appURL.String())
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("HTTP contract subprocess: %v\n%s", err, output)
+		}
+		return
+	}
 	fixtureCfg := cfg.Copy()
 	fixtureCfg.Database = dbname
 	fixture, err := pgx.ConnectConfig(ctx, fixtureCfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer fixture.Close(ctx)
-	sql, err := os.ReadFile(filepath.Join("testdata", "insights.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	exec(fixture, string(sql))
-	exec(fixture, "GRANT SELECT ON public.immihelp_timeline, public.dol_lca_pay_stats, public.h1b_employer, public.student_post_week TO "+roleIdent)
-	appURL := url.URL{Scheme: "postgresql", User: url.UserPassword(role, password), Host: net.JoinHostPort("127.0.0.1", fmt.Sprint(cfg.Port)), Path: "/" + dbname, RawQuery: "sslmode=disable"}
-	t.Setenv(databaseURLEnv, appURL.String())
+	t.Cleanup(func() { fixture.Close(ctx) })
+	roleIdent := pgx.Identifier{role}.Sanitize()
 	newMux := func() http.Handler {
 		t.Helper()
 		app, err := tests.NewTestApp(t.TempDir())
@@ -116,88 +136,155 @@ func TestInsightsContract(t *testing.T) {
 		}
 		return mux
 	}
+	request := func(mux http.Handler, path string) *httptest.ResponseRecorder {
+		res := httptest.NewRecorder()
+		mux.ServeHTTP(res, httptest.NewRequest(http.MethodGet, path, nil))
+		return res
+	}
+	replace := func(view, query string) {
+		t.Helper()
+		ident := pgx.Identifier{"public", view}.Sanitize()
+		execSQL(fixture, "DROP VIEW "+ident)
+		execSQL(fixture, "CREATE VIEW "+ident+" AS "+query)
+		execSQL(fixture, "GRANT SELECT ON "+ident+" TO "+roleIdent)
+	}
 	mux := newMux()
-	cases := []struct {
+	type testCase struct {
 		name, path string
 		status     int
+		setup      func()
 		check      func(*testing.T, []byte)
-	}{
-		{"visa KM and boundaries", "/api/x/uscis/insights/visa-221g", 200, func(t *testing.T, b []byte) {
+	}
+	cases := []testCase{
+		{name: "visa KM and censoring", path: "/api/x/uscis/insights/visa-221g", status: 200, check: func(t *testing.T, b []byte) {
 			var v visaResponse
 			if err := json.Unmarshal(b, &v); err != nil {
 				t.Fatal(err)
 			}
-			if v.Status != "ready" || v.Excluded != 1 || len(v.Groups) != 3 || v.From == nil || *v.From != "2024-01-01" || v.To == nil || *v.To != "2024-01-01" {
+			if v.Status != "ready" || v.Excluded != 4 || len(v.Groups) != 3 || v.From == nil || *v.From != "2024-01-01" || v.To == nil || *v.To != "2024-01-01" {
 				t.Fatalf("visa: %s", b)
 			}
 			g := v.Groups[0]
-			if g.Included != 100 || g.Decisions != 59 || g.Censored != 41 || g.P90Days == nil || *g.P90Days != 10 || len(g.Curve) != 2 || g.Curve[1].AtRisk != 60 || v.Groups[1].Office != "Small" || v.Groups[1].Included != 30 || v.Groups[1].Decisions != 29 || v.Groups[1].MedianDays != nil || v.Groups[1].P90Days != nil || v.Groups[2].Office != "Thirty" || v.Groups[2].Included != 30 {
+			if g.Included != 103 || g.Decisions != 59 || g.Censored != 44 || g.P90Days == nil || *g.P90Days != 10 || len(g.Curve) != 3 || g.Curve[1].AtRisk != 61 || g.Curve[2].AtRisk != 2 || v.Groups[1].Office != "Small" || v.Groups[1].Included != 30 || v.Groups[1].Decisions != 29 || v.Groups[1].MedianDays != nil || v.Groups[1].P90Days != nil || v.Groups[2].Office != "Thirty" || v.Groups[2].Included != 30 || v.Groups[2].MedianDays == nil || *v.Groups[2].MedianDays != 10 || v.Groups[2].P90Days == nil || *v.Groups[2].P90Days != 10 {
 				t.Fatalf("visa curve: %s", b)
 			}
-			p := g.Curve[1]
-			if math.Abs(p.Waiting-1.0/60) > 1e-12 || p.Low == nil || p.High == nil || math.Abs(*p.Low-0.0013854194746663975) > 1e-12 || math.Abs(*p.High-0.07831704511866291) > 1e-12 {
+			p, q := g.Curve[1], g.Curve[2]
+			if math.Abs(p.Waiting-3.0/61) > 1e-12 || p.Low == nil || p.High == nil || math.Abs(*p.Low-0.012973128859312769) > 1e-12 || math.Abs(*p.High-0.12388853825765767) > 1e-12 || math.Abs(q.Waiting-3.0/122) > 1e-12 || q.Low == nil || q.High == nil || math.Abs(*q.Low-0.002537001801897982) > 1e-12 || math.Abs(*q.High-0.10053638310893542) > 1e-12 {
 				t.Fatalf("Greenwood band: %s", b)
 			}
 		}},
-		{"invalid query", "/api/x/uscis/insights/visa-221g?year=2025", 400, nil},
-		{"pay catalog", "/api/x/uscis/insights/h1b-pay", 200, func(t *testing.T, b []byte) {
+		{name: "invalid query", path: "/api/x/uscis/insights/visa-221g?year=2025", status: 400},
+		{name: "pay catalog", path: "/api/x/uscis/insights/h1b-pay", status: 200, check: func(t *testing.T, b []byte) {
 			var v payCatalog
-			if err := json.Unmarshal(b, &v); err != nil || len(v.Years) != 1 || v.Years[0].Titles[0].Key != "SOFTWARE ENGINEER" || v.Years[0].From != "2024-10-01" {
+			if err := json.Unmarshal(b, &v); err != nil || len(v.Years) != 2 || v.Years[0].Year != 2026 || v.Years[1].Year != 2025 || len(v.Years[1].Titles) != 2 || v.Years[1].Titles[0].Key != "SOFTWARE ENGINEER" || v.Years[1].From != "2024-10-01" || v.Years[1].To != "2025-09-30" {
 				t.Fatalf("catalog: %s (%v)", b, err)
 			}
 		}},
-		{"pay title", "/api/x/uscis/insights/h1b-pay?year=2025&title=SOFTWARE%20ENGINEER", 200, func(t *testing.T, b []byte) {
+		{name: "pay title", path: "/api/x/uscis/insights/h1b-pay?year=2025&title=SOFTWARE%20ENGINEER", status: 200, check: func(t *testing.T, b []byte) {
 			var v payDetail
 			if err := json.Unmarshal(b, &v); err != nil || len(v.States) != 2 || v.States[0].State != "CA" || v.All.Cases == nil || *v.All.Cases != 100 {
 				t.Fatalf("pay: %s (%v)", b, err)
 			}
 		}},
-		{"unknown title", "/api/x/uscis/insights/h1b-pay?year=2025&title=NOPE", 400, nil},
-		{"employer ranking", "/api/x/uscis/insights/h1b-employers", 200, func(t *testing.T, b []byte) {
+		{name: "pay requires title", path: "/api/x/uscis/insights/h1b-pay?year=2025", status: 400},
+		{name: "unknown title", path: "/api/x/uscis/insights/h1b-pay?year=2025&title=NOPE", status: 400},
+		{name: "employer ranking and latest year", path: "/api/x/uscis/insights/h1b-employers", status: 200, check: func(t *testing.T, b []byte) {
 			var v employersResponse
-			if err := json.Unmarshal(b, &v); err != nil || len(v.Employers) != 20 || v.Employers[0].Name != "Employer 01" || v.Employers[0].InitialApprovals != 101 || v.Employers[1].Name != "A Employer" || v.Employers[2].Name != "Employer 25" || strings.Contains(string(b), "secret") || strings.Contains(string(b), "tax") {
+			if err := json.Unmarshal(b, &v); err != nil || v.Year == nil || *v.Year != 2025 || len(v.Years) != 2 || v.Years[0] != 2025 || v.Years[1] != 2024 || len(v.Employers) != 20 || v.Employers[0].Name != "Employer 01" || v.Employers[0].InitialApprovals != 101 || v.Employers[1].Name != "A Employer" || v.Employers[2].Name != "Employer 25" || strings.Contains(string(b), "secret") || strings.Contains(string(b), "tax") {
 				t.Fatalf("employers: %s (%v)", b, err)
 			}
 		}},
-		{"unknown employer year", "/api/x/uscis/insights/h1b-employers?year=1900", 400, nil},
-		{"student baseline", "/api/x/uscis/insights/student-posts", 200, func(t *testing.T, b []byte) {
+		{name: "unknown employer year", path: "/api/x/uscis/insights/h1b-employers?year=1900", status: 400},
+		{name: "student baseline", path: "/api/x/uscis/insights/student-posts", status: 200, check: func(t *testing.T, b []byte) {
 			var v studentResponse
 			if err := json.Unmarshal(b, &v); err != nil || len(v.Weeks) != 15 {
 				t.Fatalf("student: %s (%v)", b, err)
 			}
 			z := v.Weeks[12].Z.Sevis
-			if z == nil || math.Abs(*z-18.5/math.Sqrt(13)) > 1e-9 || v.Weeks[13].Covered || v.Weeks[13].Sevis != nil || v.Weeks[14].Z.Sevis != nil {
+			if z == nil || math.Abs(*z-18.5/math.Sqrt(13)) > 1e-9 || v.Weeks[12].Z.CPT != nil || v.Topics["cpt"].Posts != 6 || v.Weeks[12].Z.Policy != nil || v.Topics["policy"].Posts != 42 || v.Weeks[13].Covered || v.Weeks[13].Sevis != nil || v.Weeks[14].Z.Sevis != nil {
 				t.Fatalf("student z: %s", b)
 			}
 		}},
-		{"missing pay view", "/api/x/uscis/insights/h1b-pay", 503, func(t *testing.T, b []byte) {
-			if !strings.Contains(string(b), "USCIS database unavailable.") {
-				t.Fatalf("error: %s", b)
+		{name: "KM exact thresholds", path: "/api/x/uscis/insights/visa-221g", status: 200, setup: func() {
+			replace("immihelp_timeline", `SELECT '221g-tracker'::text tracker,'F1'::text category, office, '2024-01-01'::date start_date, ('2024-01-01'::date + CASE WHEN office='Threshold' THEN CASE WHEN n<=20 THEN 0 WHEN n<=50 THEN 1 WHEN n<=80 THEN 2 WHEN n<=91 THEN 3 ELSE 4 END ELSE CASE WHEN n<=21 THEN 0 WHEN n<=50 THEN 1 WHEN n<=96 THEN 2 WHEN n<=98 THEN 3 WHEN n<=99 THEN 4 ELSE 5 END END)::date decision_date, '2024-02-01'::timestamptz first_seen_at, NULL::timestamptz updated_at, false pending FROM generate_series(1,100) n CROSS JOIN (VALUES ('Threshold'::text),('Precision'::text)) o(office)`)
+			mux = newMux()
+		}, check: func(t *testing.T, b []byte) {
+			var v visaResponse
+			if err := json.Unmarshal(b, &v); err != nil || len(v.Groups) != 3 {
+				t.Fatalf("thresholds: %s (%v)", b, err)
+			}
+			for _, g := range v.Groups[1:] {
+				if g.MedianDays == nil || *g.MedianDays != 1 {
+					t.Fatalf("median: %s", b)
+				}
+				if g.Office == "Threshold" && (g.P90Days == nil || *g.P90Days != 3) {
+					t.Fatalf("p90: %s", b)
+				}
 			}
 		}},
-		{"missing student view", "/api/x/uscis/insights/student-posts", 503, func(t *testing.T, b []byte) {
-			if !strings.Contains(string(b), "USCIS database unavailable.") {
-				t.Fatalf("error: %s", b)
+		{name: "pooled insufficient", path: "/api/x/uscis/insights/visa-221g", status: 200, setup: func() {
+			execSQL(fixture, "ALTER VIEW public.immihelp_timeline RENAME TO saved_visa")
+			execSQL(fixture, "CREATE VIEW public.immihelp_timeline AS SELECT * FROM public.saved_visa LIMIT 29")
+			execSQL(fixture, "GRANT SELECT ON public.immihelp_timeline TO "+roleIdent)
+			mux = newMux()
+		}, check: func(t *testing.T, b []byte) {
+			var v visaResponse
+			if err := json.Unmarshal(b, &v); err != nil || v.Status != "insufficient_data" || len(v.Groups) != 0 {
+				t.Fatalf("insufficient: %s (%v)", b, err)
 			}
 		}},
+		{name: "student gap", path: "/api/x/uscis/insights/student-posts", status: 200, setup: func() {
+			execSQL(fixture, "ALTER VIEW public.student_post_week RENAME TO saved_student")
+			execSQL(fixture, "CREATE VIEW public.student_post_week AS SELECT week_start, topic, CASE WHEN week_start = '2024-04-01' THEN 5 ELSE posts END AS posts, CASE WHEN week_start = '2024-04-01' THEN true ELSE covered END AS covered FROM public.saved_student WHERE week_start <> '2024-02-05'")
+			execSQL(fixture, "GRANT SELECT ON public.student_post_week TO "+roleIdent)
+			mux = newMux()
+		}, check: func(t *testing.T, b []byte) {
+			var v studentResponse
+			if err := json.Unmarshal(b, &v); err != nil || len(v.Weeks) != 14 || !v.Weeks[13].Covered || v.Weeks[13].Z.Sevis != nil {
+				t.Fatalf("gap: %s (%v)", b, err)
+			}
+		}},
+		{name: "oversized payload", path: "/api/x/uscis/insights/student-posts", status: 503, setup: func() {
+			replace("student_post_week", `SELECT ('2000-01-03'::date+n*7)::date week_start, topic::text, 3::int posts, true covered FROM generate_series(0,3000) n CROSS JOIN (VALUES ('all'),('sevis'),('cpt'),('policy')) t(topic)`)
+			mux = newMux()
+		}},
+		{name: "empty employers", path: "/api/x/uscis/insights/h1b-employers", status: 200, setup: func() {
+			execSQL(fixture, "ALTER VIEW public.h1b_employer RENAME TO saved_employer")
+			execSQL(fixture, "CREATE VIEW public.h1b_employer AS SELECT * FROM public.saved_employer WHERE false")
+			execSQL(fixture, "GRANT SELECT ON public.h1b_employer TO "+roleIdent)
+			mux = newMux()
+		}, check: func(t *testing.T, b []byte) {
+			if string(b) != `{"years":[],"year":null,"employers":[]}` {
+				t.Fatalf("empty employers: %s", b)
+			}
+		}},
+		{name: "missing visa", path: "/api/x/uscis/insights/visa-221g", status: 503, setup: func() { execSQL(fixture, "DROP VIEW public.immihelp_timeline"); mux = newMux() }},
+		{name: "missing employers", path: "/api/x/uscis/insights/h1b-employers", status: 503, setup: func() { execSQL(fixture, "DROP VIEW public.h1b_employer"); mux = newMux() }},
+		{name: "missing pay detail", path: "/api/x/uscis/insights/h1b-pay?year=2025&title=SOFTWARE%20ENGINEER", status: 503, setup: func() {
+			mux = newMux()
+			res := request(mux, "/api/x/uscis/insights/h1b-pay")
+			if res.Code != 200 {
+				t.Fatalf("prime catalog: %s", res.Body.String())
+			}
+			execSQL(fixture, "DROP VIEW public.dol_lca_pay_stats")
+		}},
+		{name: "missing pay", path: "/api/x/uscis/insights/h1b-pay", status: 503, setup: func() { mux = newMux() }},
+		{name: "missing student", path: "/api/x/uscis/insights/student-posts", status: 503, setup: func() { execSQL(fixture, "DROP VIEW public.student_post_week"); mux = newMux() }},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.name == "missing pay view" {
-				exec(fixture, "DROP VIEW public.dol_lca_pay_stats")
-				mux = newMux()
+			if tc.setup != nil {
+				tc.setup()
 			}
-			if tc.name == "missing student view" {
-				exec(fixture, "DROP VIEW public.student_post_week")
-				mux = newMux()
-			}
-			res := httptest.NewRecorder()
-			mux.ServeHTTP(res, httptest.NewRequest(http.MethodGet, tc.path, nil))
+			res := request(mux, tc.path)
 			if res.Code != tc.status {
 				t.Fatalf("status %d, want %d: %s", res.Code, tc.status, res.Body.String())
 			}
 			if res.Body.Len() > 200*1024 {
 				t.Fatal("response exceeds 200 KiB")
+			}
+			if tc.status == 503 && !strings.Contains(res.Body.String(), "USCIS database unavailable.") {
+				t.Fatalf("error: %s", res.Body.String())
 			}
 			if tc.check != nil {
 				tc.check(t, res.Body.Bytes())

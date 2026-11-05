@@ -145,7 +145,13 @@ function BulletinPage() {
                 c.group.toLowerCase().includes(group.toLowerCase())
               ) ?? []
             return categories.length ? (
-              <div className="controls" key={group}>
+              <div
+                className="controls bulletin-rail"
+                key={group}
+                role="group"
+                aria-label={group}
+                tabIndex={0}
+              >
                 <span className="muted">{group}</span>
                 {categories
                   .filter((c) => !c.code.startsWith("EB5"))
@@ -153,10 +159,17 @@ function BulletinPage() {
                     <button
                       key={c.code}
                       className="chip"
+                      title={categoryLabel(c.code)}
+                      aria-label={categoryLabel(c.code)}
                       aria-pressed={search.category === c.code}
                       onClick={() => update({ category: c.code })}
                     >
-                      {categoryLabel(c.code)}
+                      <span className="category-full">
+                        {categoryLabel(c.code)}
+                      </span>
+                      <span className="category-short" aria-hidden="true">
+                        {c.code}
+                      </span>
                     </button>
                   ))}
                 {categories.some((c) => c.code.startsWith("EB5")) && (
@@ -183,7 +196,12 @@ function BulletinPage() {
               </div>
             ) : null
           })}
-          <div className="controls" role="group" aria-label="Country">
+          <div
+            className="controls bulletin-rail"
+            role="group"
+            aria-label="Country"
+            tabIndex={0}
+          >
             {bulletin.data?.series.map((s) => (
               <button
                 key={s.country}
@@ -200,10 +218,6 @@ function BulletinPage() {
               className="panel bulletin-card"
               style={{ background: categoryHue(search.category) }}
             >
-              <small>
-                {categoryLabel(search.category)} ·{" "}
-                {series ? countryLabel(series.country) : ""}
-              </small>
               <h2>
                 {current?.status === "current"
                   ? "Current"
@@ -221,7 +235,9 @@ function BulletinPage() {
                     : `${Math.abs(delta)} months ${delta > 0 ? "forward" : "back"} vs. 12 months ago`}
               </p>
               <small>
-                {current?.month ? `Bulletin ${month(current.month)}` : ""}
+                {current?.month ? `Bulletin ${month(current.month)} · ` : ""}
+                {categoryLabel(search.category)} ·{" "}
+                {series ? countryLabel(series.country) : ""}
               </small>
             </section>
             <Suspense fallback={<div className="skeleton" />}>

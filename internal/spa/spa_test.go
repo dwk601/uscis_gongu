@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,6 +12,8 @@ import (
 	"ganigeorgiev.com/pocketbase/pocketbase/apis"
 	"ganigeorgiev.com/pocketbase/pocketbase/core"
 	"ganigeorgiev.com/pocketbase/pocketbase/tests"
+
+	"gongu/web"
 )
 
 func TestStaticCompression(t *testing.T) {
@@ -36,6 +39,22 @@ func TestStaticCompression(t *testing.T) {
 			response := httptest.NewRecorder()
 			mux.ServeHTTP(response, req)
 			return response
+		}
+		assets, err := fs.Glob(web.Dist(), "assets/*.js")
+		if err != nil || len(assets) == 0 {
+			t.Fatalf("no built assets: %v", err)
+		}
+		for _, tc := range []struct{ path, cache string }{
+			{"/", "no-cache"},
+			{"/trends", "no-cache"},
+			{"/assets/missing-abcdefgh.js", "no-cache"},
+			{"/" + assets[0], "public, max-age=31536000, immutable"},
+		} {
+			resp := httptest.NewRecorder()
+			mux.ServeHTTP(resp, httptest.NewRequest(http.MethodGet, tc.path, nil))
+			if got := resp.Header().Get("Cache-Control"); got != tc.cache {
+				t.Errorf("%s cache: got %q, want %q", tc.path, got, tc.cache)
+			}
 		}
 		plain := request("identity")
 		compressed := request("gzip")

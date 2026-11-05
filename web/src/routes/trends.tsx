@@ -284,7 +284,22 @@ function Trends() {
               key={s.id}
               onClick={() => update({ series: s.id })}
             >
-              {s.label}
+              {search.form === "I-131"
+                ? s.label
+                    .replace(/^Application for /i, "")
+                    .replace(
+                      / Document for Aliens Inside the United States/i,
+                      " (inside U.S.)"
+                    )
+                    .replace(
+                      / Document for Aliens Outside the United States/i,
+                      " (outside U.S.)"
+                    )
+                    .replace(
+                      /^Travel Documents?, Parole Documents, and Arrival\/Departure Records$/i,
+                      "Travel and parole documents"
+                    )
+                : s.label}
             </button>
           ))}
         </div>
@@ -304,7 +319,6 @@ function Trends() {
               style={{ color: formInk(search.form) }}
             >
               <div>
-                <small>USCIS · {official?.label}</small>
                 <h2>
                   {!median
                     ? "No recent median"
@@ -318,7 +332,8 @@ function Trends() {
                 {median && (
                   <small>
                     {median.processingMonths} mo median · USCIS FY
-                    {String(median.fiscalYear).slice(-2)} Q{median.quarter}
+                    {String(median.fiscalYear).slice(-2)} Q{median.quarter} ·{" "}
+                    {official?.label}
                   </small>
                 )}
                 {!search.filed && (

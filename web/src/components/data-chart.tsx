@@ -116,7 +116,19 @@ export default function DataChart({
     ],
     scales: {
       x: { scale: calendar ? scaleUtc : scaleLinear },
-      y: { scale: scaleLinear },
+      y: second
+        ? {
+            scale: scaleLinear().domain([
+              0,
+              Math.max(1, ...rows.flatMap((r) => [r.value ?? 0, r.other ?? 0])),
+            ]),
+            axis: {
+              ticks: {
+                format: (value: number) => value.toLocaleString("en-US"),
+              },
+            },
+          }
+        : { scale: scaleLinear },
     },
     ...(dateValues ? { margin: { left: 72, right: 12 } } : {}),
   })
@@ -155,6 +167,18 @@ export default function DataChart({
             {second}
           </span>
           {pending && <span>Pending: {pending}</span>}
+        </div>
+      )}
+      {extras.length > 0 && (
+        <div className="chart-legend">
+          <span>
+            <i style={{ background: "var(--chart-stroke)" }} />
+            Selected country
+          </span>
+          <span>
+            <i style={{ background: "#999990" }} />
+            Other countries
+          </span>
         </div>
       )}
       {rows.some((row) => row.status && row.status !== "date") && (

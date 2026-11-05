@@ -40,5 +40,5 @@ dev-web:
 
 check: web
 	@npm --prefix web run lint & lint=$$!; \
-	go vet ./internal/... ./migrations/... . && go test ./internal/... ./migrations/... . & go=$$!; \
+	go vet ./internal/... ./migrations/... ./web . && go test ./internal/... ./migrations/... ./web . & go=$$!; \
 	status=0; wait $$lint || status=1; wait $$go || status=1; exit $$status

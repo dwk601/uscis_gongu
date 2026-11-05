@@ -6,6 +6,7 @@
     "colorMeta": {
       "ground": { "role": "neutral", "displayName": "Canvas", "canonical": "#f7f7f4" },
       "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#171717" },
+      "focus": { "role": "accent", "displayName": "Focus", "canonical": "#7c55ca" },
       "tangerine": { "role": "primary", "displayName": "Tangerine", "canonical": "#f2703d" },
       "lilac": { "role": "secondary", "displayName": "Lilac", "canonical": "#c7b6ec" },
       "lime": { "role": "secondary", "displayName": "Lime", "canonical": "#d3e39a" },
@@ -20,11 +21,11 @@
       { "name": "artifact", "value": "0 12px 24px #0000001c", "purpose": "Landing artifact lift." },
       { "name": "menu", "value": "0 8px 24px #0003", "purpose": "Account menu." }
     ],
-    "motion": [{ "name": "surface", "value": "background 0.45s ease-out", "purpose": "Theme and form-color changes." }],
+    "motion": [{ "name": "surface", "value": "background 0.45s ease-out", "purpose": "Theme and form-color changes." }, { "name": "artifact", "value": "transform 250ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 250ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Straighten and lift on hover or focus; reduced motion disables transitions." }],
     "breakpoints": [{ "name": "workspace", "value": "700px" }, { "name": "social", "value": "600px" }]
   },
   "components": [
-    { "name": "Primary button", "kind": "button", "refersTo": "button-primary", "description": "The main action.", "html": "<button class=\"ds-primary\">Continue</button>", "css": ".ds-primary{background:#171717;color:#fff;border:0;border-radius:99px;padding:14px 24px;font:600 1rem 'Geist Variable',sans-serif}.ds-primary:hover{background:#383833}.ds-primary:focus-visible{outline:3px solid #7c55ca;outline-offset:3px}" },
+    { "name": "Primary button", "kind": "button", "refersTo": "button-primary", "description": "The main action.", "html": "<button class=\"ds-primary\">Continue</button>", "css": ".ds-primary{background:#171717;color:#fff;border:0;border-radius:99px;padding:14px 24px;font:600 1rem 'Geist Variable',sans-serif}.ds-primary:hover{background:#383833}.dark .ds-primary{background:var(--ink);color:var(--ground)}.dark .ds-primary:hover{background:#c6c6bd}.ds-primary:disabled{opacity:.5;cursor:not-allowed}.ds-primary:focus-visible{outline:3px solid #7c55ca;outline-offset:3px}" },
     { "name": "Chip", "kind": "chip", "refersTo": "chip", "description": "A compact choice.", "html": "<button class=\"ds-chip\">N-400</button>", "css": ".ds-chip{border:1px solid var(--hairline,#e7e6e1);background:var(--panel,#fff);color:var(--ink,#171717);border-radius:99px;padding:9px 15px;font:14px 'Geist Variable',sans-serif}.ds-chip:hover{border-color:var(--ink,#171717)}.ds-chip:focus-visible{outline:3px solid var(--focus,#7c55ca);outline-offset:3px}" },
     { "name": "Field", "kind": "input", "description": "A social form field.", "html": "<input class=\"ds-field\" placeholder=\"Display name\" aria-label=\"Display name\">", "css": ".ds-field{padding:12px 14px;border:1px solid var(--hairline,#e7e6e1);border-radius:12px;background:var(--ground,#f7f7f4);color:var(--ink,#171717);font:14px 'Geist Variable',sans-serif}.ds-field:focus-visible{outline:3px solid var(--focus,#7c55ca);outline-offset:3px}" },
     { "name": "Social card", "kind": "card", "description": "A community content container.", "html": "<article class=\"ds-card\"><h2>A community conversation</h2><p>Share your experience.</p></article>", "css": ".ds-card{background:var(--panel,#fff);color:var(--ink,#171717);border:1px solid var(--hairline,#e7e6e1);border-radius:14px;padding:22px;font-family:'Geist Variable',sans-serif}.ds-card h2{margin:0 0 12px}.ds-card p{line-height:1.5}" },

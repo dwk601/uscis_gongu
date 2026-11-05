@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
+import { ArrowRight } from "lucide-react"
 import {
   bulletinQuery,
   formQuery,
@@ -96,6 +97,12 @@ function Home() {
       s.id === forms.data?.forms.find((f) => f.form === "I-485")?.defaultSeries
   )
   const median = latestMedian(series?.points ?? [])
+  const trendPoints = (series?.points ?? [])
+    .filter((p) => p.quarterStart && p.processingMonths != null)
+    .slice()
+    .sort((a, b) => a.quarterStart!.localeCompare(b.quarterStart!))
+    .slice(-12)
+  const trendEnds = [trendPoints[0], trendPoints.at(-1)]
   const cutoff = bulletin.data?.series
     .find((s) => s.country === "ALL")
     ?.points.at(-1)
@@ -146,13 +153,16 @@ function Home() {
           to="/trends"
           search={{ form: "I-485", series: undefined, filed: undefined }}
         >
-          <small>I-485 · USCIS median</small>
           <strong>
             {median?.processingMonths != null
               ? `${median.processingMonths} months`
               : "Explore wait times"}
           </strong>
-          <small>See the data →</small>
+          <small>
+            I-485 · USCIS median
+            <br />
+            See the data <ArrowRight size={14} aria-hidden="true" />
+          </small>
         </Link>
         <Link
           className="artifact"
@@ -160,9 +170,22 @@ function Home() {
           to="/trends"
           search={{ form: "I-485", series: undefined, filed: undefined }}
         >
-          <small>I-485 · Median wait trend</small>
           <MiniTrend values={recentValues(series?.points ?? [])} />
-          <small>Explore trends →</small>
+          {trendPoints.length >= 2 && (
+            <small>
+              {trendEnds
+                .map(
+                  (p) =>
+                    `${p!.processingMonths} mo · FY${p!.fiscalYear} Q${p!.quarter}`
+                )
+                .join(" to ")}
+            </small>
+          )}
+          <small>
+            I-485 · USCIS median trend
+            <br />
+            Explore trends <ArrowRight size={14} aria-hidden="true" />
+          </small>
         </Link>
         <Link
           className="artifact"
@@ -170,7 +193,6 @@ function Home() {
           to="/bulletin"
           search={{ category: "EB2", chart: "final_action", country: "ALL" }}
         >
-          <small>EB-2 · Visa bulletin</small>
           <strong>
             {cutoff?.status === "current"
               ? "Current"
@@ -188,7 +210,11 @@ function Home() {
                     )
                   : "Explore dates"}
           </strong>
-          <small>View bulletin →</small>
+          <small>
+            EB-2 · Visa bulletin
+            <br />
+            View bulletin <ArrowRight size={14} aria-hidden="true" />
+          </small>
         </Link>
       </div>
       <p className="source">

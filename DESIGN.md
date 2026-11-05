@@ -8,6 +8,8 @@ colors:
   tray: "#ebebe7"
   panel: "#ffffff"
   muted: "#62625e"
+  focus: "#7c55ca"
+  dark-focus: "#c7b6ec"
   dark-ground: "#111110"
   dark-ink: "#edede8"
   dark-tray: "#20201e"
@@ -69,7 +71,7 @@ The light and dark neutral grounds support a seven-color form palette. Use the f
 
 ## Typography
 
-Geist Variable is the shared display and body face. The landing display uses the frontmatter's responsive scale and tight tracking; workspace headings range from 2.3rem to 4rem. Body paragraphs use a 1.5 line height, with 14px controls and metadata. Numeric data uses tabular figures where charts need alignment.
+Geist Variable is the shared display and body face. The landing display uses the frontmatter's responsive scale and tight tracking; workspace headings range from 2rem on mobile to 4rem on desktop. Body paragraphs use a 1.5 line height, with 14px controls and metadata. Numeric data uses tabular figures where charts need alignment.
 
 ## Layout
 
@@ -85,11 +87,11 @@ Pills identify actions, chips and compact fields. Workspace panels have 20px cor
 
 ## Components
 
-- **Buttons:** dark pill primary with white text; hover lightens the background. Focus uses a visible 3px lilac outline.
+- **Buttons:** dark pill primary with white text; hover lightens the background. Dark mode inverts the primary to ink on ground; hover uses #c6c6bd. Focus uses a 3px #7c55ca outline in light mode and #c7b6ec in dark mode.
 - **Chips:** bordered panel-colored pills; the selected state inverts to ink and ground.
 - **Fields:** rounded, bordered fields use the current panel or ground; social forms are full width.
 - **Navigation:** slim centered desktop navigation becomes a second row on small screens. The theme toggle and account action stay at the end of the header.
-- **Artifacts:** form-colored cards rotate only on the landing and pair a key metric with a source.
+- **Artifacts:** form-colored cards rotate only on the landing and pair a key metric with a source. Hover and keyboard focus straighten and lift them over 250ms with an exponential ease-out; reduced motion suppresses the transition.
 
 ## Do's and Don'ts
 

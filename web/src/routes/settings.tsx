@@ -184,7 +184,7 @@ function Settings() {
           Deleting your account also deletes your posts, comments, and votes.
         </p>
         <button
-          className="chip"
+          className="chip danger"
           disabled={busy}
           onClick={() => {
             if (

@@ -22,6 +22,7 @@ function Community() {
   const client = useQueryClient()
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
+  const [composing, setComposing] = useState(false)
   const feed = useInfiniteQuery({
     queryKey: ["post_feed", search],
     queryFn: ({ pageParam }) => listPosts(pageParam, search.sort, search.form),
@@ -44,6 +45,7 @@ function Community() {
         author: user.id,
       })
       form.reset()
+      setComposing(false)
       await client.invalidateQueries({ queryKey: ["post_feed"] })
     } catch (err) {
       setError(await mutationErrorMessage(err))
@@ -54,7 +56,20 @@ function Community() {
   return (
     <main className="workspace social">
       <h1>Community</h1>
-      {user ? (
+      <div className="social-feed-actions">
+        {user ? (
+          <button
+            className="chip"
+            aria-expanded={composing}
+            onClick={() => setComposing(!composing)}
+          >
+            {composing ? "Cancel" : "New post"}
+          </button>
+        ) : (
+          <SignIn action="post" />
+        )}
+      </div>
+      {user && composing && (
         <form className="social-card social-form" onSubmit={submit}>
           <label>
             Title
@@ -77,17 +92,18 @@ function Community() {
             {busy ? "Posting…" : "Post"}
           </button>
         </form>
-      ) : (
-        <div className="social-actions">
-          <SignIn action="post" />
-        </div>
       )}
       {error && (
         <p className="social-error" role="alert">
           {error}
         </p>
       )}
-      <div className="chip-rail" aria-label="Sort posts">
+      <div
+        className="chip-rail"
+        role="group"
+        aria-label="Sort and filter posts"
+        tabIndex={0}
+      >
         {(["new", "top"] as const).map((sort) => (
           <button
             key={sort}
@@ -98,8 +114,7 @@ function Community() {
             {sort === "new" ? "New" : "Top"}
           </button>
         ))}
-      </div>
-      <div className="chip-rail" aria-label="Filter by form">
+        <span aria-hidden="true">·</span>
         {["", ...forms].map((form) => (
           <button
             key={form}

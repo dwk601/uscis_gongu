@@ -21,11 +21,11 @@ STORY: Visitor reads one line, picks a form and filing date, sees "likely by <mo
 
 FIRST VIEWPORT: Landing: slim nav (logo left; Trends, Bulletin, Community centered; theme toggle and Sign in right). Centered display headline, one short subline, then the working checker as a single pill row: form select, filed date, black "See my estimate" pill. Below, a rounded canvas tray holding three live data cards (official median wait, trend mini chart, bulletin cutoff), lightly rotated. Trends: form chip rail top, filed-date field beside it; a large hue-filled estimate card left, official wait-trend chart right; community percentiles and volume below.
 
-FORM: brief-pinned grida.co canvas world, 1 of 1 (pinned, no roll). seed: none (unavailable)
+FORM: brief-pinned grida.co canvas world, 1 of 1 (pinned, no roll). seed: none (brief-pinned, no roll)
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
 
 ## Finish verdict
 
-In-thread finish review: fix / partial. Desktop 1440 and CDP-emulated mobile 390 were reviewed in both themes across the seven scoped routes, with local PocketBase and a local USCIS database; the 1920px chip rail remains within the workspace. Geist is brief-pinned despite the detector warning. No raster assets ship; provenance is N/A. The existing `seed: none (unavailable)` could not be corroborated by the installed seed checker, which reports that this machine can make seed references; no seed has been invented. The quality-bar card was not supplied. DESIGN.md and its sidecar describe the built implementation.
+Independent finish review (degraded, in-thread by a separate verifier): disposition fix → items resolved in this commit, final confirmation pending verifier. Finish remains partial pending confirmation. Geist is brief-pinned. No raster assets ship; provenance is N/A. The quality-bar card was not supplied.

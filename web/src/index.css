@@ -175,6 +175,18 @@ p {
 .primary:hover {
   background: #383833;
 }
+.dark .primary {
+  background: var(--ink);
+  color: var(--ground);
+}
+.dark .primary:hover {
+  background: #c6c6bd;
+}
+button:disabled,
+.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .tray {
   background: var(--tray);
   border-radius: 28px;
@@ -199,6 +211,9 @@ p {
   flex-direction: column;
   justify-content: space-between;
   transform: rotate(-3deg);
+  transition:
+    transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 250ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .artifact:nth-child(2) {
   transform: rotate(2deg);
@@ -206,6 +221,15 @@ p {
 }
 .artifact:nth-child(3) {
   transform: rotate(-2deg);
+}
+.artifact:hover,
+.artifact:focus-visible,
+.artifact:nth-child(2):hover,
+.artifact:nth-child(2):focus-visible,
+.artifact:nth-child(3):hover,
+.artifact:nth-child(3):focus-visible {
+  transform: translateY(-6px) rotate(0);
+  box-shadow: 0 18px 30px #00000026;
 }
 .artifact strong {
   font-size: 36px;
@@ -260,6 +284,9 @@ p {
   border-radius: 99px;
   padding: 9px 15px;
   font-size: 14px;
+}
+.chip:hover {
+  border-color: var(--ink);
 }
 .chip[aria-pressed="true"] {
   background: var(--ink);
@@ -374,10 +401,6 @@ td {
 .community-info {
   font-size: 14px;
   line-height: 1.6;
-}
-.section-title {
-  margin: 38px 0 14px;
-  font-size: 22px;
 }
 .date-nudge {
   display: block;
@@ -510,14 +533,12 @@ td {
     margin: 0 12px;
     padding: 30px 20px;
     gap: 14px;
-    overflow: auto;
-    justify-content: flex-start;
+    flex-direction: column;
     min-height: 240px;
   }
   .artifact,
   .artifact:nth-child(2) {
-    min-width: 210px;
-    width: 210px;
+    width: 100%;
     min-height: 160px;
     padding: 20px;
   }
@@ -545,6 +566,19 @@ td {
   .controls {
     gap: 7px;
   }
+  .bulletin-rail {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 8px;
+    margin: 0 -8px 10px;
+  }
+  .bulletin-rail > * {
+    flex: none;
+    white-space: nowrap;
+  }
+  .category-full {
+    display: none;
+  }
   .chip {
     padding: 8px 12px;
   }
@@ -562,6 +596,11 @@ td {
 .controls select.field {
   max-width: 240px;
 }
-.estimate svg {
-  max-width: 100%;
+.category-short {
+  display: none;
+}
+@media (max-width: 700px) {
+  .category-short {
+    display: inline;
+  }
 }

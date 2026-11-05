@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useState, type FormEvent } from "react"
 import { PostCard, SignIn } from "@/components/social-post"
 import { useAuth, mutationErrorMessage } from "@/lib/auth"
@@ -79,7 +79,10 @@ function Detail() {
   }
   return (
     <main className="workspace social">
-      <h1>Post</h1>
+      <Link to="/community" search={{ sort: "new", form: "" }}>
+        Back to community
+      </Link>
+      <h1>{post.data?.title ?? "Community post"}</h1>
       {post.isLoading && <p>Loading post…</p>}
       {post.isError && <p role="alert">This post could not be found.</p>}
       {post.data && (
@@ -87,7 +90,7 @@ function Detail() {
           <PostCard post={post.data} detail />
           {user?.id === post.data.author && (
             <button
-              className="chip"
+              className="chip danger"
               disabled={busy}
               onClick={() => remove("posts", postId)}
             >
@@ -106,7 +109,7 @@ function Detail() {
               <p className="social-body">{c.body}</p>
               {user?.id === c.author && (
                 <button
-                  className="chip"
+                  className="chip danger"
                   disabled={busy}
                   onClick={() => remove("comments", c.id)}
                 >

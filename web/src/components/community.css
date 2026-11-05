@@ -44,9 +44,6 @@
 .social {
   max-width: 850px;
 }
-.dark .social .primary {
-  box-shadow: inset 0 0 0 1px var(--muted);
-}
 .social h1 {
   margin-bottom: 25px;
 }
@@ -117,6 +114,10 @@
   align-items: center;
   gap: 4px;
 }
+.social-body,
+.social-preview {
+  max-width: 70ch;
+}
 .social-body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -127,6 +128,20 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   white-space: pre-wrap;
+}
+.social-feed-actions {
+  margin: 24px 0;
+}
+.danger {
+  color: #aa2525;
+  border-color: #aa2525;
+}
+.dark .danger {
+  color: #ff8a80;
+  border-color: #ff8a80;
+}
+.danger:hover {
+  background: var(--tray);
 }
 .social-error {
   color: #c33b3b;

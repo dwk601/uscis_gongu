@@ -85,7 +85,7 @@ function Login() {
   }
   return (
     <main className="workspace social social-narrow">
-      <h1>{create ? "Create account" : "Sign in"}</h1>
+      <h1>Welcome to gongu</h1>
       <div className="social-card">
         <div className="controls">
           <button

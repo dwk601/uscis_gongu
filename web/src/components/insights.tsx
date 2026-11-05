@@ -238,7 +238,7 @@ function Pay() {
   const selected = titles.find((t) => t.key === title) ?? titles[0]
   return (
     <section className="panel insight-panel">
-      <h1>H-1B offered pay</h1>
+      <h1>H‑1B offered pay</h1>
       <p>
         Offered pay is not actual earnings, and job title is not experience
         level.
@@ -330,7 +330,7 @@ function EmployerInsight() {
   )
   return (
     <section className="panel insight-panel">
-      <h1>Employers with H-1B approvals</h1>
+      <h1>Employers with H‑1B approvals</h1>
       <p>Past approvals don't mean an employer is hiring or sponsoring now.</p>
       <State
         loading={q.isLoading}

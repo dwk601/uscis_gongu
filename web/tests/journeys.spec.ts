@@ -171,6 +171,11 @@ test("student insights keep history and distinguish uncovered weeks", async ({
   await expect(
     page.getByRole("heading", { name: "What students post about" })
   ).toBeVisible()
+  await page.goto("/trends?form=I-485")
+  await expect(
+    page.getByRole("button", { name: "Came on F-1", exact: true })
+  ).toBeVisible()
+  await expect(page.getByText("not OPT data")).toHaveCount(0)
 })
 
 test("insight edge states and employer year retain focus", async ({ page }) => {
@@ -275,7 +280,7 @@ test("insight edge states and employer year retain focus", async ({ page }) => {
   await page.goto("/trends?journey=workers&form=I-129&insight=h1b-pay")
   await expect(page.getByText("Nothing to show yet.")).toBeVisible()
   await page
-    .getByRole("button", { name: "Employers with H-1B approvals" })
+    .getByRole("button", { name: "Employers with H‑1B approvals" })
     .click()
   const select = page.getByLabel("Year")
   await select.focus()

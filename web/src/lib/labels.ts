@@ -31,13 +31,17 @@ export const countryLabels: Record<string, string> = {
   PHILIPPINES: "Philippines",
   "EL SALVADOR GUATEMALA HONDURAS": "El Salvador / Guatemala / Honduras",
 }
-export const visaLabels: Record<string, string> = {
+const visaLabels: Record<string, string> = {
   K1: "Fiancé(e) visa (K-1)",
   "IR-1/CR-1": "Spouse immigrant visa (IR-1/CR-1)",
   K3: "Spouse visa (K-3)",
-  "F-1": "Came on F-1 · not OPT data",
+  "F-1": "Came on F-1",
   Other: "Other routes",
 }
+export const visaLabel = (visaType: string, form: string) =>
+  visaType === "F-1" && form === "I-765"
+    ? "Came on F-1 · not OPT data"
+    : (visaLabels[visaType] ?? visaType)
 export const formLabel = (
   code: string,
   forms?: { form: string; name: string }[]

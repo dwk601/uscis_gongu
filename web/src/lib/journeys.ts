@@ -19,7 +19,7 @@ export const journeys = [
     forms: [
       {
         form: "I-129",
-        label: "Employer petition for temporary work, incl. H-1B",
+        label: "Employer petition for temporary work, incl. H‑1B",
       },
       { form: "I-140", label: "Employment-based green card petition" },
       {

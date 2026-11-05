@@ -21,7 +21,7 @@ import {
   quarterLabel,
 } from "@/lib/estimate"
 import { formHue, formInk } from "@/lib/palette"
-import { visaLabels } from "@/lib/labels"
+import { visaLabel } from "@/lib/labels"
 import { JourneyPicker } from "@/components/journey-picker"
 import { Insight } from "@/components/insights"
 import {
@@ -207,8 +207,8 @@ function Trends() {
         ]
       : journey === "workers"
         ? [
-            ["h1b-pay", "H-1B offered pay"],
-            ["h1b-employers", "Employers with H-1B approvals"],
+            ["h1b-pay", "H‑1B offered pay"],
+            ["h1b-employers", "Employers with H‑1B approvals"],
           ]
         : []
   const insight = insightOptions.some(([id]) => id === search.insight)
@@ -546,7 +546,7 @@ function Trends() {
                           >
                             {s.visaType == null
                               ? "Not stated"
-                              : (visaLabels[s.visaType] ?? s.visaType)}
+                              : visaLabel(s.visaType, search.form)}
                           </button>
                         ))}
                       </div>

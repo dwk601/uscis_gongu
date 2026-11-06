@@ -331,6 +331,138 @@ func (q *Queries) PayTitle(ctx context.Context, arg PayTitleParams) ([]PayTitleR
 	return items, nil
 }
 
+const redditCoverage = `-- name: RedditCoverage :one
+SELECT min(day)::date AS first_day, max(day)::date AS last_day FROM public.reddit_activity_day
+`
+
+type RedditCoverageRow struct {
+	FirstDay pgtype.Date
+	LastDay  pgtype.Date
+}
+
+func (q *Queries) RedditCoverage(ctx context.Context) (RedditCoverageRow, error) {
+	row := q.db.QueryRow(ctx, redditCoverage)
+	var i RedditCoverageRow
+	err := row.Scan(&i.FirstDay, &i.LastDay)
+	return i, err
+}
+
+const redditDiscussion = `-- name: RedditDiscussion :many
+SELECT DISTINCT month, topic, posts, comments FROM public.reddit_green_card_month_vs_bulletin ORDER BY month, topic, posts, comments
+`
+
+type RedditDiscussionRow struct {
+	Month    pgtype.Date
+	Topic    *string
+	Posts    *int32
+	Comments *int32
+}
+
+func (q *Queries) RedditDiscussion(ctx context.Context) ([]RedditDiscussionRow, error) {
+	rows, err := q.db.Query(ctx, redditDiscussion)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RedditDiscussionRow
+	for rows.Next() {
+		var i RedditDiscussionRow
+		if err := rows.Scan(
+			&i.Month,
+			&i.Topic,
+			&i.Posts,
+			&i.Comments,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const redditH1bTalk = `-- name: RedditH1bTalk :many
+SELECT month, h1b_posts, h1b_comments, lottery_posts, lottery_comments, lca_cases, lca_certified FROM public.reddit_h1b_month_vs_lca ORDER BY month
+`
+
+func (q *Queries) RedditH1bTalk(ctx context.Context) ([]RedditH1bMonthVsLca, error) {
+	rows, err := q.db.Query(ctx, redditH1bTalk)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RedditH1bMonthVsLca
+	for rows.Next() {
+		var i RedditH1bMonthVsLca
+		if err := rows.Scan(
+			&i.Month,
+			&i.H1bPosts,
+			&i.H1bComments,
+			&i.LotteryPosts,
+			&i.LotteryComments,
+			&i.LcaCases,
+			&i.LcaCertified,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const redditTimelines = `-- name: RedditTimelines :many
+SELECT case_type, premium, filed_month, approved_reports, p10_days, p50_days, p90_days, form, quarter_start, processing_months FROM public.reddit_timeline_vs_uscis_quarter ORDER BY form, case_type, premium NULLS FIRST, filed_month
+`
+
+type RedditTimelinesRow struct {
+	CaseType         *string
+	Premium          *bool
+	FiledMonth       pgtype.Date
+	ApprovedReports  *int32
+	P10Days          *float64
+	P50Days          *float64
+	P90Days          *float64
+	Form             *string
+	QuarterStart     pgtype.Date
+	ProcessingMonths *float64
+}
+
+func (q *Queries) RedditTimelines(ctx context.Context) ([]RedditTimelinesRow, error) {
+	rows, err := q.db.Query(ctx, redditTimelines)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RedditTimelinesRow
+	for rows.Next() {
+		var i RedditTimelinesRow
+		if err := rows.Scan(
+			&i.CaseType,
+			&i.Premium,
+			&i.FiledMonth,
+			&i.ApprovedReports,
+			&i.P10Days,
+			&i.P50Days,
+			&i.P90Days,
+			&i.Form,
+			&i.QuarterStart,
+			&i.ProcessingMonths,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const studentWeeks = `-- name: StudentWeeks :many
 SELECT week_start, topic, posts, covered FROM public.student_post_week
 ORDER BY week_start, topic

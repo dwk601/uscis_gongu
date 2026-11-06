@@ -378,6 +378,50 @@ button:disabled,
   overflow: auto;
   max-height: 260px;
 }
+.reddit-table th,
+.reddit-table td,
+.insight-panel .reddit-table th,
+.insight-panel .reddit-table td {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.reddit-chart {
+  margin-top: 24px;
+  min-width: 0;
+}
+.reddit-chart h3 {
+  margin: 0 0 20px;
+}
+.reddit-chart .legend-ink {
+  width: 14px;
+  height: 0;
+  border-top: 2px dashed var(--ink);
+  border-radius: 0;
+  background: none;
+}
+.reddit-movement-track {
+  position: relative;
+  height: 20px;
+  margin: 0 16px 0 70px;
+}
+.reddit-movement-track span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 12px;
+}
+.reddit-movement p {
+  font-size: 13px;
+  margin: 4px 0 12px;
+}
+.reddit-table {
+  margin-bottom: 16px;
+}
+@media (max-width: 700px) {
+  .reddit-movement-track .reddit-unchanged,
+  .reddit-movement .reddit-unchanged-legend {
+    display: none;
+  }
+}
 table {
   border-collapse: collapse;
   width: 100%;

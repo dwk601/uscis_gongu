@@ -244,7 +244,7 @@ func TestInsightsContract(t *testing.T) {
 			t.Fatal(err)
 		}
 		execSQL(fixture, string(sql))
-		execSQL(fixture, "GRANT SELECT ON public.immihelp_timeline, public.dol_lca_pay_stats, public.h1b_employer, public.student_post_week TO "+roleIdent)
+		execSQL(fixture, "GRANT SELECT ON public.immihelp_timeline, public.dol_lca_pay_stats, public.h1b_employer, public.student_post_week, public.uscis_form_quarter, public.reddit_timeline_vs_uscis_quarter, public.reddit_green_card_month_vs_bulletin, public.reddit_h1b_month_vs_lca, public.reddit_activity_day TO "+roleIdent)
 		appURL := url.URL{Scheme: "postgresql", User: url.UserPassword(role, password), Host: net.JoinHostPort("127.0.0.1", fmt.Sprint(cfg.Port)), Path: "/" + dbname, RawQuery: "sslmode=disable"}
 		// A separate process keeps cleanup in this parent even if a handler goroutine panics.
 		cmd := exec.Command(os.Args[0], "-test.run=^TestInsightsContract$", "-test.count=1")
@@ -302,6 +302,35 @@ func TestInsightsContract(t *testing.T) {
 		check      func(*testing.T, []byte)
 	}
 	cases := []testCase{
+		{name: "reddit timeline grouping", path: "/api/x/uscis/forms/I-765/reddit", status: 200, check: func(t *testing.T, b []byte) {
+			var v struct {
+				OfficialDescription string         `json:"officialDescription"`
+				Series              []redditSeries `json:"series"`
+			}
+			if err := json.Unmarshal(b, &v); err != nil || v.OfficialDescription != redditDescriptions["I-765"] || len(v.Series) != 2 || v.Series[0].Premium != nil || v.Series[1].Premium == nil || *v.Series[1].Premium || len(v.Series[0].Points) != 1 || v.Series[0].Points[0].QuarterStart != nil {
+				t.Fatalf("timeline: %s (%v)", b, err)
+			}
+		}},
+		{name: "reddit unmapped", path: "/api/x/uscis/forms/I-485/reddit", status: 200, check: func(t *testing.T, b []byte) {
+			if string(b) != `{"officialDescription":null,"series":[]}` {
+				t.Fatalf("unmapped: %s", b)
+			}
+		}},
+		{name: "reddit unknown", path: "/api/x/uscis/forms/NOPE/reddit", status: 404},
+		{name: "reddit invalid query", path: "/api/x/uscis/bulletin/discussion?x=1&x=2", status: 400},
+		{name: "reddit discussion distinct", path: "/api/x/uscis/bulletin/discussion", status: 200, check: func(t *testing.T, b []byte) {
+			var v discussionResponse
+			if err := json.Unmarshal(b, &v); err != nil || len(v.Months) != 1 || *v.Months[0].Posts != 10 || *v.From != "2021-10-30" || *v.Through != "2026-11-04" {
+				t.Fatalf("discussion: %s (%v)", b, err)
+			}
+		}},
+		{name: "reddit talk nulls", path: "/api/x/uscis/insights/h1b-talk", status: 200, check: func(t *testing.T, b []byte) {
+			var v talkResponse
+			if err := json.Unmarshal(b, &v); err != nil || len(v.Months) != 1 || v.Months[0].LcaCases != nil || *v.Months[0].H1bPosts != 3 || *v.Through != "2026-11-04" {
+				t.Fatalf("talk: %s (%v)", b, err)
+			}
+		}},
+		{name: "reddit missing view", path: "/api/x/uscis/insights/h1b-talk", status: 503, setup: func() { execSQL(fixture, "DROP VIEW public.reddit_h1b_month_vs_lca"); mux = newMux() }},
 		{name: "visa KM and censoring", path: "/api/x/uscis/insights/visa-221g", status: 200, check: func(t *testing.T, b []byte) {
 			var v visaJSON
 			if err := decode(t, b, &v); err != nil {

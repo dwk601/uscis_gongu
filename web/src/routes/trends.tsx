@@ -108,6 +108,11 @@ function FiledInput({
 }
 
 const DataChart = lazy(() => import("@/components/data-chart"))
+const RedditWait = lazy(() =>
+  import("@/components/reddit-insights").then((m) => ({
+    default: m.RedditWait,
+  }))
+)
 type Search = {
   form: string
   journey?: JourneyId
@@ -189,6 +194,7 @@ function Trends() {
   const detail = useQuery(formQuery(search.form))
   const community = useQuery(communityQuery(search.form))
   const [visa, setVisa] = useState<string | null>()
+  const [sourceChoice, setSource] = useState<"reddit" | "visajourney">()
   const [now] = useState(Date.now)
   const filedRef = useRef<HTMLInputElement>(null)
   const formRailRef = useRef<HTMLDivElement>(null)
@@ -209,6 +215,7 @@ function Trends() {
         ? [
             ["h1b-pay", "H‑1B offered pay"],
             ["h1b-employers", "Employers with H‑1B approvals"],
+            ["h1b-talk", "H‑1B talk vs LCA filings"],
           ]
         : []
   const insight = insightOptions.some(([id]) => id === search.insight)
@@ -241,6 +248,11 @@ function Trends() {
       : undefined) ??
     detail.data?.official.find((s) => s.id === summary?.defaultSeries) ??
     detail.data?.official[0]
+  const redditAvailable =
+    !!detail.data?.redditOfficialDescription &&
+    official?.description === detail.data.redditOfficialDescription
+  const source = sourceChoice ?? (redditAvailable ? "reddit" : "visajourney")
+  const showReddit = redditAvailable && source === "reddit"
   const median = latestMedian(official?.points ?? [])
   const date =
     median?.processingMonths && search.filed
@@ -300,7 +312,10 @@ function Trends() {
             const nextForm = available?.some((f) => f.form === search.form)
               ? search.form
               : (available?.[0]?.form ?? search.form)
-            if (nextForm !== search.form) setVisa(undefined)
+            if (nextForm !== search.form) {
+              setVisa(undefined)
+              setSource(undefined)
+            }
             update({
               journey: id,
               insight: undefined,
@@ -331,10 +346,12 @@ function Trends() {
               </button>
             ))}
           </div>
-          {journey === "students" && (
+          {journey === "students" && !insight && (
             <p>
-              OPT wait estimates, lottery odds and other student tools aren't
-              available yet.
+              {search.form === "I-765" &&
+                redditAvailable &&
+                "OPT and STEM OPT timelines from Reddit are in Reported waits. "}
+              Lottery odds aren't available yet.
             </p>
           )}
         </>
@@ -363,6 +380,7 @@ function Trends() {
                 onClick={() => {
                   if (f.form !== search.form) {
                     setVisa(undefined)
+                    setSource(undefined)
                     update({ form: f.form, journey, series: undefined })
                   }
                 }}
@@ -381,6 +399,7 @@ function Trends() {
                   if (e.target.value) {
                     if (e.target.value !== search.form) {
                       setVisa(undefined)
+                      setSource(undefined)
                       update({
                         form: e.target.value,
                         journey,
@@ -528,68 +547,98 @@ function Trends() {
                 </Suspense>
                 <section className="panel">
                   <h2>Reported waits</h2>
-                  <p className="muted">Self-reported · VisaJourney</p>
-                  {!community.isLoading &&
-                    !community.isError &&
-                    candidates.length > 0 && (
-                      <div
-                        className="controls"
-                        role="group"
-                        aria-label="Visa route"
-                      >
-                        {candidates.map((s) => (
-                          <button
-                            key={s.visaType ?? "not-stated"}
-                            className="chip"
-                            aria-pressed={s === selected}
-                            onClick={() => setVisa(s.visaType)}
-                          >
-                            {s.visaType == null
-                              ? "Not stated"
-                              : visaLabel(s.visaType, search.form)}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  {community.isLoading ? (
+                  {redditAvailable && (
                     <div
-                      className="skeleton"
-                      aria-label="Loading community data"
-                    />
-                  ) : community.isError ? (
-                    <p>
-                      Community data unavailable.{" "}
-                      <button onClick={() => void community.refetch()}>
-                        Try again
+                      className="controls"
+                      role="group"
+                      aria-label="Reported wait source"
+                    >
+                      <button
+                        className="chip"
+                        aria-pressed={source === "reddit"}
+                        onClick={() => setSource("reddit")}
+                      >
+                        Reddit
                       </button>
-                    </p>
-                  ) : !cohort ? (
-                    <p>No community timeline available.</p>
+                      <button
+                        className="chip"
+                        aria-pressed={source === "visajourney"}
+                        onClick={() => setSource("visajourney")}
+                      >
+                        VisaJourney
+                      </button>
+                    </div>
+                  )}
+                  {showReddit ? (
+                    <Suspense fallback={<div className="skeleton" />}>
+                      <RedditWait form={search.form} />
+                    </Suspense>
                   ) : (
                     <>
-                      <div className="big-number">
-                        {months(cohort.p50)} months
-                      </div>
-                      <p className="community-info">
-                        {cohort.p10 != null && cohort.p90 != null
-                          ? `Middle 80%: ${months(cohort.p10)}–${months(cohort.p90)} months`
-                          : "Range unavailable"}
-                        <br />
-                        Filed in {cohort.filingYear} · {cohort.completed ?? "—"}{" "}
-                        finished reports
-                      </p>
-                      <details>
-                        <summary>About these numbers</summary>
-                        {cohort.pendingShare != null
-                          ? `${Math.round(cohort.pendingShare * 100)}% pending. `
-                          : "Pending share unavailable. "}
-                        {selected?.meaning}
-                      </details>
+                      <p className="muted">Self-reported · VisaJourney</p>
+                      {!community.isLoading &&
+                        !community.isError &&
+                        candidates.length > 0 && (
+                          <div
+                            className="controls"
+                            role="group"
+                            aria-label="Visa route"
+                          >
+                            {candidates.map((s) => (
+                              <button
+                                key={s.visaType ?? "not-stated"}
+                                className="chip"
+                                aria-pressed={s === selected}
+                                onClick={() => setVisa(s.visaType)}
+                              >
+                                {s.visaType == null
+                                  ? "Not stated"
+                                  : visaLabel(s.visaType, search.form)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      {community.isLoading ? (
+                        <div
+                          className="skeleton"
+                          aria-label="Loading community data"
+                        />
+                      ) : community.isError ? (
+                        <p>
+                          Community data unavailable.{" "}
+                          <button onClick={() => void community.refetch()}>
+                            Try again
+                          </button>
+                        </p>
+                      ) : !cohort ? (
+                        <p>No community timeline available.</p>
+                      ) : (
+                        <>
+                          <div className="big-number">
+                            {months(cohort.p50)} months
+                          </div>
+                          <p className="community-info">
+                            {cohort.p10 != null && cohort.p90 != null
+                              ? `Middle 80%: ${months(cohort.p10)}–${months(cohort.p90)} months`
+                              : "Range unavailable"}
+                            <br />
+                            Filed in {cohort.filingYear} ·{" "}
+                            {cohort.completed ?? "—"} finished reports
+                          </p>
+                          <details>
+                            <summary>About these numbers</summary>
+                            {cohort.pendingShare != null
+                              ? `${Math.round(cohort.pendingShare * 100)}% pending. `
+                              : "Pending share unavailable. "}
+                            {selected?.meaning}
+                          </details>
+                        </>
+                      )}
                     </>
                   )}
                 </section>
               </div>
-              {cohort && (
+              {cohort && !showReddit && (
                 <div className="workspace-grid single-chart">
                   <Suspense fallback={<div className="skeleton" />}>
                     <DataChart

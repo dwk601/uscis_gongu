@@ -1,11 +1,16 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { lazy, Suspense } from "react"
-import { bulletinQuery } from "@/lib/api"
+import { bulletinQuery, movement } from "@/lib/api"
 import { categoryHue } from "@/lib/palette"
 import { categoryLabel, categoryLabels, countryLabel } from "@/lib/labels"
 
 const DataChart = lazy(() => import("@/components/data-chart"))
+const RedditDiscussionPanel = lazy(() =>
+  import("@/components/reddit-insights").then((m) => ({
+    default: m.RedditDiscussionPanel,
+  }))
+)
 const olderInvestors = new Set(["EB5-NON-RC", "EB5-RC", "EB5-UNRESERVED-RC"])
 const groups = [
   "Family preference",
@@ -71,6 +76,7 @@ function BulletinPage() {
       .slice()
       .sort((a, b) => a.month!.localeCompare(b.month!)) ?? []
   const current = points.at(-1)
+  const monthlyChange = movement(points, current?.month ?? null)
   const previousDate = current?.month
     ? new Date(`${current.month}T00:00:00Z`)
     : undefined
@@ -241,6 +247,13 @@ function BulletinPage() {
                     ? "No change vs. 12 months ago"
                     : `${Math.abs(delta)} months ${delta > 0 ? "forward" : "back"} vs. 12 months ago`}
               </p>
+              <p>
+                {monthlyChange == null
+                  ? "Monthly change unavailable"
+                  : monthlyChange === 0
+                    ? "No change since last month"
+                    : `Moved ${Math.abs(monthlyChange).toLocaleString()} days ${monthlyChange > 0 ? "forward" : "back"} since last month`}
+              </p>
               <small>
                 {current?.month ? `Bulletin ${month(current.month)} · ` : ""}
                 {series ? countryLabel(series.country) : ""}
@@ -274,6 +287,21 @@ function BulletinPage() {
               />
             </Suspense>
           </div>
+          {group === groups[0] ? (
+            <p>
+              Reddit family posts mostly concern spouse/fiancé cases and are not
+              a useful comparison with family-preference cutoffs.
+            </p>
+          ) : (
+            <div className="workspace-grid single-chart">
+              <Suspense fallback={<div className="skeleton" />}>
+                <RedditDiscussionPanel
+                  points={points}
+                  hue={categoryHue(category)}
+                />
+              </Suspense>
+            </div>
+          )}
         </>
       )}
     </main>

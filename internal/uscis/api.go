@@ -176,9 +176,10 @@ type official struct {
 	SourceFiles []string `json:"sourceFiles"`
 }
 type formDetail struct {
-	Form     string      `json:"form"`
-	Name     string      `json:"name"`
-	Official []*official `json:"official"`
+	Form                      string      `json:"form"`
+	Name                      string      `json:"name"`
+	RedditOfficialDescription *string     `json:"redditOfficialDescription"`
+	Official                  []*official `json:"official"`
 }
 type formSummary struct {
 	Form          string `json:"form"`
@@ -209,6 +210,9 @@ func buildForms(rows []db.FormsRow) formsData {
 				name = d
 			}
 			detail = &formDetail{Form: f, Name: name, Official: []*official{}}
+			if description, ok := redditDescriptions[f]; ok {
+				detail.RedditOfficialDescription = &description
+			}
 			out.details[f] = detail
 		}
 		s := series[key]

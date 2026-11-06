@@ -80,6 +80,8 @@ test("journey navigation preserves an explicit series without refetching the for
 test("student insights keep history and distinguish uncovered weeks", async ({
   page,
 }) => {
+  let redditRequests = 0
+  const description = "Application for Employment Authorization (All Other)"
   await page.route("**/api/x/uscis/**", async (route) => {
     const path = new URL(route.request().url()).pathname
     if (path.endsWith("/forms"))
@@ -91,6 +93,97 @@ test("student insights keep history and distinguish uncovered weeks", async ({
               name: "Work permit",
               featured: true,
               defaultSeries: "all",
+            },
+            {
+              form: "I-129",
+              name: "Work petition",
+              featured: true,
+              defaultSeries: "work",
+            },
+          ],
+        },
+      })
+    if (path.endsWith("/reddit")) {
+      redditRequests++
+      return route.fulfill({
+        json: {
+          officialDescription: description,
+          series: [
+            {
+              caseType: "opt",
+              premium: null,
+              points: [
+                {
+                  filedMonth: "2026-05-01",
+                  approvedReports: 80,
+                  p10Days: 30,
+                  p50Days: 61,
+                  p90Days: 100,
+                  quarterStart: "2026-04-01",
+                  processingMonths: 3,
+                },
+                {
+                  filedMonth: "2026-06-01",
+                  approvedReports: 116,
+                  p10Days: 20,
+                  p50Days: 37,
+                  p90Days: 80,
+                  quarterStart: null,
+                  processingMonths: null,
+                },
+              ],
+            },
+            {
+              caseType: "opt",
+              premium: false,
+              points: [
+                {
+                  filedMonth: "2026-06-01",
+                  approvedReports: 40,
+                  p10Days: 20,
+                  p50Days: 50,
+                  p90Days: 80,
+                  quarterStart: null,
+                  processingMonths: null,
+                },
+              ],
+            },
+          ],
+        },
+      })
+    }
+    if (path.endsWith("/h1b-talk"))
+      return route.fulfill({
+        json: {
+          from: "2021-10-30",
+          through: "2026-11-04",
+          months: [
+            {
+              month: "2021-10-01",
+              h1bPosts: 2,
+              h1bComments: 1,
+              lotteryPosts: null,
+              lotteryComments: null,
+              lcaCases: null,
+              lcaCertified: null,
+            },
+            {
+              month: "2026-06-01",
+              h1bPosts: 10,
+              h1bComments: 3,
+              lotteryPosts: 2,
+              lotteryComments: 1,
+              lcaCases: 1164,
+              lcaCertified: 900,
+            },
+            {
+              month: "2026-11-01",
+              h1bPosts: 4,
+              h1bComments: 1,
+              lotteryPosts: null,
+              lotteryComments: null,
+              lcaCases: null,
+              lcaCertified: null,
             },
           ],
         },
@@ -149,9 +242,73 @@ test("student insights keep history and distinguish uncovered weeks", async ({
           ],
         },
       })
+    if (path.endsWith("/I-129"))
+      return route.fulfill({
+        json: {
+          name: "Work petition",
+          redditOfficialDescription: "Petition for a Nonimmigrant Worker",
+          official: [
+            {
+              id: "work",
+              label: "Work petition",
+              description: "Petition for a Nonimmigrant Worker",
+              points: [],
+            },
+          ],
+        },
+      })
+    if (path.endsWith("/I-765"))
+      return route.fulfill({
+        json: {
+          name: "Work permit",
+          redditOfficialDescription: description,
+          official: [
+            { id: "all", label: "All other cases", description, points: [] },
+            { id: "other", label: "Other", description: "Other", points: [] },
+          ],
+        },
+      })
     return route.fulfill({ json: { name: "Work permit", official: [] } })
   })
   await page.goto("/trends?journey=students&form=I-765")
+  await expect(
+    page.getByRole("button", { name: "Reddit", exact: true })
+  ).toHaveAttribute("aria-pressed", "true")
+  await expect(
+    page.getByRole("button", { name: "All · 2 months" })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "Regular · 1 month" })
+  ).toBeVisible()
+  await expect(
+    page.getByText(
+      /Filed May 2026 · 80 approved reports · approved so far; recent months skew short/
+    )
+  ).toBeVisible()
+  await expect(page.getByText("2 months", { exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Regular · 1 month" }).click()
+  await expect(
+    page.getByText(/Filed Jun 2026 · 40 approved reports · approved so far/)
+  ).toBeVisible()
+  await page.getByRole("button", { name: "All · 2 months" }).click()
+  expect(redditRequests).toBe(1)
+  await page
+    .getByRole("group", { name: "Case category" })
+    .getByRole("button", { name: "Other", exact: true })
+    .click()
+  await expect(
+    page.getByRole("group", { name: "Reported wait source" })
+  ).toHaveCount(0)
+  expect(redditRequests).toBe(1)
+  await expect(
+    page.getByText(/OPT and STEM OPT timelines from Reddit/)
+  ).toHaveCount(0)
+  await page.getByRole("button", { name: "All other cases" }).click()
+  await expect(
+    page.getByText(/Filed May 2026 · 80 approved reports/)
+  ).toBeVisible()
+  expect(redditRequests).toBe(1)
+  await page.getByRole("button", { name: "VisaJourney" }).click()
   await expect(
     page.getByRole("button", { name: "Came on F-1 · not OPT data" })
   ).toBeVisible()
@@ -171,11 +328,42 @@ test("student insights keep history and distinguish uncovered weeks", async ({
   await expect(
     page.getByRole("heading", { name: "What students post about" })
   ).toBeVisible()
+  await page.goBack()
+  await page
+    .getByRole("group", { name: "Journey" })
+    .getByRole("button", { name: "Workers", exact: true })
+    .click()
+  await page
+    .getByRole("group", { name: "Form" })
+    .getByRole("button", { name: /I-129/ })
+    .click()
+  await expect(
+    page.getByRole("button", { name: "Reddit", exact: true })
+  ).toHaveAttribute("aria-pressed", "true")
   await page.goto("/trends?form=I-485")
   await expect(
     page.getByRole("button", { name: "Came on F-1", exact: true })
   ).toBeVisible()
   await expect(page.getByText("not OPT data")).toHaveCount(0)
+  await page.goto("/trends?journey=workers&form=I-765&insight=h1b-talk")
+  await expect(
+    page.getByText(
+      "Latest LCA month (Jun 2026) may be incomplete; later months not yet published."
+    )
+  ).toBeVisible()
+  await page.getByText("Monthly data", { exact: true }).click()
+  await expect(
+    page.getByRole("region", { name: "H-1B activity and LCA monthly data" })
+  ).toHaveAttribute("tabindex", "0")
+  await expect(
+    page.getByRole("cell", { name: "Oct 2021 · partial" })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("cell", { name: "Nov 2026 · partial" })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("cell", { name: "Jun 2026 · May be incomplete" })
+  ).toBeVisible()
 })
 
 test("insight edge states and employer year retain focus", async ({ page }) => {
@@ -296,4 +484,101 @@ test("insight edge states and employer year retain focus", async ({ page }) => {
   await expect.poll(() => !!releaseYear).toBe(true)
   releaseYear!()
   await expect(page.getByText("Nothing to show yet.")).toBeVisible()
+})
+
+test("Reddit failures remain local and retryable", async ({ page }) => {
+  test.setTimeout(90000)
+  const counts: Record<string, number> = {}
+  const desc = "Application for Employment Authorization (All Other)"
+  await page.route("**/api/x/uscis/**", async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (
+      path.endsWith("/reddit") ||
+      path.endsWith("/h1b-talk") ||
+      path.endsWith("/discussion")
+    ) {
+      counts[path] = (counts[path] ?? 0) + 1
+      return route.fulfill({ status: 503, json: { message: "Unavailable" } })
+    }
+    if (path.endsWith("/forms"))
+      return route.fulfill({
+        json: {
+          forms: [
+            {
+              form: "I-765",
+              name: "Work permit",
+              featured: true,
+              defaultSeries: "all",
+            },
+          ],
+        },
+      })
+    if (path.endsWith("/community"))
+      return route.fulfill({ json: { series: [] } })
+    if (path.endsWith("/bulletin"))
+      return route.fulfill({
+        json: {
+          categories: [{ code: "EB2" }],
+          series: [
+            {
+              country: "ALL",
+              label: "All",
+              points: [
+                { month: "2025-01-01", cutoff: "2020-01-01", status: "date" },
+              ],
+            },
+          ],
+        },
+      })
+    return route.fulfill({
+      json: {
+        name: "Work permit",
+        redditOfficialDescription: desc,
+        official: [
+          {
+            id: "all",
+            label: "All other cases",
+            description: desc,
+            points: [],
+          },
+          { id: "other", label: "Other", description: "Other", points: [] },
+        ],
+      },
+    })
+  })
+  await page.goto("/trends?journey=students&form=I-765")
+  await expect(page.getByText("Reddit data unavailable.")).toBeVisible({
+    timeout: 20000,
+  })
+  let before = counts["/api/x/uscis/forms/I-765/reddit"]
+  await page.getByRole("button", { name: "Try again" }).click()
+  await expect
+    .poll(() => counts["/api/x/uscis/forms/I-765/reddit"])
+    .toBeGreaterThan(before)
+  await page
+    .getByRole("group", { name: "Case category" })
+    .getByRole("button", { name: "Other", exact: true })
+    .click()
+  await expect(
+    page.getByRole("group", { name: "Reported wait source" })
+  ).toHaveCount(0)
+  await page.goto("/trends?journey=workers&form=I-765&insight=h1b-talk")
+  await expect(page.getByText("Reddit data unavailable.")).toBeVisible({
+    timeout: 20000,
+  })
+  before = counts["/api/x/uscis/insights/h1b-talk"]
+  await page.getByRole("button", { name: "Try again" }).click()
+  await expect
+    .poll(() => counts["/api/x/uscis/insights/h1b-talk"])
+    .toBeGreaterThan(before)
+  await page.goto("/bulletin")
+  await expect(page.getByText("Reddit data unavailable.")).toBeVisible({
+    timeout: 20000,
+  })
+  await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toBeVisible()
+  before = counts["/api/x/uscis/bulletin/discussion"]
+  await page.getByRole("button", { name: "Try again" }).click()
+  await expect
+    .poll(() => counts["/api/x/uscis/bulletin/discussion"])
+    .toBeGreaterThan(before)
 })

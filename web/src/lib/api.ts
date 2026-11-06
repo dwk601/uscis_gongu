@@ -76,14 +76,18 @@ export type RedditPoint = {
 }
 export type RedditTimeline = {
   officialDescription: string | null
-  series: { caseType: string; premium: boolean | null; points: RedditPoint[] }[]
+  series: {
+    caseType: string | null
+    premium: boolean | null
+    points: RedditPoint[]
+  }[]
 }
 export type RedditDiscussion = {
   from: string | null
   through: string | null
   months: {
     month: string | null
-    topic: string
+    topic: string | null
     posts: number | null
     comments: number | null
   }[]

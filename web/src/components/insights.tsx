@@ -1,11 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { Fragment, lazy, Suspense } from "react"
-const RedditTalkPanel = lazy(() =>
-  import("@/components/reddit-insights").then((m) => ({
-    default: m.RedditTalkPanel,
-  }))
-)
-import { useState } from "react"
+import { Fragment, lazy, Suspense, useState } from "react"
 import {
   employersQuery,
   payCatalogQuery,
@@ -15,6 +9,12 @@ import {
   type Box,
   type Topic,
 } from "@/lib/insights"
+
+const RedditTalkPanel = lazy(() =>
+  import("@/components/reddit-insights").then((m) => ({
+    default: m.RedditTalkPanel,
+  }))
+)
 
 function State({
   loading,

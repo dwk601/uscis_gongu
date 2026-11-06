@@ -31,6 +31,15 @@ export const countryLabels: Record<string, string> = {
   PHILIPPINES: "Philippines",
   "EL SALVADOR GUATEMALA HONDURAS": "El Salvador / Guatemala / Honduras",
 }
+export const redditCaseLabels: Record<string, string> = {
+  opt: "OPT",
+  stem_opt: "STEM OPT",
+  h1b: "H-1B",
+  h1b_change_of_status: "H-1B change of status",
+  h1b_transfer: "H-1B transfer",
+  h1b_extension: "H-1B extension",
+  i140: "I-140",
+}
 const visaLabels: Record<string, string> = {
   K1: "Fiancé(e) visa (K-1)",
   "IR-1/CR-1": "Spouse immigrant visa (IR-1/CR-1)",

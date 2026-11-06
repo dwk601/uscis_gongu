@@ -3,7 +3,7 @@ import { areaY, barY, defineChart, lineY } from "@tanstack/charts"
 import { Chart } from "@tanstack/charts/react"
 import { scaleLinear } from "@tanstack/charts/scales/linear"
 import { scaleUtc } from "@tanstack/charts/scales/time"
-import { useState } from "react"
+import { useState, type CSSProperties } from "react"
 import {
   redditDiscussionQuery,
   redditTalkQuery,
@@ -12,12 +12,94 @@ import {
   type Bulletin,
   type RedditPoint,
 } from "@/lib/api"
+import { quarterLabel } from "@/lib/estimate"
+import { redditCaseLabels } from "@/lib/labels"
+import { chartHue, formHue } from "@/lib/palette"
 
-function WaitChart({ points }: { points: RedditPoint[] }) {
+const day = (value: string) => new Date(`${value}T00:00:00Z`)
+const month = (value: string | null | undefined) =>
+  value
+    ? day(value).toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+    : "—"
+const fullDate = (value: string | null | undefined) =>
+  value
+    ? day(value).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+    : "—"
+const quarter = (value: string | null) => {
+  if (!value) return "—"
+  const d = day(value),
+    m = d.getUTCMonth()
+  return quarterLabel(
+    d.getUTCFullYear() + (m >= 9 ? 1 : 0),
+    Math.floor(((m + 3) % 12) / 3) + 1
+  )
+}
+const display = (n: number | null) => (n == null ? "—" : n.toLocaleString())
+const months = (n: number | null) =>
+  n == null ? "—" : (Math.round((n / 30.44) * 10) / 10).toLocaleString()
+const monthChange = (n: number | null) =>
+  n == null
+    ? "—"
+    : n === 0
+      ? "No change"
+      : `${n > 0 ? "+" : "−"}${Math.abs(n).toLocaleString()} days`
+const partialMonth = (
+  value: string | null | undefined,
+  from: string | null,
+  through: string | null
+) => {
+  if (!value) return false
+  const first =
+    from &&
+    value.slice(0, 7) === from.slice(0, 7) &&
+    day(from).getUTCDate() !== 1
+  const lastDate = through && day(through)
+  const last =
+    lastDate &&
+    value.slice(0, 7) === through!.slice(0, 7) &&
+    lastDate.getUTCDate() !==
+      new Date(
+        Date.UTC(lastDate.getUTCFullYear(), lastDate.getUTCMonth() + 1, 0)
+      ).getUTCDate()
+  return !!(first || last)
+}
+const chartStyle = (hue?: string): CSSProperties => {
+  const [light, dark] = hue ? chartHue(hue) : ["var(--focus)", "var(--focus)"]
+  return { "--chart-light": light, "--chart-dark": dark } as CSSProperties
+}
+const axis = {
+  ticks: { format: (value: number) => value.toLocaleString("en-US") },
+}
+function Legend({ first, second }: { first: string; second?: string }) {
+  return (
+    <div className="chart-legend">
+      <span>
+        <i style={{ background: "var(--chart-stroke)" }} />
+        {first}
+      </span>
+      {second && (
+        <span>
+          <i className="legend-ink" />
+          {second}
+        </span>
+      )}
+    </div>
+  )
+}
+function WaitChart({ points, form }: { points: RedditPoint[]; form: string }) {
   const rows = points
     .filter((p) => p.filedMonth)
     .map((p) => ({
-      x: new Date(`${p.filedMonth}T00:00:00Z`),
+      x: day(p.filedMonth!),
       value: p.p50Days == null ? null : p.p50Days / 30.44,
       low: p.p10Days == null ? null : p.p10Days / 30.44,
       high: p.p90Days == null ? null : p.p90Days / 30.44,
@@ -39,8 +121,8 @@ function WaitChart({ points }: { points: RedditPoint[] }) {
   for (const p of points)
     if (p.quarterStart && p.processingMonths != null)
       quarters.set(p.quarterStart, p.processingMonths)
-  const marks = [...quarters].map(([quarter, value]) => {
-    const start = new Date(`${quarter}T00:00:00Z`),
+  const official = [...quarters].map(([q, value]) => {
+    const start = day(q),
       end = new Date(start)
     end.setUTCMonth(end.getUTCMonth() + 3)
     end.setUTCDate(end.getUTCDate() - 1)
@@ -69,47 +151,62 @@ function WaitChart({ points }: { points: RedditPoint[] }) {
         x: "x",
         y1: "low",
         y2: "high",
-        fill: "#f2703d",
-        fillOpacity: 0.2,
+        fill: "var(--chart-stroke)",
+        fillOpacity: 0.18,
       }),
       lineY(complete, {
         x: "x",
         y: "value",
-        stroke: "#f2703d",
+        stroke: "var(--chart-stroke)",
         strokeWidth: 2,
         points: true,
       }),
-      ...marks,
+      ...official,
     ],
     scales: {
       x: { scale: scaleUtc },
-      y: { scale: scaleLinear().domain([0, max]) },
+      y: { scale: scaleLinear().domain([0, max]), axis },
     },
   })
   return (
-    <>
-      <p>
-        Reddit median and p10–p90 band · USCIS median for cases completed that
-        quarter (dashed) · months
-      </p>
+    <div className="chart-panel reddit-chart" style={chartStyle(formHue(form))}>
+      <Legend
+        first="Reddit median · middle 80%"
+        second={`USCIS median · ${form === "I-129" ? "all I-129 classifications" : form === "I-765" ? "all other I-765 cases" : "I-140 cases"}, completed that quarter`}
+      />
       <Chart
         definition={definition}
-        ariaLabel="Reddit and USCIS wait times in months; details in data table"
+        ariaLabel="Reported and USCIS wait times in months; details in data table"
         initialWidth={600}
         height={220}
       />
-    </>
+    </div>
   )
 }
 type ActivityRow = { x: Date; first: number | null; second: number | null }
+type BulletinPoint = Bulletin["series"][number]["points"][number]
 function ActivityChart({
   rows,
   title,
+  first,
+  second,
+  from,
+  through,
+  hue,
   bars = false,
+  latest,
+  points,
 }: {
   rows: ActivityRow[]
   title: string
+  first: string
+  second?: string
+  from: string | null
+  through: string | null
+  hue?: string
   bars?: boolean
+  latest?: string | null
+  points?: BulletinPoint[]
 }) {
   const complete: ActivityRow[] = []
   for (const row of rows) {
@@ -121,47 +218,104 @@ function ActivityChart({
         next.setUTCMonth(next.getUTCMonth() + 1)
       }
     }
-    complete.push(row)
+    complete.push(
+      partialMonth(row.x.toISOString().slice(0, 10), from, through)
+        ? { ...row, first: null, second: null }
+        : row
+    )
   }
-  const max = Math.max(1, ...rows.flatMap((r) => [r.first ?? 0, r.second ?? 0]))
+  const max = Math.max(
+    1,
+    ...complete.flatMap((r) => [r.first ?? 0, r.second ?? 0])
+  )
+  const start = new Date(rows[0].x),
+    end = new Date(rows.at(-1)!.x)
+  start.setUTCDate(start.getUTCDate() - 15)
+  end.setUTCMonth(end.getUTCMonth() + 1)
+  end.setUTCDate(end.getUTCDate() - 15)
+  const lastPoint = complete.find(
+    (r) =>
+      latest && r.x.toISOString().slice(0, 10) === latest && r.first != null
+  )
   const definition = defineChart({
-    marks: bars
-      ? [barY(complete, { x: "x", y: "first", fill: "#f2703d" })]
-      : [
-          lineY(complete, {
-            x: "x",
-            y: "first",
-            stroke: "#f2703d",
-            strokeWidth: 2,
-          }),
-          lineY(complete, {
-            x: "x",
-            y: "second",
-            stroke: "var(--ink)",
-            strokeWidth: 2,
-            strokeDasharray: "5 3",
-          }),
-        ],
+    marks: [
+      ...(bars
+        ? [barY(complete, { x: "x", y: "first", fill: "var(--chart-stroke)" })]
+        : [
+            lineY(complete, {
+              x: "x",
+              y: "first",
+              stroke: "var(--chart-stroke)",
+              strokeWidth: 2,
+            }),
+            lineY(complete, {
+              x: "x",
+              y: "second",
+              stroke: "var(--ink)",
+              strokeWidth: 2,
+              strokeDasharray: "5 3",
+            }),
+          ]),
+      ...(lastPoint
+        ? [
+            lineY([lastPoint], {
+              x: "x",
+              y: "first",
+              stroke: "var(--chart-stroke)",
+              points: true,
+            }),
+          ]
+        : []),
+    ],
     scales: {
-      x: { scale: scaleUtc().domain([rows[0].x, rows.at(-1)!.x]) },
-      y: { scale: scaleLinear().domain([0, max]) },
+      x: { scale: scaleUtc().domain([start, end]) },
+      y: { scale: scaleLinear().domain([0, max]), axis },
     },
     margin: { left: 70, right: 16 },
   })
   return (
-    <>
-      <p>{title}</p>
+    <div className="chart-panel reddit-chart" style={chartStyle(hue)}>
+      <h3>{title}</h3>
+      <Legend first={first} second={second} />
       <Chart
         definition={definition}
         ariaLabel={`${title}; details in data table`}
         initialWidth={600}
         height={200}
       />
-    </>
+      {points && (
+        <div
+          className="reddit-movement"
+          aria-label="Cutoff changes by month; details in data table"
+        >
+          <div className="reddit-movement-track">
+            {rows.map((r) => {
+              const value = movement(points, r.x.toISOString().slice(0, 10))
+              if (value == null) return null
+              const position =
+                ((r.x.getTime() - start.getTime()) /
+                  (end.getTime() - start.getTime())) *
+                100
+              return (
+                <span
+                  key={r.x.toISOString()}
+                  style={{ left: `${position}%` }}
+                  title={`${month(r.x.toISOString().slice(0, 10))}: ${monthChange(value)}`}
+                  aria-label={`${month(r.x.toISOString().slice(0, 10))}: ${monthChange(value)}`}
+                >
+                  {value > 0 ? "▲" : value < 0 ? "▼" : "·"}
+                </span>
+              )
+            })}
+          </div>
+          <p className="muted">
+            Cutoff change: ▲ forward · ▼ back · dot unchanged
+          </p>
+        </div>
+      )}
+    </div>
   )
 }
-const display = (n: number | null) => (n == null ? "—" : n.toLocaleString())
-const months = (n: number | null) => (n == null ? "—" : (n / 30.44).toFixed(1))
 function Coverage({
   from,
   through,
@@ -169,12 +323,20 @@ function Coverage({
   from: string | null
   through: string | null
 }) {
+  const first = partialMonth(from, from, null),
+    last = partialMonth(through, null, through)
+  const note =
+    first && last
+      ? "first and last months are partial"
+      : first
+        ? "first month is partial"
+        : last
+          ? "last month is partial"
+          : null
   return (
-    <p>
-      Observed {from ?? "—"} through {through ?? "—"}; the first and last months
-      may be partial. Observed through is not an ETL-success timestamp or
-      completeness guarantee. Counts reflect changing community size, subreddit
-      coverage and archive coverage, not just interest or demand.
+    <p className="muted">
+      Reddit activity {fullDate(from)} – {fullDate(through)}
+      {note && ` · ${note}`}
     </p>
   )
 }
@@ -188,26 +350,32 @@ function State({
   retry: () => void
 }) {
   return loading ? (
-    <p>Loading Reddit data…</p>
+    <p role="status">Loading Reddit data…</p>
   ) : error ? (
-    <p className="error">
+    <p className="error" role="alert">
       Reddit data unavailable. <button onClick={retry}>Try again</button>
     </p>
   ) : null
 }
 export function RedditWait({ form }: { form: string }) {
   const q = useQuery(redditTimelineQuery(form))
-  const [caseType, setCaseType] = useState("")
+  const [caseType, setCaseType] = useState<string | null>()
   const [processing, setProcessing] = useState("all")
   const types = [...new Set(q.data?.series.map((s) => s.caseType) ?? [])]
-  const type = types.includes(caseType) ? caseType : types[0]
+  const type =
+    caseType !== undefined && types.includes(caseType) ? caseType : types[0]
   const options = q.data?.series.filter((s) => s.caseType === type) ?? []
   const key = (premium: boolean | null) =>
     premium == null ? "all" : premium ? "premium" : "regular"
   const selected =
     options.find((s) => key(s.premium) === processing) ?? options[0]
+  const latest = selected?.points
+    .filter((p) => p.filedMonth && p.p50Days != null)
+    .slice()
+    .sort((a, b) => b.filedMonth!.localeCompare(a.filedMonth!))[0]
   return (
     <>
+      <p className="muted">Self-reported · Reddit</p>
       <State
         loading={q.isLoading}
         error={q.isError}
@@ -226,14 +394,14 @@ export function RedditWait({ form }: { form: string }) {
               {types.map((t) => (
                 <button
                   className="chip"
-                  key={t}
+                  key={t ?? "unknown"}
                   aria-pressed={t === type}
                   onClick={() => {
                     setCaseType(t)
                     setProcessing("all")
                   }}
                 >
-                  {t.replaceAll("_", " ")}
+                  {t ? (redditCaseLabels[t] ?? t) : "Not stated"}
                 </button>
               ))}
             </div>
@@ -250,52 +418,79 @@ export function RedditWait({ form }: { form: string }) {
                     : s.premium
                       ? "Premium"
                       : "Regular"}{" "}
-                  · {s.points.length} months
+                  · {s.points.length}{" "}
+                  {s.points.length === 1 ? "month" : "months"}
                 </button>
               ))}
             </div>
-            <p>
-              All includes unknown processing; subgroup sample thresholds
-              differ. Approved reports only; recent cohorts may be biased. These
-              are not personalized forecasts. Reddit is grouped by filing month,
-              not completion quarter. USCIS median covers cases completed in
-              that quarter: {q.data.officialDescription}.
-            </p>
-            {selected.points.length < 3 &&
-              selected.points.map((p, i) => (
-                <p key={i}>
-                  {p.filedMonth}: {months(p.p50Days)} months median ·{" "}
-                  {months(p.p10Days)}–{months(p.p90Days)} months ·{" "}
-                  {display(p.approvedReports)} approved reports
+            {latest ? (
+              <>
+                <div className="big-number">
+                  {months(latest.p50Days)} months
+                </div>
+                <p className="community-info">
+                  {latest.p10Days != null && latest.p90Days != null
+                    ? `Middle 80%: ${months(latest.p10Days)}–${months(latest.p90Days)} months`
+                    : "Range unavailable"}
+                  <br />
+                  Filed {month(latest.filedMonth)} ·{" "}
+                  {display(latest.approvedReports)} approved reports
                 </p>
-              ))}
+              </>
+            ) : (
+              <p>No median available.</p>
+            )}
             {selected.points.length >= 3 && (
-              <WaitChart points={selected.points} />
+              <WaitChart points={selected.points} form={form} />
             )}
             <details>
+              <summary>About these numbers</summary>
+              <p>
+                These are self-reported approvals, not a personal forecast.
+                Recent filing months can look faster because longer waits are
+                still unfinished. All includes reports without a stated
+                processing type; each group needs enough reports to appear.
+                Reddit groups reports by filing month. USCIS shows the median
+                for cases completed in that quarter:{" "}
+                {form === "I-129"
+                  ? "all I-129 classifications"
+                  : form === "I-765"
+                    ? "all I-765 All other cases"
+                    : q.data.officialDescription}
+                .
+              </p>
+            </details>
+            <details>
               <summary>Data</summary>
-              <div className="table-wrap">
+              <div
+                className="table-wrap reddit-table"
+                tabIndex={0}
+                role="region"
+                aria-label="Reddit reported wait data"
+              >
                 <table>
                   <thead>
                     <tr>
                       <th>Filing month</th>
                       <th>Approved reports</th>
                       <th>Median (months)</th>
-                      <th>p10 (months)</th>
-                      <th>p90 (months)</th>
-                      <th>Official quarter</th>
-                      <th>USCIS median (months)</th>
+                      <th>10% finished within (months)</th>
+                      <th>90% finished within (months)</th>
+                      <th>USCIS quarter</th>
+                      <th>
+                        USCIS median, cases completed that quarter (months)
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {selected.points.map((p, i) => (
                       <tr key={i}>
-                        <td>{p.filedMonth}</td>
+                        <td>{month(p.filedMonth)}</td>
                         <td>{display(p.approvedReports)}</td>
                         <td>{months(p.p50Days)}</td>
                         <td>{months(p.p10Days)}</td>
                         <td>{months(p.p90Days)}</td>
-                        <td>{p.quarterStart ?? "—"}</td>
+                        <td>{quarter(p.quarterStart)}</td>
                         <td>{display(p.processingMonths)}</td>
                       </tr>
                     ))}
@@ -315,7 +510,7 @@ export function RedditTalkPanel() {
     q.data?.months
       .filter((p) => p.month)
       .map((p) => ({
-        x: new Date(`${p.month}T00:00:00Z`),
+        x: day(p.month!),
         first: p.h1bPosts,
         second: p.lotteryPosts,
       })) ?? []
@@ -323,16 +518,15 @@ export function RedditTalkPanel() {
     q.data?.months
       .filter((p) => p.month)
       .map((p) => ({
-        x: new Date(`${p.month}T00:00:00Z`),
+        x: day(p.month!),
         first: p.lcaCases,
         second: p.lcaCertified,
       })) ?? []
   return (
     <section className="panel insight-panel">
       <h1>H-1B talk vs LCA filings</h1>
-      <p>
-        H-1B case &amp; lottery posts; H-1B policy news counted separately. LCAs
-        are not people, petitions, or lottery odds.
+      <p className="muted">
+        H-1B case and lottery posts · policy news counted separately
       </p>
       <State
         loading={q.isLoading}
@@ -346,20 +540,41 @@ export function RedditTalkPanel() {
             <>
               <ActivityChart
                 rows={activity}
-                title="Posts: H-1B case (orange), lottery (dashed)"
+                title="Reddit posts"
+                first="H-1B cases"
+                second="Lottery"
+                from={q.data.from}
+                through={q.data.through}
               />
               <ActivityChart
                 rows={lca}
-                title="LCA receipts (orange), certified including later withdrawn (dashed)"
+                title="LCA receipts"
+                first="Received"
+                second="Certified, including later withdrawn"
+                from={q.data.from}
+                through={q.data.through}
+                latest={last}
               />
+              {last && (
+                <p className="muted">
+                  Latest LCA month ({month(last)}) may be incomplete; later
+                  months not yet published.
+                </p>
+              )}
+              <p className="muted">Missing months show as gaps.</p>
             </>
           )}
           {q.data.months.length === 0 ? (
             <p>Nothing to show yet.</p>
           ) : (
-            <details open>
+            <details>
               <summary>Monthly data</summary>
-              <div className="table-wrap">
+              <div
+                className="table-wrap reddit-table"
+                tabIndex={0}
+                role="region"
+                aria-label="H-1B activity and LCA monthly data"
+              >
                 <table>
                   <thead>
                     <tr>
@@ -376,9 +591,8 @@ export function RedditTalkPanel() {
                     {q.data.months.map((p, i) => (
                       <tr key={i}>
                         <td>
-                          {p.month}
-                          {p.month?.slice(0, 7) === q.data?.from?.slice(0, 7) ||
-                          p.month?.slice(0, 7) === q.data?.through?.slice(0, 7)
+                          {month(p.month)}
+                          {partialMonth(p.month, q.data!.from, q.data!.through)
                             ? " · partial"
                             : ""}
                           {p.month === last ? " · May be incomplete" : ""}
@@ -396,21 +610,36 @@ export function RedditTalkPanel() {
               </div>
             </details>
           )}
+          <details>
+            <summary>About these numbers</summary>
+            <p>
+              LCAs are not people, petitions or lottery odds. Counts reflect
+              changes in community size and which subreddits and archives are
+              covered, not just interest or demand. Observed dates don't
+              guarantee complete or successful data collection. Partial months
+              are omitted from the charts but kept in the table.
+            </p>
+          </details>
         </>
       )}
     </section>
   )
 }
-type BulletinPoint = Bulletin["series"][number]["points"][number]
-export function RedditDiscussionPanel({ points }: { points: BulletinPoint[] }) {
+export function RedditDiscussionPanel({
+  points,
+  hue,
+}: {
+  points: BulletinPoint[]
+  hue: string
+}) {
   const q = useQuery(redditDiscussionQuery())
+  const rows =
+    q.data?.months.filter((p) => p.topic === "employment_green_card") ?? []
   return (
     <section className="panel">
       <h2>Reddit discussion</h2>
-      <p>
-        Employment-topic counts include general visa-bulletin discussion,
-        exclude posts classified as adjustment of status, and are not specific
-        to this category or country.
+      <p className="muted">
+        Employment green card posts · all categories and countries
       </p>
       <State
         loading={q.isLoading}
@@ -420,28 +649,35 @@ export function RedditDiscussionPanel({ points }: { points: BulletinPoint[] }) {
       {q.data && (
         <>
           <Coverage from={q.data.from} through={q.data.through} />
-          {q.data.months.some(
-            (p) => p.topic === "employment_green_card" && p.month
-          ) && (
+          {rows.some((p) => p.month) && (
             <ActivityChart
               bars
-              title="Reddit employment-topic posts"
-              rows={q.data.months
-                .filter((p) => p.topic === "employment_green_card" && p.month)
+              title="Reddit posts"
+              first="Employment green card posts"
+              hue={hue}
+              from={q.data.from}
+              through={q.data.through}
+              points={points}
+              rows={rows
+                .filter((p) => p.month)
                 .map((p) => ({
-                  x: new Date(`${p.month}T00:00:00Z`),
+                  x: day(p.month!),
                   first: p.posts,
                   second: null,
                 }))}
             />
           )}
-          {q.data.months.filter((p) => p.topic === "employment_green_card")
-            .length === 0 ? (
+          {rows.length === 0 ? (
             <p>Nothing to show yet.</p>
           ) : (
-            <details open>
+            <details>
               <summary>Monthly data</summary>
-              <div className="table-wrap">
+              <div
+                className="table-wrap reddit-table"
+                tabIndex={0}
+                role="region"
+                aria-label="Reddit discussion and cutoff monthly data"
+              >
                 <table>
                   <thead>
                     <tr>
@@ -449,22 +685,24 @@ export function RedditDiscussionPanel({ points }: { points: BulletinPoint[] }) {
                       <th>Posts</th>
                       <th>Comments</th>
                       <th>Cutoff</th>
-                      <th>Movement (days)</th>
+                      <th>Change</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {q.data.months
-                      .filter((p) => p.topic === "employment_green_card")
+                    {rows
+                      .slice()
+                      .reverse()
                       .map((p, i) => {
                         const official = points.find((o) => o.month === p.month)
                         return (
                           <tr key={i}>
                             <td>
-                              {p.month}
-                              {p.month?.slice(0, 7) ===
-                                q.data?.from?.slice(0, 7) ||
-                              p.month?.slice(0, 7) ===
-                                q.data?.through?.slice(0, 7)
+                              {month(p.month)}
+                              {partialMonth(
+                                p.month,
+                                q.data!.from,
+                                q.data!.through
+                              )
                                 ? " · partial"
                                 : ""}
                             </td>
@@ -472,10 +710,14 @@ export function RedditDiscussionPanel({ points }: { points: BulletinPoint[] }) {
                             <td>{display(p.comments)}</td>
                             <td>
                               {official?.status === "date"
-                                ? (official.cutoff ?? "—")
-                                : (official?.status ?? "—")}
+                                ? fullDate(official.cutoff)
+                                : official?.status === "current"
+                                  ? "Current"
+                                  : official?.status === "unavailable"
+                                    ? "Unavailable"
+                                    : "—"}
                             </td>
-                            <td>{display(movement(points, p.month))}</td>
+                            <td>{monthChange(movement(points, p.month))}</td>
                           </tr>
                         )
                       })}
@@ -484,6 +726,18 @@ export function RedditDiscussionPanel({ points }: { points: BulletinPoint[] }) {
               </div>
             </details>
           )}
+          <details>
+            <summary>About these numbers</summary>
+            <p>
+              Counts include general visa bulletin discussion but exclude posts
+              classified as adjustment of status. They aren't specific to the
+              selected category or country. Community size, subreddit coverage
+              and archive coverage change over time, so counts don't just
+              reflect interest or demand. Observed dates don't guarantee
+              complete or successful data collection. Partial months are omitted
+              from the chart but kept in the table.
+            </p>
+          </details>
         </>
       )}
     </section>

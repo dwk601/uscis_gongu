@@ -195,8 +195,6 @@ function Trends() {
   const community = useQuery(communityQuery(search.form))
   const [visa, setVisa] = useState<string | null>()
   const [sourceChoice, setSource] = useState<"reddit" | "visajourney">()
-  const source =
-    sourceChoice ?? (search.form === "I-765" ? "reddit" : "visajourney")
   const [now] = useState(Date.now)
   const filedRef = useRef<HTMLInputElement>(null)
   const formRailRef = useRef<HTMLDivElement>(null)
@@ -250,6 +248,11 @@ function Trends() {
       : undefined) ??
     detail.data?.official.find((s) => s.id === summary?.defaultSeries) ??
     detail.data?.official[0]
+  const redditAvailable =
+    !!detail.data?.redditOfficialDescription &&
+    official?.description === detail.data.redditOfficialDescription
+  const source = sourceChoice ?? (redditAvailable ? "reddit" : "visajourney")
+  const showReddit = redditAvailable && source === "reddit"
   const median = latestMedian(official?.points ?? [])
   const date =
     median?.processingMonths && search.filed
@@ -340,10 +343,10 @@ function Trends() {
               </button>
             ))}
           </div>
-          {journey === "students" && (
+          {journey === "students" && !insight && (
             <p>
-              Reddit timelines are self-reported and are not personalized OPT
-              forecasts or lottery odds.
+              OPT and STEM OPT timelines from Reddit are in Reported waits.
+              Lottery odds aren't available yet.
             </p>
           )}
         </>
@@ -537,34 +540,29 @@ function Trends() {
                 </Suspense>
                 <section className="panel">
                   <h2>Reported waits</h2>
-                  {detail.data?.redditOfficialDescription &&
-                    official?.description ===
-                      detail.data.redditOfficialDescription && (
-                      <div
-                        className="controls"
-                        role="group"
-                        aria-label="Reported wait source"
+                  {redditAvailable && (
+                    <div
+                      className="controls"
+                      role="group"
+                      aria-label="Reported wait source"
+                    >
+                      <button
+                        className="chip"
+                        aria-pressed={source === "reddit"}
+                        onClick={() => setSource("reddit")}
                       >
-                        <button
-                          className="chip"
-                          aria-pressed={source === "reddit"}
-                          onClick={() => setSource("reddit")}
-                        >
-                          Reddit
-                        </button>
-                        <button
-                          className="chip"
-                          aria-pressed={source === "visajourney"}
-                          onClick={() => setSource("visajourney")}
-                        >
-                          VisaJourney
-                        </button>
-                      </div>
-                    )}
-                  {source === "reddit" &&
-                  detail.data?.redditOfficialDescription &&
-                  official?.description ===
-                    detail.data.redditOfficialDescription ? (
+                        Reddit
+                      </button>
+                      <button
+                        className="chip"
+                        aria-pressed={source === "visajourney"}
+                        onClick={() => setSource("visajourney")}
+                      >
+                        VisaJourney
+                      </button>
+                    </div>
+                  )}
+                  {showReddit ? (
                     <Suspense fallback={<div className="skeleton" />}>
                       <RedditWait form={search.form} />
                     </Suspense>
@@ -633,24 +631,18 @@ function Trends() {
                   )}
                 </section>
               </div>
-              {cohort &&
-                !(
-                  source === "reddit" &&
-                  detail.data?.redditOfficialDescription &&
-                  official?.description ===
-                    detail.data.redditOfficialDescription
-                ) && (
-                  <div className="workspace-grid single-chart">
-                    <Suspense fallback={<div className="skeleton" />}>
-                      <DataChart
-                        title="Community wait times · months"
-                        rows={communityRows}
-                        hue={formHue(search.form)}
-                        band
-                      />
-                    </Suspense>
-                  </div>
-                )}
+              {cohort && !showReddit && (
+                <div className="workspace-grid single-chart">
+                  <Suspense fallback={<div className="skeleton" />}>
+                    <DataChart
+                      title="Community wait times · months"
+                      rows={communityRows}
+                      hue={formHue(search.form)}
+                      band
+                    />
+                  </Suspense>
+                </div>
+              )}
             </>
           )}
         </>

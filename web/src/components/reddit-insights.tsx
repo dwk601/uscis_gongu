@@ -284,10 +284,7 @@ function ActivityChart({
         height={200}
       />
       {points && (
-        <div
-          className="reddit-movement"
-          aria-label="Cutoff changes by month; details in data table"
-        >
+        <div className="reddit-movement">
           <div className="reddit-movement-track" aria-hidden="true">
             {rows.map((r) => {
               const value = movement(points, r.x.toISOString().slice(0, 10))
@@ -309,7 +306,8 @@ function ActivityChart({
             })}
           </div>
           <p className="muted">
-            Cutoff change: ▲ forward · ▼ back · dot unchanged
+            Cutoff change: ▲ forward · ▼ back
+            <span className="reddit-unchanged-legend"> · dot unchanged</span>
           </p>
         </div>
       )}

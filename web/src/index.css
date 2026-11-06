@@ -417,7 +417,8 @@ button:disabled,
   margin-bottom: 16px;
 }
 @media (max-width: 700px) {
-  .reddit-movement-track .reddit-unchanged {
+  .reddit-movement-track .reddit-unchanged,
+  .reddit-movement .reddit-unchanged-legend {
     display: none;
   }
 }

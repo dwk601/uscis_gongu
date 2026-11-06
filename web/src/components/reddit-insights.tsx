@@ -288,7 +288,7 @@ function ActivityChart({
           className="reddit-movement"
           aria-label="Cutoff changes by month; details in data table"
         >
-          <div className="reddit-movement-track">
+          <div className="reddit-movement-track" aria-hidden="true">
             {rows.map((r) => {
               const value = movement(points, r.x.toISOString().slice(0, 10))
               if (value == null) return null
@@ -299,9 +299,9 @@ function ActivityChart({
               return (
                 <span
                   key={r.x.toISOString()}
+                  className={value === 0 ? "reddit-unchanged" : undefined}
                   style={{ left: `${position}%` }}
                   title={`${month(r.x.toISOString().slice(0, 10))}: ${monthChange(value)}`}
-                  aria-label={`${month(r.x.toISOString().slice(0, 10))}: ${monthChange(value)}`}
                 >
                   {value > 0 ? "▲" : value < 0 ? "▼" : "·"}
                 </span>
@@ -369,10 +369,25 @@ export function RedditWait({ form }: { form: string }) {
     premium == null ? "all" : premium ? "premium" : "regular"
   const selected =
     options.find((s) => key(s.premium) === processing) ?? options[0]
-  const latest = selected?.points
-    .filter((p) => p.filedMonth && p.p50Days != null)
-    .slice()
-    .sort((a, b) => b.filedMonth!.localeCompare(a.filedMonth!))[0]
+  const cohorts =
+    selected?.points
+      .filter((p) => p.filedMonth && p.p50Days != null)
+      .slice()
+      .sort((a, b) => b.filedMonth!.localeCompare(a.filedMonth!)) ?? []
+  const latest =
+    cohorts.find((p) => p.quarterStart != null && p.processingMonths != null) ??
+    cohorts[0]
+  const recentMonths = [
+    ...new Set(
+      selected?.points
+        .map((p) => p.filedMonth)
+        .filter((month): month is string => month != null)
+    ),
+  ]
+    .sort()
+    .slice(-3)
+  const recent =
+    latest?.filedMonth != null && recentMonths.includes(latest.filedMonth)
   return (
     <>
       <p className="muted">Self-reported · Reddit</p>
@@ -435,6 +450,7 @@ export function RedditWait({ form }: { form: string }) {
                   <br />
                   Filed {month(latest.filedMonth)} ·{" "}
                   {display(latest.approvedReports)} approved reports
+                  {recent && " · approved so far; recent months skew short"}
                 </p>
               </>
             ) : (
@@ -506,6 +522,8 @@ export function RedditWait({ form }: { form: string }) {
 export function RedditTalkPanel() {
   const q = useQuery(redditTalkQuery())
   const last = q.data?.months.findLast((p) => p.lcaCases != null)?.month
+  const laterMonths =
+    !!last && q.data?.months.some((p) => p.month != null && p.month > last)
   const activity =
     q.data?.months
       .filter((p) => p.month)
@@ -557,8 +575,8 @@ export function RedditTalkPanel() {
               />
               {last && (
                 <p className="muted">
-                  Latest LCA month ({month(last)}) may be incomplete; later
-                  months not yet published.
+                  Latest LCA month ({month(last)}) may be incomplete
+                  {laterMonths ? "; later months not yet published." : "."}
                 </p>
               )}
               <p className="muted">Missing months show as gaps.</p>

@@ -312,7 +312,10 @@ function Trends() {
             const nextForm = available?.some((f) => f.form === search.form)
               ? search.form
               : (available?.[0]?.form ?? search.form)
-            if (nextForm !== search.form) setVisa(undefined)
+            if (nextForm !== search.form) {
+              setVisa(undefined)
+              setSource(undefined)
+            }
             update({
               journey: id,
               insight: undefined,
@@ -345,7 +348,9 @@ function Trends() {
           </div>
           {journey === "students" && !insight && (
             <p>
-              OPT and STEM OPT timelines from Reddit are in Reported waits.
+              {search.form === "I-765" &&
+                redditAvailable &&
+                "OPT and STEM OPT timelines from Reddit are in Reported waits. "}
               Lottery odds aren't available yet.
             </p>
           )}
@@ -375,6 +380,7 @@ function Trends() {
                 onClick={() => {
                   if (f.form !== search.form) {
                     setVisa(undefined)
+                    setSource(undefined)
                     update({ form: f.form, journey, series: undefined })
                   }
                 }}
@@ -393,6 +399,7 @@ function Trends() {
                   if (e.target.value) {
                     if (e.target.value !== search.form) {
                       setVisa(undefined)
+                      setSource(undefined)
                       update({
                         form: e.target.value,
                         journey,

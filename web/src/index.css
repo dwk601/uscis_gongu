@@ -413,6 +413,14 @@ button:disabled,
   font-size: 13px;
   margin: 4px 0 12px;
 }
+.reddit-table {
+  margin-bottom: 16px;
+}
+@media (max-width: 700px) {
+  .reddit-movement-track .reddit-unchanged {
+    display: none;
+  }
+}
 table {
   border-collapse: collapse;
   width: 100%;

@@ -31,6 +31,7 @@ export type FormDetail = {
   form: string
   name: string
   official: OfficialSeries[]
+  redditOfficialDescription?: string | null
 }
 export type CommunityPoint = {
   filingYear: number | null
@@ -61,6 +62,43 @@ export type Bulletin = {
       cutoff: string | null
       status: "date" | "current" | "unavailable"
     }[]
+  }[]
+}
+
+export type RedditPoint = {
+  filedMonth: string | null
+  approvedReports: number | null
+  p10Days: number | null
+  p50Days: number | null
+  p90Days: number | null
+  quarterStart: string | null
+  processingMonths: number | null
+}
+export type RedditTimeline = {
+  officialDescription: string | null
+  series: { caseType: string; premium: boolean | null; points: RedditPoint[] }[]
+}
+export type RedditDiscussion = {
+  from: string | null
+  through: string | null
+  months: {
+    month: string | null
+    topic: string
+    posts: number | null
+    comments: number | null
+  }[]
+}
+export type RedditTalk = {
+  from: string | null
+  through: string | null
+  months: {
+    month: string | null
+    h1bPosts: number | null
+    h1bComments: number | null
+    lotteryPosts: number | null
+    lotteryComments: number | null
+    lcaCases: number | null
+    lcaCertified: number | null
   }[]
 }
 
@@ -100,6 +138,33 @@ export const communityQuery = (form: string) =>
         { signal }
       ),
   })
+export const redditTimelineQuery = (form: string) =>
+  queryOptions({
+    queryKey: ["uscis", "reddit", form],
+    staleTime,
+    retry,
+    queryFn: ({ signal }) =>
+      pb.send<RedditTimeline>(
+        `/api/x/uscis/forms/${encodeURIComponent(form)}/reddit`,
+        { signal }
+      ),
+  })
+export const redditDiscussionQuery = () =>
+  queryOptions({
+    queryKey: ["uscis", "reddit-discussion"],
+    staleTime,
+    retry,
+    queryFn: ({ signal }) =>
+      pb.send<RedditDiscussion>("/api/x/uscis/bulletin/discussion", { signal }),
+  })
+export const redditTalkQuery = () =>
+  queryOptions({
+    queryKey: ["uscis", "h1b-talk"],
+    staleTime,
+    retry,
+    queryFn: ({ signal }) =>
+      pb.send<RedditTalk>("/api/x/uscis/insights/h1b-talk", { signal }),
+  })
 export const bulletinQuery = (category: string, chart: string) =>
   queryOptions({
     queryKey: ["uscis", "bulletin", category, chart],
@@ -111,3 +176,15 @@ export const bulletinQuery = (category: string, chart: string) =>
         query: { category, chart },
       }),
   })
+
+type BulletinPoint = Bulletin["series"][number]["points"][number]
+export function movement(points: BulletinPoint[], month: string | null) {
+  if (!month) return null
+  const d = new Date(`${month}T00:00:00Z`)
+  d.setUTCMonth(d.getUTCMonth() - 1)
+  const a = points.find((p) => p.month === month),
+    b = points.find((p) => p.month === d.toISOString().slice(0, 10))
+  return a?.status === "date" && b?.status === "date" && a.cutoff && b.cutoff
+    ? (Date.parse(a.cutoff) - Date.parse(b.cutoff)) / 86400000
+    : null
+}

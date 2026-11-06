@@ -44,3 +44,15 @@ ORDER BY stage, visa_type, filing_year;
 SELECT bulletin_month, chart, category_group, category_code, country_code, cutoff_date, is_current, is_unavailable, country_label
 FROM public.visa_bulletin_series
 ORDER BY category_group, category_code, chart, country_code, bulletin_month;
+
+-- name: RedditTimelines :many
+SELECT case_type, premium, filed_month, approved_reports, p10_days, p50_days, p90_days, form, quarter_start, processing_months FROM public.reddit_timeline_vs_uscis_quarter ORDER BY form, case_type, premium NULLS FIRST, filed_month;
+
+-- name: RedditDiscussion :many
+SELECT DISTINCT month, topic, posts, comments FROM public.reddit_green_card_month_vs_bulletin ORDER BY month, topic, posts, comments;
+
+-- name: RedditH1bTalk :many
+SELECT month, h1b_posts, h1b_comments, lottery_posts, lottery_comments, lca_cases, lca_certified FROM public.reddit_h1b_month_vs_lca ORDER BY month;
+
+-- name: RedditCoverage :one
+SELECT min(day)::date AS first_day, max(day)::date AS last_day FROM public.reddit_activity_day;

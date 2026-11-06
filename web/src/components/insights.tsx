@@ -1,5 +1,10 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { Fragment } from "react"
+import { Fragment, lazy, Suspense } from "react"
+const RedditTalkPanel = lazy(() =>
+  import("@/components/reddit-insights").then((m) => ({
+    default: m.RedditTalkPanel,
+  }))
+)
 import { useState } from "react"
 import {
   employersQuery,
@@ -502,6 +507,12 @@ function Posts() {
   )
 }
 export function Insight({ id }: { id: string }) {
+  if (id === "h1b-talk")
+    return (
+      <Suspense fallback={<div className="skeleton" />}>
+        <RedditTalkPanel />
+      </Suspense>
+    )
   if (id === "visa-221g") return <Visa />
   if (id === "h1b-pay") return <Pay />
   if (id === "h1b-employers") return <EmployerInsight />

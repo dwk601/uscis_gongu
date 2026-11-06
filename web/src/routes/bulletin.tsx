@@ -4,8 +4,14 @@ import { lazy, Suspense } from "react"
 import { bulletinQuery } from "@/lib/api"
 import { categoryHue } from "@/lib/palette"
 import { categoryLabel, categoryLabels, countryLabel } from "@/lib/labels"
+import { movement } from "@/lib/api"
 
 const DataChart = lazy(() => import("@/components/data-chart"))
+const RedditDiscussionPanel = lazy(() =>
+  import("@/components/reddit-insights").then((m) => ({
+    default: m.RedditDiscussionPanel,
+  }))
+)
 const olderInvestors = new Set(["EB5-NON-RC", "EB5-RC", "EB5-UNRESERVED-RC"])
 const groups = [
   "Family preference",
@@ -241,6 +247,11 @@ function BulletinPage() {
                     ? "No change vs. 12 months ago"
                     : `${Math.abs(delta)} months ${delta > 0 ? "forward" : "back"} vs. 12 months ago`}
               </p>
+              <p>
+                {movement(points, current?.month ?? null) == null
+                  ? "Monthly movement unavailable"
+                  : `${movement(points, current?.month ?? null)} days movement vs. previous month`}
+              </p>
               <small>
                 {current?.month ? `Bulletin ${month(current.month)} · ` : ""}
                 {series ? countryLabel(series.country) : ""}
@@ -274,6 +285,16 @@ function BulletinPage() {
               />
             </Suspense>
           </div>
+          {group === groups[0] ? (
+            <p>
+              Reddit family posts mostly concern spouse/fiancé cases and are not
+              a useful comparison with family-preference cutoffs.
+            </p>
+          ) : (
+            <Suspense fallback={<div className="skeleton" />}>
+              <RedditDiscussionPanel points={points} />
+            </Suspense>
+          )}
         </>
       )}
     </main>

@@ -43,6 +43,58 @@ type ImmihelpTimeline struct {
 	Pending      *bool
 }
 
+type RedditActivityDay struct {
+	Day              pgtype.Date
+	Subreddit        *string
+	ThreadType       *string
+	Topic            *string
+	Posts            *int32
+	RemovedPosts     *int32
+	Comments         *int32
+	TopLevelComments *int32
+}
+
+type RedditGreenCardMonthVsBulletin struct {
+	Month         pgtype.Date
+	Topic         *string
+	Posts         *int32
+	Comments      *int32
+	Chart         *string
+	CategoryCode  *string
+	CountryCode   *string
+	CutoffDate    pgtype.Date
+	IsCurrent     *bool
+	IsUnavailable *bool
+	MovedDays     *int32
+}
+
+type RedditH1bMonthVsLca struct {
+	Month           pgtype.Date
+	H1bPosts        *int32
+	H1bComments     *int32
+	LotteryPosts    *int32
+	LotteryComments *int32
+	LcaCases        *int32
+	LcaCertified    *int32
+}
+
+type RedditTimelineVsUscisQuarter struct {
+	CaseType         *string
+	Premium          *bool
+	FiledMonth       pgtype.Date
+	ApprovedReports  *int32
+	P10Days          *float64
+	P50Days          *float64
+	P90Days          *float64
+	Form             *string
+	QuarterStart     pgtype.Date
+	Received         *float64
+	Approved         *float64
+	Denied           *float64
+	Pending          *float64
+	ProcessingMonths *float64
+}
+
 type StudentPostWeek struct {
 	WeekStart pgtype.Date
 	Topic     *string

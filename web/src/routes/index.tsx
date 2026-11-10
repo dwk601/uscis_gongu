@@ -232,7 +232,7 @@ function Home() {
         />
         {search.form && (
           <label>
-            When did you file? (optional)
+            <span>When did you file? (optional)</span>
             <input
               ref={filedInput}
               aria-label="When did you file? (optional)"

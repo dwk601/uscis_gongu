@@ -198,9 +198,17 @@ button:disabled,
   border-radius: 99px;
   padding: 9px 14px;
 }
-select.field,
-input.field {
-  min-height: 43px;
+@media (pointer: fine) {
+  select.field,
+  input.field {
+    min-height: 43px;
+  }
+}
+@media (pointer: coarse) {
+  select.field,
+  input.field {
+    min-height: 44px;
+  }
 }
 .field-label {
   font-size: 14px;
@@ -369,8 +377,10 @@ td {
   justify-content: space-between;
   gap: 20px;
 }
-.bulletin-heading .controls {
-  margin-bottom: 0;
+@media (min-width: 701px) {
+  .bulletin-heading .controls {
+    margin-bottom: 0;
+  }
 }
 .bulletin-link {
   text-decoration: underline;
@@ -703,8 +713,38 @@ td {
 .case-controls > .form-picker {
   flex: 1 1 260px;
 }
-.case-controls > .form-picker:has(.form-summary) {
-  padding-top: 18px;
+@media (min-width: 701px) {
+  .case-controls:has(> label) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 12px;
+    align-items: center;
+  }
+  .case-controls:has(> label) > .form-picker,
+  .case-controls > label {
+    display: contents;
+  }
+  .case-controls > label > span:first-child {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 14px;
+  }
+  .case-controls .form-summary {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .case-controls > label > input {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .case-controls .case-date-hint {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  .case-controls:has(> label) .form-picker-options {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
 }
 .case-grid {
   display: grid;
@@ -777,11 +817,8 @@ td {
   .case-grid {
     grid-template-columns: 1fr;
   }
-  .case-controls > .form-picker:has(.form-summary) {
-    padding-top: 0;
-  }
-  .case-controls label,
-  .case-controls input {
+  .case-controls > label,
+  .case-controls > label > input {
     width: 100%;
   }
   .case-controls input {
@@ -793,17 +830,20 @@ td {
   }
   .trend-workspace > .controls > .field,
   .trend-workspace > .controls > .field-label,
-  .insight-panel .controls > label {
+  .insight-panel .controls > label,
+  .insight-panel > label:has(> .field) {
     width: 100%;
     max-width: none;
   }
   .trend-workspace > .controls > .field-label,
-  .insight-panel .controls > label {
+  .insight-panel .controls > label,
+  .insight-panel > label:has(> .field) {
     display: grid;
     gap: 6px;
   }
   .trend-workspace > .controls .field,
-  .insight-panel .controls .field {
+  .insight-panel .controls .field,
+  .insight-panel > label > .field {
     width: 100%;
     max-width: none;
   }

@@ -6,9 +6,14 @@
 .account-signin {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  min-height: 44px;
   padding: 10px 17px;
   font-size: 14px;
+}
+@media (min-width: 701px) and (pointer: fine) {
+  .account-signin {
+    min-height: 40px;
+  }
 }
 .account-menu {
   position: relative;
@@ -144,7 +149,7 @@
 }
 .social-filters {
   display: grid;
-  grid-template-columns: auto auto 1fr;
+  grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;
   gap: 6px 12px;
 }
@@ -166,7 +171,7 @@
   max-width: 100%;
 }
 .social-filters .form-summary > span:last-child {
-  min-width: 94px;
+  min-width: 7em;
   text-align: right;
 }
 .social-filters .form-picker-options {
@@ -235,6 +240,7 @@
   .social-filters .form-picker-caption {
     grid-column: 1 / -1;
     grid-row: 2;
+    margin-top: 6px;
   }
   .social-filters .form-summary {
     grid-column: 1 / -1;

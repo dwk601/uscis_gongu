@@ -302,7 +302,6 @@ function Trends() {
     >
       <div ref={journeyRailRef}>
         <JourneyPicker
-          variant="compact"
           value={journey}
           onChange={(id) => {
             const available =

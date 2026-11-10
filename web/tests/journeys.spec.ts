@@ -594,29 +594,45 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
           asOfDate: "2026-05-01",
         },
         trend: [],
-        community: { p25Days: 130, p75Days: 253, asOfDate: "2026-05-01" },
+        community: {
+          filingYear: 2025,
+          p25Days: 130,
+          p75Days: 253,
+          asOfDate: "2026-05-01",
+        },
         summary: { eligibleReports: 31416, years: [2024, 2025] },
         freshness: [],
       },
     })
   })
   await page.goto("/")
+  await expect(page.getByText("2025 filers")).toBeVisible()
   await page.getByLabel("Case form").selectOption("I-130")
   await page.getByLabel("Case form").selectOption("I-485")
   await page.getByLabel("Filed (optional)").focus()
   await page.keyboard.type("01012025")
   await expect(page.getByLabel("Filed (optional)")).toHaveValue("2025-01-01")
-  await expect(page.getByText("Jan 1, 2026", { exact: true })).toBeVisible()
   await expect(
-    page.getByText("May 11, 2025 – Sep 11, 2025", { exact: true })
+    page.getByText("Estimated around Jan 1, 2026", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Estimated range May 11, 2025 – Sep 11, 2025", {
+      exact: true,
+    })
   ).toBeVisible()
   await expect(
     page.getByRole("link", { name: "Check the visa bulletin" })
   ).toBeVisible()
+  await expect(page.getByText("2025 filers")).toBeVisible()
+  await expect(
+    page.getByText("Estimates, not USCIS commitments.")
+  ).toBeVisible()
   const before = requests
   await page.getByLabel("Filed (optional)").fill("2025-01-02")
   await expect(
-    page.getByText("May 12, 2025 – Sep 12, 2025", { exact: true })
+    page.getByText("Estimated range May 12, 2025 – Sep 12, 2025", {
+      exact: true,
+    })
   ).toBeVisible()
   expect(requests).toBe(before)
   await page.getByText("More data").click()

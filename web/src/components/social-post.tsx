@@ -6,6 +6,8 @@ import { useAuth, mutationErrorMessage } from "@/lib/auth"
 import { listVotes, relativeTime, type Post } from "@/lib/community"
 import { formHue, formInk } from "@/lib/palette"
 import { pb } from "@/lib/pb"
+import { caseQuery, type CaseResponse } from "@/lib/case"
+import { formLabel } from "@/lib/labels"
 
 export function SignIn({ action }: { action: string }) {
   const location = useRouterState({ select: (s) => s.location.href })
@@ -24,6 +26,14 @@ export function PostCard({
 }) {
   const user = useAuth()
   const client = useQueryClient()
+  const location = useRouterState({ select: (s) => s.location.href })
+  const params = new URLSearchParams(location.split("?")[1])
+  const catalog = useQuery(caseQuery(params.get("form") || "I-485"))
+  const forms =
+    catalog.data?.forms ??
+    client
+      .getQueriesData<CaseResponse>({ queryKey: ["uscis", "case"] })
+      .find(([, value]) => value?.forms)?.[1]?.forms
   const [error, setError] = useState("")
   const [optimistic, setOptimistic] = useState<{
     voted: boolean
@@ -57,8 +67,6 @@ export function PostCard({
       setOptimistic(null)
     },
   })
-  const location = useRouterState({ select: (s) => s.location.href })
-  const params = new URLSearchParams(location.split("?")[1])
   const detailSearch = {
     form: params.get("form") || "",
     sort: params.get("sort") === "top" ? ("top" as const) : ("new" as const),
@@ -76,7 +84,7 @@ export function PostCard({
               color: formInk(post.form),
             }}
           >
-            {post.form}
+            {formLabel(post.form, forms)}
           </span>
         )}
         <span>{post.author_name || "member"}</span>

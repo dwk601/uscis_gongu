@@ -164,7 +164,7 @@ function Home() {
       ? "slower"
       : official?.trend === "down"
         ? "faster"
-        : official?.trend === "unchanged" || official?.trend === "flat"
+        : official?.trend === "flat"
           ? "unchanged"
           : null
   return (
@@ -256,7 +256,7 @@ function Home() {
                 {official?.medianMonths == null
                   ? "Not available"
                   : estimate
-                    ? dateLabel(estimate)
+                    ? `Estimated around ${dateLabel(estimate)}`
                     : `${formatMonths(official.medianMonths)} months`}
               </strong>
               {estimate && estimate.getTime() < now && (
@@ -267,11 +267,7 @@ function Home() {
                 {official?.asOfDate && ` · as of ${official.asOfDate}`}
               </p>
               {official?.medianMonths == null && official?.reason && (
-                <p>
-                  {official.reason === "unavailable"
-                    ? "Official median unavailable for this form."
-                    : official.reason.replaceAll("_", " ")}
-                </p>
+                <p>Official median unavailable for this form.</p>
               )}
               <h3>Community-reported range</h3>
               {community &&
@@ -279,25 +275,24 @@ function Home() {
               community.p75Days != null ? (
                 <strong className="case-range">
                   {search.filed
-                    ? `${dateLabel(addDays(search.filed, community.p25Days))} – ${dateLabel(addDays(search.filed, community.p75Days))}`
+                    ? `Estimated range ${dateLabel(addDays(search.filed, community.p25Days))} – ${dateLabel(addDays(search.filed, community.p75Days))}`
                     : `${community.p25Days}–${community.p75Days} days`}
                 </strong>
               ) : (
                 <p>
-                  {community?.reason === "insufficient" ||
-                  community?.reason === "insufficient_data" ||
-                  community?.p25Reason === "insufficient" ||
-                  community?.p75Reason === "insufficient"
-                    ? "Not enough reports for a range."
-                    : community?.p25Reason === "unreached" ||
-                        community?.p75Reason === "unreached"
-                      ? "A range has not yet been reached."
-                      : "Range unavailable for this cohort."}
+                  {community?.p25Reason === "unreached" ||
+                  community?.p75Reason === "unreached"
+                    ? "A range has not yet been reached."
+                    : "Range unavailable for this cohort."}
                 </p>
+              )}
+              {community?.filingYear != null && (
+                <p>{community.filingYear} filers</p>
               )}
               {community?.asOfDate && (
                 <p>VisaJourney · as of {community.asOfDate}</p>
               )}
+              {search.filed && <p>Estimates, not USCIS commitments.</p>}
             </section>
             <section className="case-panel">
               <h2>Trend</h2>
@@ -321,7 +316,7 @@ function Home() {
                   <Link
                     to="/bulletin"
                     search={{
-                      category: "EB2",
+                      category: "F2A",
                       chart: "final_action",
                       country: "ALL",
                     }}
@@ -338,29 +333,16 @@ function Home() {
                   </Link>
                 )}
                 {search.form === "I-129" && (
-                  <>
-                    <Link
-                      to="/trends"
-                      search={{
-                        form: "I-129",
-                        journey: "workers",
-                        insight: "h1b-employers",
-                      }}
-                    >
-                      H-1B employers
-                    </Link>
-                    <br />
-                    <Link
-                      to="/trends"
-                      search={{
-                        form: "I-129",
-                        journey: "workers",
-                        insight: "h1b-pay",
-                      }}
-                    >
-                      H-1B pay
-                    </Link>
-                  </>
+                  <Link
+                    to="/trends"
+                    search={{
+                      form: "I-129",
+                      journey: "workers",
+                      insight: "h1b-employers",
+                    }}
+                  >
+                    H-1B employers
+                  </Link>
                 )}
               </section>
             )}

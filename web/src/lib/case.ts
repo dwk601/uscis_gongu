@@ -41,7 +41,7 @@ export type CaseResponse = {
     method: Nullable<string>
     population: Nullable<string>
   }>
-  summary: { eligibleReports: number; years: number[] }
+  summary: { eligibleReports: number | null; years: number[] }
   freshness: {
     source: string
     latestStatus: Nullable<string>

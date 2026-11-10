@@ -341,8 +341,11 @@ func TestInsightsContract(t *testing.T) {
 		{name: "case preferred work permit", path: "/api/x/uscis/case?form=I-765", status: 200, check: func(t *testing.T, b []byte) {
 			var v struct {
 				CategoryLabel string `json:"categoryLabel"`
+				Summary       struct {
+					EligibleReports json.RawMessage `json:"eligibleReports"`
+				} `json:"summary"`
 			}
-			if err := json.Unmarshal(b, &v); err != nil || v.CategoryLabel != "Adjustment of status" {
+			if err := json.Unmarshal(b, &v); err != nil || v.CategoryLabel != "Adjustment of status" || string(v.Summary.EligibleReports) != "null" {
 				t.Fatalf("case: %s", b)
 			}
 		}},

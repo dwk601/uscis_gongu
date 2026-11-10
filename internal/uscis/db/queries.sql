@@ -6,7 +6,7 @@ SELECT e.form, e.category, e.filing_year, e.is_default_cohort, e.official_descri
  e.p75_days, e.eligible_count, e.completed_count, e.censored_count, e.excluded_count,
  e.visa_types, e.community_as_of_date, e.community_refreshed_at, e.community_reason,
  e.p25_reason, e.p75_reason, e.community_source, e.community_method, e.community_population,
- CASE WHEN e.is_default_cohort THEN (SELECT json_build_object('eligibleReports', coalesce(sum(s.eligible_count), 0),
+ CASE WHEN e.is_default_cohort THEN (SELECT json_build_object('eligibleReports', sum(s.eligible_count),
    'years', coalesce(json_agg(DISTINCT s.filing_year ORDER BY s.filing_year) FILTER (WHERE s.filing_year IS NOT NULL AND s.eligible_count > 0), '[]'::json))
   FROM public.case_community_stats s WHERE s.form = $1) END::json AS summary,
  CASE WHEN e.is_default_cohort THEN (SELECT coalesce(json_agg(json_build_object('source', r.source, 'latestStatus', r.latest_run_status,

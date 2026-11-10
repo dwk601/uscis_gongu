@@ -145,9 +145,11 @@ function Community() {
       )}
       {search.form &&
         formNames.data &&
+        formNames.data.summary.eligibleReports != null &&
         !formNames.isPlaceholderData &&
         (() => {
           const { eligibleReports: count, years } = formNames.data.summary
+          if (count == null) return null
           const first = Math.min(...years),
             last = Math.max(...years)
           return (

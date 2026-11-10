@@ -2,7 +2,6 @@ export const journeys = [
   {
     id: "students",
     name: "Students",
-    descriptor: "OPT, STEM OPT & student status",
     forms: [
       {
         form: "I-765",
@@ -15,7 +14,6 @@ export const journeys = [
   {
     id: "workers",
     name: "Workers",
-    descriptor: "Temporary work & employment green cards",
     forms: [
       {
         form: "I-129",
@@ -43,7 +41,6 @@ export const journeys = [
   {
     id: "family",
     name: "Family",
-    descriptor: "Family petitions & marriage",
     forms: [
       {
         form: "I-130",
@@ -72,7 +69,6 @@ export const journeys = [
   {
     id: "residents",
     name: "Green card holders",
-    descriptor: "Renewal, conditions & citizenship",
     forms: [
       { form: "I-90", label: "Renew or replace a green card" },
       { form: "I-751", label: "Remove marriage-based conditions" },
@@ -91,7 +87,6 @@ export const journeys = [
   {
     id: "investors",
     name: "Investors",
-    descriptor: "EB-5 petitions & conditions",
     forms: [
       {
         form: "I-526",
@@ -120,7 +115,6 @@ export const journeys = [
   {
     id: "other",
     name: "Other",
-    descriptor: "DACA, special petitions & waivers",
     forms: [
       { form: "I-360", label: "Special immigrant, widow(er) or VAWA petition" },
       { form: "I-821D", label: "DACA" },

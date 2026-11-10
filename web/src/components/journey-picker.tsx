@@ -8,15 +8,13 @@ function revealOnFocus(event: React.FocusEvent<HTMLButtonElement>) {
 export function JourneyPicker({
   value,
   onChange,
-  variant,
 }: {
   value: JourneyId
   onChange: (id: JourneyId) => void
-  variant: "compact"
 }) {
   return (
     <div
-      className={`journey-picker journey-picker--${variant}`}
+      className="journey-picker journey-picker--compact"
       role="group"
       aria-label="Journey"
     >

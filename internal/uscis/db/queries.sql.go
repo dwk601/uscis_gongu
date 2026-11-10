@@ -67,17 +67,22 @@ SELECT e.form, e.category, e.filing_year, e.is_default_cohort, e.official_descri
  e.p75_days, e.eligible_count, e.completed_count, e.censored_count, e.excluded_count,
  e.visa_types, e.community_as_of_date, e.community_refreshed_at, e.community_reason,
  e.p25_reason, e.p75_reason, e.community_source, e.community_method, e.community_population,
- (SELECT json_build_object('eligibleReports', coalesce(sum(s.eligible_count), 0),
-   'years', coalesce(json_agg(DISTINCT s.filing_year ORDER BY s.filing_year) FILTER (WHERE s.filing_year IS NOT NULL), '[]'::json))
-  FROM public.case_community_stats s WHERE s.form = $1)::json AS summary,
- (SELECT coalesce(json_agg(json_build_object('source', r.source, 'latestStatus', r.latest_run_status,
+ CASE WHEN e.is_default_cohort THEN (SELECT json_build_object('eligibleReports', coalesce(sum(s.eligible_count), 0),
+   'years', coalesce(json_agg(DISTINCT s.filing_year ORDER BY s.filing_year) FILTER (WHERE s.filing_year IS NOT NULL AND s.eligible_count > 0), '[]'::json))
+  FROM public.case_community_stats s WHERE s.form = $1) END::json AS summary,
+ CASE WHEN e.is_default_cohort THEN (SELECT coalesce(json_agg(json_build_object('source', r.source, 'latestStatus', r.latest_run_status,
    'latestAttemptStartedAt', r.latest_run_started_at, 'latestAttemptFinishedAt', r.latest_run_finished_at,
    'lastSuccessAt', r.last_successful_run_finished_at, 'lastDataAt', r.last_recorded_data_run_finished_at,
    'lastDataStatus', r.last_recorded_data_run_status, 'latestAttemptFailed', r.latest_run_status = 'failed') ORDER BY r.source), '[]'::json)
-  FROM public.source_refresh_status r WHERE r.source IN ('uscis_quarterly', 'visajourney'))::json AS freshness
-FROM public.case_estimate_current e WHERE e.form = $1 AND e.official_description IS NOT NULL
-ORDER BY e.category, e.filing_year
+  FROM public.source_refresh_status r WHERE r.source IN ('uscis_quarterly', 'visajourney')) END::json AS freshness
+FROM public.case_estimate_current e WHERE e.form = $1 AND e.official_description = $2
+ORDER BY e.filing_year
 `
+
+type CaseEstimatesParams struct {
+	Form                *string
+	OfficialDescription *string
+}
 
 type CaseEstimatesRow struct {
 	Form                         *string
@@ -115,8 +120,8 @@ type CaseEstimatesRow struct {
 	Freshness                    []byte
 }
 
-func (q *Queries) CaseEstimates(ctx context.Context, form *string) ([]CaseEstimatesRow, error) {
-	rows, err := q.db.Query(ctx, caseEstimates, form)
+func (q *Queries) CaseEstimates(ctx context.Context, arg CaseEstimatesParams) ([]CaseEstimatesRow, error) {
+	rows, err := q.db.Query(ctx, caseEstimates, arg.Form, arg.OfficialDescription)
 	if err != nil {
 		return nil, err
 	}

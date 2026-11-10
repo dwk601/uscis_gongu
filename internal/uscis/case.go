@@ -98,42 +98,40 @@ func (a *api) caseScreen(r *core.RequestEvent) error {
 			break
 		}
 	}
-	if selected == nil {
-		return unavailable(r)
-	}
-	value, err := a.load(ctx, "case:"+form, func(ctx context.Context) (any, error) { return a.q.CaseEstimates(ctx, &form) })
+	value, err := a.load(ctx, "case:"+form, func(ctx context.Context) (any, error) {
+		return a.q.CaseEstimates(ctx, db.CaseEstimatesParams{Form: &form, OfficialDescription: &selected.Description})
+	})
 	if err != nil {
 		return unavailable(r)
 	}
 	rows := value.([]db.CaseEstimatesRow)
-	var base, cohort *db.CaseEstimatesRow
+	if len(rows) == 0 {
+		return unavailable(r)
+	}
+	var cohort *db.CaseEstimatesRow
+	var summary, freshness json.RawMessage
 	for i := range rows {
 		row := &rows[i]
-		if str(row.OfficialDescription) != selected.Description {
-			continue
-		}
-		if base == nil || (row.IsDefaultCohort != nil && *row.IsDefaultCohort) {
-			base = row
+		if row.IsDefaultCohort != nil && *row.IsDefaultCohort {
+			summary, freshness = row.Summary, row.Freshness
+			if !hasYear {
+				cohort = row
+			}
 		}
 		if hasYear && row.FilingYear != nil && int(*row.FilingYear) == year {
 			cohort = row
 		}
-		if !hasYear && row.IsDefaultCohort != nil && *row.IsDefaultCohort {
-			cohort = row
-		}
 	}
-	if base == nil {
+	if summary == nil || freshness == nil {
 		return unavailable(r)
 	}
+	base := &rows[0]
 	trend := selected.Points
 	if len(trend) > 12 {
 		trend = trend[len(trend)-12:]
 	}
 	out := caseResponse{Forms: forms.Forms, Form: form, CategoryLabel: selected.Label,
-		Official: caseBenchmark{base.OfficialDescription, base.OfficialMedianMonths, date(base.OfficialPeriod), base.OfficialPreviousMedianMonths, date(base.OfficialPreviousPeriod), date(base.LatestReportingPeriod), base.OfficialTrend, date(base.AsOfDate), base.OfficialReason, base.OfficialSource, base.OfficialPopulation}, Trend: trend, Summary: base.Summary, Freshness: base.Freshness}
-	if hasYear && year > time.Now().UTC().Year() {
-		cohort = nil
-	}
+		Official: caseBenchmark{base.OfficialDescription, base.OfficialMedianMonths, date(base.OfficialPeriod), base.OfficialPreviousMedianMonths, date(base.OfficialPreviousPeriod), date(base.LatestReportingPeriod), base.OfficialTrend, date(base.AsOfDate), base.OfficialReason, base.OfficialSource, base.OfficialPopulation}, Trend: trend, Summary: summary, Freshness: freshness}
 	if cohort != nil {
 		var refreshed *time.Time
 		if cohort.CommunityRefreshedAt.Valid {
@@ -141,13 +139,5 @@ func (a *api) caseScreen(r *core.RequestEvent) error {
 		}
 		out.Community = &caseCommunity{cohort.FilingYear, cohort.P25Days, cohort.P50Days, cohort.P75Days, cohort.EligibleCount, cohort.CompletedCount, cohort.CensoredCount, cohort.ExcludedCount, cohort.VisaTypes, date(cohort.CommunityAsOfDate), refreshed, cohort.CommunityReason, cohort.P25Reason, cohort.P75Reason, cohort.CommunitySource, cohort.CommunityMethod, cohort.CommunityPopulation}
 	}
-	data, err := json.Marshal(out)
-	if err != nil || len(data) > 64*1024 {
-		return unavailable(r)
-	}
-	r.Response.Header().Set("Cache-Control", "public, max-age=3600")
-	r.Response.Header().Set("Content-Type", "application/json")
-	r.Response.WriteHeader(http.StatusOK)
-	_, err = r.Response.Write(data)
-	return err
+	return insightSuccess(r, out, 64*1024)
 }

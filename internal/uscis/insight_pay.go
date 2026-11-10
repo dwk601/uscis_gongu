@@ -95,7 +95,7 @@ func (a *api) pay(r *core.RequestEvent) error {
 	}
 	catalog := value.(payCatalog)
 	if !hasYear {
-		return insightSuccess(r, catalog)
+		return insightSuccess(r, catalog, 200*1024)
 	}
 	title := ""
 	found := false
@@ -133,5 +133,5 @@ func (a *api) pay(r *core.RequestEvent) error {
 	if !hasAll {
 		return unavailable(r)
 	}
-	return insightSuccess(r, out)
+	return insightSuccess(r, out, 200*1024)
 }

@@ -309,10 +309,14 @@ func TestInsightsContract(t *testing.T) {
 					FilingYear int `json:"filingYear"`
 				} `json:"community"`
 				Summary struct {
-					EligibleReports int `json:"eligibleReports"`
+					EligibleReports int   `json:"eligibleReports"`
+					Years           []int `json:"years"`
 				} `json:"summary"`
+				Freshness []struct {
+					LatestAttemptFailed bool `json:"latestAttemptFailed"`
+				} `json:"freshness"`
 			}
-			if err := json.Unmarshal(b, &v); err != nil || v.CategoryLabel != "Family" || v.Community == nil || v.Community.FilingYear != 2025 || v.Summary.EligibleReports != 18 {
+			if err := json.Unmarshal(b, &v); err != nil || v.CategoryLabel != "Family" || v.Community == nil || v.Community.FilingYear != 2025 || v.Summary.EligibleReports != 18 || !reflect.DeepEqual(v.Summary.Years, []int{2024, 2025}) || len(v.Freshness) != 1 || !v.Freshness[0].LatestAttemptFailed {
 				t.Fatalf("case: %s (%v)", b, err)
 			}
 		}},

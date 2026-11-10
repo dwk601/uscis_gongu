@@ -1,4 +1,4 @@
-import { errorMessage, mutationErrorMessage } from "./auth"
+import { errorMessage } from "./auth"
 import { pb } from "./pb"
 
 export type AgentBlock =
@@ -61,10 +61,11 @@ export function askAgent(question: string, signal: AbortSignal) {
   })
 }
 
-export async function agentError(error: unknown) {
+export function agentError(error: unknown) {
   const e = error as {
     status?: number
     response?: {
+      message?: string
       data?: {
         reason?: { code?: string }
         remaining?: number
@@ -72,6 +73,7 @@ export async function agentError(error: unknown) {
       }
     }
   }
+  if (e.status === 401) return { sessionEnded: true as const }
   const data = e.response?.data
   if (e.status === 429 && data?.reason?.code === "daily_budget_exhausted")
     return {
@@ -80,14 +82,15 @@ export async function agentError(error: unknown) {
         typeof data.remaining === "number" && typeof data.resetsAt === "string"
           ? { remaining: data.remaining, resetsAt: data.resetsAt }
           : undefined,
-      sessionEnded: false,
+      sessionEnded: false as const,
     }
   return {
     message:
-      e.status === 401
-        ? await mutationErrorMessage(error)
+      e.status === 429 && data?.reason?.code === "busy"
+        ? e.response?.message ||
+          "Ask gongu is busy. Please try again in a moment."
         : errorMessage(error),
-    sessionEnded: e.status === 401,
+    sessionEnded: false as const,
     budget: undefined,
   }
 }

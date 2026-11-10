@@ -34,6 +34,10 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
     blocks: [
       { type: "paragraph", text: "<b>Reported data, not a guarantee.</b>" },
       {
+        type: "paragraph",
+        text: "Waits vary by case.\n\nThese figures are descriptive.",
+      },
+      {
         type: "stat",
         label: "Completed cases",
         value: 12500,
@@ -121,6 +125,15 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
           },
         },
       })
+    if (requests === 3)
+      return route.fulfill({
+        status: 429,
+        json: {
+          status: 429,
+          message: "Ask gongu is busy. Please try again in a moment.",
+          data: { reason: { code: "busy" } },
+        },
+      })
     await new Promise<void>((resolve) => {
       release = resolve
     })
@@ -179,8 +192,13 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   ).toBeVisible()
   await expect(dialog.getByRole("row", { name: "I-485 8" })).toBeVisible()
   await expect(
-    dialog.getByText("<b>Reported data, not a guarantee.</b>")
+    dialog
+      .getByRole("paragraph")
+      .filter({ hasText: "<b>Reported data, not a guarantee.</b>" })
   ).toBeVisible()
+  await expect(
+    dialog.getByRole("paragraph").filter({ hasText: "Waits vary by case." })
+  ).toHaveText("Waits vary by case.\n\nThese figures are descriptive.")
   await expect(dialog.locator("b")).toHaveCount(0)
   await expect(dialog.getByRole("link", { name: "External" })).toHaveCount(0)
   await expect(
@@ -217,15 +235,23 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await expect(dialog.getByText("0 tokens remaining")).toBeVisible()
   await expect(dialog.getByText(/Resets Jul 3, 12:00 AM UTC/)).toBeVisible()
   expect(requests).toBe(2)
+  await dialog.getByRole("button", { name: "Ask", exact: true }).click()
+  await expect(dialog.getByRole("alert")).toHaveText(
+    "Ask gongu is busy. Please try again in a moment."
+  )
+  await expect(question).toHaveValue("What about my next question?")
   await page.keyboard.press("Escape")
   await expect(dialog).not.toBeVisible()
   await expect(launcher).toBeFocused()
   await expect(launcher).toHaveAttribute("aria-expanded", "false")
   await launcher.click()
-  await dialog.getByRole("button", { name: "Ask", exact: true }).click()
+  await dialog.getByRole("button", { name: "Ask", exact: true }).focus()
+  await page.keyboard.down("Enter")
   await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused()
-  await expect(dialog.getByRole("status")).toHaveText("Asking gongu…")
   await expect.poll(() => !!release).toBe(true)
+  await page.keyboard.down("Enter")
+  await page.keyboard.up("Enter")
+  await expect(dialog.getByRole("status")).toHaveText("Asking gongu…")
   await dialog.getByRole("button", { name: "Cancel" }).click()
   release!()
   await expect(dialog.getByRole("status")).toHaveText("Question canceled.")
@@ -270,5 +296,8 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await expect(page.getByLabel("Account menu")).toHaveCount(0)
   await expect(
     page.getByRole("banner").getByRole("link", { name: "Sign in" })
+  ).toBeVisible()
+  await expect(
+    dialog.getByText("Your session ended. Please sign in again.")
   ).toBeVisible()
 })

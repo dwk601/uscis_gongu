@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { MessageCircle, X } from "lucide-react"
 import { useEffect, useId, useRef, useState, type FormEvent } from "react"
-import { useAuth } from "@/lib/auth"
+import { mutationErrorMessage, useAuth } from "@/lib/auth"
 import { agentError, askAgent, type AgentResponse } from "@/lib/agent"
 import { pb } from "@/lib/pb"
 import { AgentAnswer } from "@/components/agent-answer"
@@ -61,10 +61,10 @@ function BudgetStatus({ budget }: { budget: Budget | null }) {
 
 function AgentSession({
   userId,
-  redirect,
+  onSessionEnded,
 }: {
   userId: string
-  redirect: string
+  onSessionEnded: (error: unknown) => Promise<void>
 }) {
   const [question, setQuestion] = useState("")
   const [answer, setAnswer] = useState<AgentResponse | null>(null)
@@ -72,7 +72,6 @@ function AgentSession({
   const [error, setError] = useState("")
   const [status, setStatus] = useState("")
   const [pending, setPending] = useState(false)
-  const [sessionEnded, setSessionEnded] = useState(false)
   const request = useRef<AbortController | null>(null)
   const content = useRef<HTMLDivElement>(null)
   const inputId = useId()
@@ -91,7 +90,7 @@ function AgentSession({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!length || tooLong || request.current || sessionEnded) return
+    if (!length || tooLong || request.current) return
     const controller = new AbortController()
     request.current = controller
     setPending(true)
@@ -110,16 +109,13 @@ function AgentSession({
       content.current?.scrollTo({ top: 0 })
     } catch (err) {
       if (!isCurrent()) return
-      const failure = await agentError(err)
-      if (!isCurrent()) return
+      const failure = agentError(err)
       if (failure.sessionEnded) {
-        setAnswer(null)
-        setBudget(null)
-        setSessionEnded(true)
-      } else {
-        setError(failure.message)
-        if (failure.budget) setBudget(failure.budget)
+        await onSessionEnded(err)
+        return
       }
+      setError(failure.message)
+      if (failure.budget) setBudget(failure.budget)
       setStatus("")
     } finally {
       if (request.current === controller) {
@@ -129,7 +125,6 @@ function AgentSession({
     }
   }
 
-  if (sessionEnded) return <SignIn redirect={redirect} ended />
   return (
     <>
       <div className="agent-content" ref={content} aria-busy={pending}>
@@ -173,6 +168,9 @@ function AgentSession({
             className={pending ? "chip" : "primary"}
             type="submit"
             disabled={!pending && (!length || tooLong)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && event.repeat) event.preventDefault()
+            }}
             onClick={(event) => {
               if (request.current) {
                 event.preventDefault()
@@ -193,6 +191,7 @@ export function AgentWidget() {
   const location = useRouterState({ select: (state) => state.location })
   const redirect = location.pathname + location.searchStr
   const [open, setOpen] = useState(false)
+  const [sessionEnded, setSessionEnded] = useState(false)
   const launcher = useRef<HTMLButtonElement>(null)
   const panel = useRef<HTMLElement>(null)
   const panelId = useId()
@@ -202,6 +201,20 @@ export function AgentWidget() {
     setOpen(false)
     launcher.current?.focus()
   }
+
+  async function endSession(error: unknown) {
+    setSessionEnded(true)
+    // Revalidate shared auth; the widget owns the session-ended notice.
+    await mutationErrorMessage(error)
+  }
+
+  useEffect(
+    () =>
+      pb.authStore.onChange(() => {
+        if (pb.authStore.isValid) setSessionEnded(false)
+      }),
+    []
+  )
 
   useEffect(() => {
     if (!open) return
@@ -215,7 +228,7 @@ export function AgentWidget() {
     }
     document.addEventListener("keydown", escape)
     return () => document.removeEventListener("keydown", escape)
-  }, [open])
+  }, [open, sessionEnded])
 
   useEffect(() => {
     if (!open) return
@@ -258,10 +271,14 @@ export function AgentWidget() {
             <X size={20} aria-hidden="true" />
           </Button>
         </header>
-        {user ? (
-          <AgentSession key={user.id} userId={user.id} redirect={redirect} />
+        {user && !sessionEnded ? (
+          <AgentSession
+            key={user.id}
+            userId={user.id}
+            onSessionEnded={endSession}
+          />
         ) : (
-          <SignIn redirect={redirect} />
+          <SignIn redirect={redirect} ended={sessionEnded} />
         )}
       </section>
       <Button

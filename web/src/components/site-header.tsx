@@ -4,12 +4,7 @@ import { AccountAction } from "./account-action"
 import { useTheme } from "./theme-provider"
 
 const navigation = [
-  { label: "Trends", to: "/trends", search: { form: "I-485" } },
-  {
-    label: "Bulletin",
-    to: "/bulletin",
-    search: { category: "EB2", chart: "final_action", country: "ALL" },
-  },
+  { label: "My case", to: "/", search: { form: "I-485" } },
   { label: "Community", to: "/community", search: { sort: "new", form: "" } },
 ] as const
 
@@ -17,7 +12,7 @@ export function SiteHeader() {
   const { theme, setTheme } = useTheme()
   return (
     <header className="site-header">
-      <Link to="/" className="brand">
+      <Link to="/" search={{ form: "I-485" }} className="brand">
         <img src="/gongu.svg" alt="" />
         gongu
       </Link>

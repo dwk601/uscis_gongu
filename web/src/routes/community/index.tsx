@@ -3,21 +3,22 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
-import { formsQuery } from "@/lib/api"
+import { caseQuery } from "@/lib/case"
 import { formLabel } from "@/lib/labels"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useState, type FormEvent } from "react"
 import { useAuth, mutationErrorMessage } from "@/lib/auth"
-import { forms, listPosts } from "@/lib/community"
+import { validForm, listPosts } from "@/lib/community"
 import { pb } from "@/lib/pb"
-import { PostCard, SignIn } from "@/components/social-post"
+import { PostCard } from "@/components/social-post"
 
 export const Route = createFileRoute("/community/")({
   validateSearch: (
     s: Record<string, unknown>
-  ): { sort: "new" | "top"; form: string } => ({
+  ): { sort: "new" | "top"; form: string; compose?: boolean } => ({
     sort: s.sort === "top" ? "top" : "new",
-    form: typeof s.form === "string" && forms.includes(s.form) ? s.form : "",
+    form: validForm(s.form) ? s.form : "",
+    compose: s.compose === true || s.compose === "true" ? true : undefined,
   }),
   component: Community,
 })
@@ -25,11 +26,11 @@ function Community() {
   const search = Route.useSearch()
   const navigate = useNavigate({ from: "/community/" })
   const user = useAuth()
-  const formNames = useQuery(formsQuery())
+  const formNames = useQuery(caseQuery(search.form || "I-485"))
   const client = useQueryClient()
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
-  const [composing, setComposing] = useState(false)
+  const [composing, setComposing] = useState(!!search.compose)
   const feed = useInfiniteQuery({
     queryKey: ["post_feed", search],
     queryFn: ({ pageParam }) => listPosts(pageParam, search.sort, search.form),
@@ -70,10 +71,18 @@ function Community() {
             aria-expanded={composing}
             onClick={() => setComposing(!composing)}
           >
-            {composing ? "Cancel" : "New post"}
+            {composing ? "Cancel" : "Share my timeline"}
           </button>
         ) : (
-          <SignIn action="post" />
+          <Link
+            className="primary"
+            to="/login"
+            search={{
+              redirect: `/community?sort=${search.sort}&form=${encodeURIComponent(search.form)}&compose=true`,
+            }}
+          >
+            Share my timeline
+          </Link>
         )}
       </div>
       {user && composing && (
@@ -88,11 +97,11 @@ function Community() {
           </label>
           <label>
             Form (optional)
-            <select name="form">
+            <select name="form" defaultValue={search.form}>
               <option value="">No form</option>
-              {forms.map((f) => (
-                <option key={f} value={f}>
-                  {formLabel(f, formNames.data?.forms)}
+              {formNames.data?.forms.map((f) => (
+                <option key={f.form} value={f.form}>
+                  {formLabel(f.form, formNames.data?.forms)}
                 </option>
               ))}
             </select>
@@ -107,32 +116,52 @@ function Community() {
           {error}
         </p>
       )}
+      {search.form && formNames.data && (
+        <p>
+          {formNames.data.summary.eligibleReports.toLocaleString()} VisaJourney
+          timeline reports for {search.form}
+          {formNames.data.summary.years.length > 0 &&
+            ` · ${Math.min(...formNames.data.summary.years)}–${Math.max(...formNames.data.summary.years)}`}
+        </p>
+      )}
       <div
-        className="chip-rail"
+        className="social-filters"
         role="group"
         aria-label="Sort and filter posts"
-        tabIndex={0}
       >
         {(["new", "top"] as const).map((sort) => (
           <button
             key={sort}
             className="chip"
             aria-pressed={search.sort === sort}
-            onClick={() => navigate({ search: { ...search, sort } })}
+            onClick={() => void navigate({ search: { ...search, sort } })}
           >
             {sort === "new" ? "New" : "Top"}
           </button>
         ))}
-        {["", ...forms].map((form) => (
-          <button
-            key={form}
-            className="chip"
-            aria-pressed={search.form === form}
-            onClick={() => navigate({ search: { ...search, form } })}
+        <label>
+          Form{" "}
+          <select
+            aria-label="Form"
+            value={search.form}
+            onChange={(e) =>
+              void navigate({
+                search: { ...search, form: e.target.value, compose: undefined },
+              })
+            }
           >
-            {form ? formLabel(form, formNames.data?.forms) : "All"}
-          </button>
-        ))}
+            <option value="">All forms</option>
+            {search.form &&
+              !formNames.data?.forms.some((f) => f.form === search.form) && (
+                <option value={search.form}>{search.form}</option>
+              )}
+            {formNames.data?.forms.map((f) => (
+              <option key={f.form} value={f.form}>
+                {formLabel(f.form, formNames.data?.forms)}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
       {feed.isLoading && <p>Loading posts…</p>}
       {feed.isError && (

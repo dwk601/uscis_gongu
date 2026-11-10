@@ -40,17 +40,7 @@ test("journey navigation preserves an explicit series without refetching the for
       },
     })
   })
-  await page.goto("/")
-  await page.getByRole("button", { name: /Workers/ }).click()
-  await page
-    .getByRole("group", { name: "Case form" })
-    .getByRole("button", { name: /I-485/ })
-    .click()
-  await page.locator('input[name="filed"]').fill("2024-01-15")
-  await page.getByRole("button", { name: "Check wait time" }).click()
-  await expect(page).toHaveURL(/journey=workers/)
-  await expect(page).toHaveURL(/form=I-485/)
-  await expect(page).toHaveURL(/filed=2024-01-15/)
+  await page.goto("/trends?journey=workers&form=I-485&filed=2024-01-15")
   await page.reload()
   await expect(
     page.getByRole("button", { name: "Employment", exact: true })
@@ -581,4 +571,53 @@ test("Reddit failures remain local and retryable", async ({ page }) => {
   await expect
     .poll(() => counts["/api/x/uscis/bulletin/discussion"])
     .toBeGreaterThan(before)
+})
+
+test("my case keeps a same-year filing change local", async ({ page }) => {
+  let requests = 0
+  await page.route("**/api/x/uscis/case**", async (route) => {
+    requests++
+    await route.fulfill({
+      json: {
+        forms: [
+          { form: "I-485", name: "Green card" },
+          { form: "I-130", name: "Family petition" },
+        ],
+        form: "I-485",
+        categoryLabel: "Family",
+        official: {
+          medianMonths: 12,
+          period: "2026-04-01",
+          previousMedianMonths: 10,
+          previousPeriod: "2026-01-01",
+          trend: "up",
+          asOfDate: "2026-05-01",
+        },
+        trend: [],
+        community: { p25Days: 130, p75Days: 253, asOfDate: "2026-05-01" },
+        summary: { eligibleReports: 31416, years: [2024, 2025] },
+        freshness: [],
+      },
+    })
+  })
+  await page.goto("/")
+  await page.getByLabel("Case form").selectOption("I-130")
+  await page.getByLabel("Case form").selectOption("I-485")
+  await page.getByLabel("Filed (optional)").fill("2025-01-01")
+  await expect(page.getByText("Jan 1, 2026", { exact: true })).toBeVisible()
+  await expect(
+    page.getByText("May 11, 2025 – Sep 11, 2025", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: "Check the visa bulletin" })
+  ).toBeVisible()
+  const before = requests
+  await page.getByLabel("Filed (optional)").fill("2025-01-02")
+  await expect(
+    page.getByText("May 12, 2025 – Sep 12, 2025", { exact: true })
+  ).toBeVisible()
+  expect(requests).toBe(before)
+  await page.getByText("More data").click()
+  await page.getByRole("link", { name: "Trends for I-485" }).click()
+  await expect(page).toHaveURL(/\/trends/)
 })

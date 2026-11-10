@@ -1,21 +1,46 @@
 import { useQuery } from "@tanstack/react-query"
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
-import { ArrowRight } from "lucide-react"
-import {
-  bulletinQuery,
-  formQuery,
-  formsQuery,
-  type OfficialPoint,
-} from "@/lib/api"
-import { formatMonths, latestMedian, quarterLabel } from "@/lib/estimate"
-import { categoryHue, formHue } from "@/lib/palette"
-import { categoryLabel } from "@/lib/labels"
-import { JourneyPicker } from "@/components/journey-picker"
-import { availableJourneyForms, type JourneyId } from "@/lib/journeys"
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { caseQuery } from "@/lib/case"
+import type { OfficialPoint } from "@/lib/api"
+import { estimateDate, formatMonths } from "@/lib/estimate"
+import { formHue, formInk } from "@/lib/palette"
 
-export const Route = createFileRoute("/")({ component: Home })
-
+export const Route = createFileRoute("/")({
+  validateSearch: (
+    s: Record<string, unknown>
+  ): { form: string; filed?: string } => ({
+    form:
+      typeof s.form === "string" && /^[A-Z0-9-]{1,12}$/.test(s.form)
+        ? s.form
+        : "I-485",
+    filed: validFiled(s.filed) ? (s.filed as string) : undefined,
+  }),
+  component: Home,
+})
+function validFiled(value: unknown) {
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+    Number(value.slice(0, 4)) < 1900
+  )
+    return false
+  const date = new Date(`${value}T00:00:00Z`)
+  return (
+    !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+  )
+}
+function dateLabel(date: Date) {
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  })
+}
+function addDays(filed: string, days: number) {
+  return new Date(new Date(`${filed}T00:00:00Z`).getTime() + days * 86400000)
+}
 function recentValues(points: OfficialPoint[]) {
   const sorted = points
     .filter((p) => p.quarterStart)
@@ -72,7 +97,7 @@ function MiniTrend({ values }: { values: (number | null)[] }) {
             cx={(index / Math.max(values.length - 1, 1)) * 240}
             cy={70 - ((value - min) / span) * 60}
             r="2.5"
-            fill="#171717"
+            fill="currentColor"
           />
         )
       )}
@@ -81,7 +106,7 @@ function MiniTrend({ values }: { values: (number | null)[] }) {
           key={index}
           d={segment}
           fill="none"
-          stroke="#171717"
+          stroke="currentColor"
           strokeWidth="3"
         />
       ))}
@@ -90,200 +115,252 @@ function MiniTrend({ values }: { values: (number | null)[] }) {
 }
 
 function Home() {
-  const navigate = useNavigate()
-  const [form, setForm] = useState("I-485")
-  const [journey, setJourney] = useState<JourneyId>("all")
-  const forms = useQuery(formsQuery())
-  const available =
-    journey === "all"
-      ? (forms.data?.forms.map((f) => ({ form: f.form, label: f.name })) ?? [])
-      : availableJourneyForms(journey, forms.data?.forms)
-  const effectiveForm = available.find((f) => f.form === form) ?? available[0]
-  const detail = useQuery(formQuery("I-485"))
-  const bulletin = useQuery(bulletinQuery("EB2", "final_action"))
-  const series = detail.data?.official.find(
-    (s) =>
-      s.id === forms.data?.forms.find((f) => f.form === "I-485")?.defaultSeries
-  )
-  const median = latestMedian(series?.points ?? [])
-  const trendPoints = (series?.points ?? [])
-    .filter((p) => p.quarterStart && p.processingMonths != null)
-    .slice()
-    .sort((a, b) => a.quarterStart!.localeCompare(b.quarterStart!))
-    .slice(-12)
-  const trendEnds = [trendPoints[0], trendPoints.at(-1)]
-  const cutoff = bulletin.data?.series
-    .find((s) => s.country === "ALL")
-    ?.points.at(-1)
+  const search = Route.useSearch()
+  const [now] = useState(() => Date.now())
+  const navigate = useNavigate({ from: "/" })
+  const year = search.filed ? Number(search.filed.slice(0, 4)) : undefined
+  const result = useQuery(caseQuery(search.form, year))
+  const data = result.data
+  const official = data?.official
+  const community = data?.community
+  const estimate =
+    search.filed && official?.medianMonths != null
+      ? estimateDate(search.filed, official.medianMonths)
+      : undefined
+  const trend =
+    official?.trend === "up"
+      ? "slower"
+      : official?.trend === "down"
+        ? "faster"
+        : official?.trend === "unchanged" || official?.trend === "flat"
+          ? "unchanged"
+          : null
   return (
-    <main className="landing">
-      <section className="hero">
-        <h1>Know when your case lands.</h1>
-        <p>Free case insights. No sign-up needed.</p>
-        <div className="landing-journeys">
-          <h2>What brings you here?</h2>
-          <JourneyPicker
-            value={journey}
-            variant="cards"
-            onChange={setJourney}
-          />
-        </div>
-        <form
-          className="checker"
-          onSubmit={(event) => {
-            event.preventDefault()
-            const filed = new FormData(event.currentTarget).get("filed")
-            void navigate({
-              to: "/trends",
-              search: {
-                form: effectiveForm!.form,
-                journey,
-                filed: typeof filed === "string" && filed ? filed : undefined,
-                series: undefined,
-              },
-            })
-          }}
-        >
-          {forms.isLoading ? (
-            <span role="status">Loading forms…</span>
-          ) : forms.isError ? (
-            <span className="error">
-              Forms unavailable.{" "}
-              <button type="button" onClick={() => void forms.refetch()}>
-                Try again
-              </button>
-            </span>
-          ) : available.length === 0 ? (
-            <span role="status">No forms available for this journey.</span>
-          ) : journey === "all" ? (
-            <select
-              aria-label="Case form"
-              value={effectiveForm?.form}
-              onChange={(e) => setForm(e.target.value)}
-            >
-              {forms.data?.forms
-                .filter((f) => f.featured)
-                .map((f) => (
-                  <option key={f.form} value={f.form}>
-                    {f.name} · {f.form}
-                  </option>
-                ))}
-              <optgroup label="More forms">
-                {forms.data?.forms
-                  .filter((f) => !f.featured)
-                  .map((f) => (
-                    <option key={f.form} value={f.form}>
-                      {f.name} · {f.form}
-                    </option>
-                  ))}
-              </optgroup>
-            </select>
-          ) : (
-            <div
-              className="landing-form-choices"
-              role="group"
-              aria-label="Case form"
-            >
-              {available.map((f) => (
-                <button
-                  type="button"
-                  className="chip"
-                  key={f.form}
-                  aria-pressed={effectiveForm?.form === f.form}
-                  onClick={() => setForm(f.form)}
-                >
-                  {f.label} <span className="form-code">· {f.form}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          <label className="landing-date">
-            Filed (optional)
-            <input name="filed" type="date" />
-          </label>
-          <button
-            className="primary"
-            disabled={forms.isLoading || forms.isError || !effectiveForm}
+    <main className="workspace case-page">
+      <h1>My case</h1>
+      <p>Explore the typical wait for your case.</p>
+      <div className="case-controls">
+        <label>
+          Case form
+          <select
+            aria-label="Case form"
+            value={search.form}
+            onChange={(e) =>
+              void navigate({ search: { ...search, form: e.target.value } })
+            }
           >
-            Check wait time
-          </button>
-        </form>
-      </section>
-      <p className="examples-label">Explore examples</p>
-      <div className="tray">
-        <Link
-          className="artifact"
-          style={{ background: formHue("I-485") }}
-          to="/trends"
-          search={{ form: "I-485", series: undefined, filed: undefined }}
-        >
-          <strong>
-            {median?.processingMonths != null
-              ? `${formatMonths(median.processingMonths)} months`
-              : "Explore wait times"}
-          </strong>
-          <small>
-            Green card application · I-485 · Typical wait · USCIS
-            <br />
-            See the data <ArrowRight size={14} aria-hidden="true" />
-          </small>
-        </Link>
-        <Link
-          className="artifact"
-          style={{ background: formHue("I-485") }}
-          to="/trends"
-          search={{ form: "I-485", series: undefined, filed: undefined }}
-        >
-          <MiniTrend values={recentValues(series?.points ?? [])} />
-          {trendPoints.length >= 2 && (
-            <small>
-              {trendEnds
-                .map(
-                  (p) =>
-                    `${formatMonths(p!.processingMonths!)} mo · ${quarterLabel(p!.fiscalYear, p!.quarter)}`
-                )
-                .join(" to ")}
-            </small>
-          )}
-          <small>
-            Green card application · I-485 · Typical wait trend · USCIS
-            <br />
-            Explore trends <ArrowRight size={14} aria-hidden="true" />
-          </small>
-        </Link>
-        <Link
-          className="artifact"
-          style={{ background: categoryHue("EB2") }}
-          to="/bulletin"
-          search={{ category: "EB2", chart: "final_action", country: "ALL" }}
-        >
-          <strong>
-            {cutoff?.status === "current"
-              ? "Current"
-              : cutoff?.status === "unavailable"
-                ? "Unavailable"
-                : cutoff?.cutoff
-                  ? new Date(`${cutoff.cutoff}T00:00:00Z`).toLocaleDateString(
-                      "en-US",
-                      {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                        timeZone: "UTC",
-                      }
-                    )
-                  : "Explore dates"}
-          </strong>
-          <small>
-            {categoryLabel("EB2")} · Visa bulletin
-            <br />
-            View bulletin <ArrowRight size={14} aria-hidden="true" />
-          </small>
-        </Link>
+            {!data?.forms.some((f) => f.form === search.form) && (
+              <option value={search.form}>{search.form}</option>
+            )}
+            {data?.forms.map((f) => (
+              <option key={f.form} value={f.form}>
+                {f.name} · {f.form}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Filed (optional)
+          <input
+            aria-label="Filed (optional)"
+            type="date"
+            value={search.filed ?? ""}
+            onChange={(e) => {
+              const filed = e.target.value
+              if (!filed || validFiled(filed))
+                void navigate({
+                  search: { ...search, filed: filed || undefined },
+                })
+            }}
+          />
+        </label>
       </div>
-      <p className="source">
-        Sources: USCIS, U.S. Department of State &amp; VisaJourney
-      </p>
+      {result.isLoading && <p role="status">Loading case data…</p>}
+      {result.isError && (
+        <p role="alert">
+          Case data unavailable.{" "}
+          <button onClick={() => void result.refetch()}>Try again</button>
+        </p>
+      )}
+      {data && (
+        <>
+          <div className="case-grid">
+            <section
+              className="case-answer"
+              style={{
+                background: formHue(search.form),
+                color: formInk(search.form),
+              }}
+            >
+              <h2>Official median</h2>
+              <strong>
+                {official?.medianMonths == null
+                  ? "Not available"
+                  : estimate
+                    ? dateLabel(estimate)
+                    : `${formatMonths(official.medianMonths)} months`}
+              </strong>
+              {estimate && estimate.getTime() < now && (
+                <p>This estimate date has passed.</p>
+              )}
+              <p>
+                {data.categoryLabel} ·{" "}
+                {official?.period ?? "Period unavailable"}
+                {official?.asOfDate && ` · as of ${official.asOfDate}`}
+              </p>
+              <h3>Community-reported range</h3>
+              {community &&
+              community.p25Days != null &&
+              community.p75Days != null ? (
+                <strong className="case-range">
+                  {search.filed
+                    ? `${dateLabel(addDays(search.filed, community.p25Days))} – ${dateLabel(addDays(search.filed, community.p75Days))}`
+                    : `${community.p25Days}–${community.p75Days} days`}
+                </strong>
+              ) : (
+                <p>
+                  {community?.reason === "insufficient" ||
+                  community?.reason === "insufficient_data" ||
+                  community?.p25Reason === "insufficient" ||
+                  community?.p75Reason === "insufficient"
+                    ? "Not enough reports for a range."
+                    : community?.p25Reason === "unreached" ||
+                        community?.p75Reason === "unreached"
+                      ? "A range has not yet been reached."
+                      : "Range unavailable for this cohort."}
+                </p>
+              )}
+              {community?.asOfDate && (
+                <p>VisaJourney · as of {community.asOfDate}</p>
+              )}
+            </section>
+            <section className="case-panel">
+              <h2>Trend</h2>
+              <p>
+                {trend &&
+                official?.medianMonths != null &&
+                official.previousMedianMonths != null &&
+                official.period &&
+                official.previousPeriod
+                  ? `Waits are ${trend}: ${formatMonths(official.previousMedianMonths)} months (${official.previousPeriod}) to ${formatMonths(official.medianMonths)} months (${official.period}).`
+                  : "Not enough data to compare periods."}
+              </p>
+              <MiniTrend values={recentValues(data.trend)} />
+            </section>
+            {(search.form === "I-485" ||
+              search.form === "I-765" ||
+              search.form === "I-129") && (
+              <section className="case-panel">
+                <h2>Next step</h2>
+                {search.form === "I-485" && (
+                  <Link
+                    to="/bulletin"
+                    search={{
+                      category: "EB2",
+                      chart: "final_action",
+                      country: "ALL",
+                    }}
+                  >
+                    Check the visa bulletin
+                  </Link>
+                )}
+                {search.form === "I-765" && (
+                  <Link
+                    to="/trends"
+                    search={{ form: "I-765", journey: "students" }}
+                  >
+                    OPT / STEM OPT?
+                  </Link>
+                )}
+                {search.form === "I-129" && (
+                  <>
+                    <Link
+                      to="/trends"
+                      search={{
+                        form: "I-129",
+                        journey: "workers",
+                        insight: "h1b-employers",
+                      }}
+                    >
+                      H-1B employers
+                    </Link>
+                    <br />
+                    <Link
+                      to="/trends"
+                      search={{
+                        form: "I-129",
+                        journey: "workers",
+                        insight: "h1b-pay",
+                      }}
+                    >
+                      H-1B pay
+                    </Link>
+                  </>
+                )}
+              </section>
+            )}
+          </div>
+          {data.freshness.some((f) => f.latestAttemptFailed) && (
+            <p role="status">
+              A recent source update failed; data may be older.
+            </p>
+          )}
+          <details className="case-details">
+            <summary>Method and population</summary>
+            <p>
+              Official: {official?.population ?? "Population unavailable."}{" "}
+              {official?.reason}
+            </p>
+            <p>
+              Community: {community?.population ?? "Population unavailable."}{" "}
+              {community?.method} Self-reported timelines are not verified.
+            </p>
+          </details>
+        </>
+      )}
+      <div className="case-links">
+        <Link to="/community" search={{ sort: "new", form: search.form }}>
+          Community for {search.form}
+        </Link>
+        <details>
+          <summary>More data</summary>
+          <div>
+            <Link to="/trends" search={{ form: search.form }}>
+              Trends for {search.form}
+            </Link>
+            <Link
+              to="/bulletin"
+              search={{
+                category: "EB2",
+                chart: "final_action",
+                country: "ALL",
+              }}
+            >
+              Visa bulletin
+            </Link>
+            <Link
+              to="/trends"
+              search={{
+                form: "I-765",
+                journey: "students",
+                insight: "student-posts",
+              }}
+            >
+              Student insights
+            </Link>
+            <Link
+              to="/trends"
+              search={{
+                form: "I-129",
+                journey: "workers",
+                insight: "h1b-employers",
+              }}
+            >
+              Worker insights
+            </Link>
+          </div>
+        </details>
+      </div>
     </main>
   )
 }

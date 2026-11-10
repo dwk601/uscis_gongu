@@ -6,8 +6,6 @@ import { useAuth, mutationErrorMessage } from "@/lib/auth"
 import { listVotes, relativeTime, type Post } from "@/lib/community"
 import { formHue, formInk } from "@/lib/palette"
 import { pb } from "@/lib/pb"
-import { formsQuery } from "@/lib/api"
-import { formLabel } from "@/lib/labels"
 
 export function SignIn({ action }: { action: string }) {
   const location = useRouterState({ select: (s) => s.location.href })
@@ -25,7 +23,6 @@ export function PostCard({
   detail?: boolean
 }) {
   const user = useAuth()
-  const forms = useQuery(formsQuery())
   const client = useQueryClient()
   const [error, setError] = useState("")
   const [optimistic, setOptimistic] = useState<{
@@ -74,7 +71,7 @@ export function PostCard({
               color: formInk(post.form),
             }}
           >
-            {formLabel(post.form, forms.data?.forms)}
+            {post.form}
           </span>
         )}
         <span>{post.author_name || "member"}</span>
@@ -82,7 +79,14 @@ export function PostCard({
       </div>
       {!detail && (
         <h2>
-          <Link to="/community/$postId" params={{ postId: post.id }}>
+          <Link
+            to="/community/$postId"
+            params={{ postId: post.id }}
+            search={{
+              form:
+                new URLSearchParams(location.split("?")[1]).get("form") || "",
+            }}
+          >
             {post.title}
           </Link>
         </h2>
@@ -112,7 +116,14 @@ export function PostCard({
             <ArrowUp aria-hidden="true" size={16} /> {post.votes}
           </Link>
         )}
-        <Link to="/community/$postId" params={{ postId: post.id }}>
+        <Link
+          to="/community/$postId"
+          params={{ postId: post.id }}
+          search={{
+            form:
+              new URLSearchParams(location.split("?")[1]).get("form") || "",
+          }}
+        >
           {post.comments} {post.comments === 1 ? "comment" : "comments"}
         </Link>
       </div>

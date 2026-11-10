@@ -20,10 +20,11 @@ import {
   formatMonths,
   quarterLabel,
 } from "@/lib/estimate"
-import { formHue, formInk } from "@/lib/palette"
+import { formHue } from "@/lib/palette"
 import { visaLabel } from "@/lib/labels"
 import { JourneyPicker } from "@/components/journey-picker"
 import { Insight } from "@/components/insights"
+import { BigNumber, EstimateCard } from "@/components/insight-cards"
 import {
   availableJourneyForms,
   inferJourney,
@@ -482,42 +483,38 @@ function Trends() {
           ) : (
             <>
               <div className="workspace-grid">
-                <section
-                  className="panel estimate"
-                  style={{ color: formInk(search.form) }}
-                >
-                  <div>
-                    <h2>
-                      {!median
-                        ? "No recent median"
-                        : date
-                          ? `Estimated around ${month(date)}`
-                          : `${formatMonths(median.processingMonths!)} months typical`}
-                    </h2>
-                    {date && date.getTime() < now && (
+                <EstimateCard
+                  form={search.form}
+                  title={
+                    !median
+                      ? "No recent median"
+                      : date
+                        ? `Estimated around ${month(date)}`
+                        : `${formatMonths(median.processingMonths!)} months typical`
+                  }
+                  note={
+                    date && date.getTime() < now ? (
                       <p>Past the typical wait.</p>
-                    )}
-                  </div>
-                  <div>
-                    {median && (
-                      <small>
-                        Typical wait {formatMonths(median.processingMonths!)} mo
-                        · USCIS,{" "}
-                        {quarterLabel(median.fiscalYear, median.quarter)} ·{" "}
-                        {official?.label}
-                      </small>
-                    )}
-                    {!search.filed && (
-                      <button
-                        className="date-nudge"
-                        type="button"
-                        onClick={() => filedRef.current?.focus()}
-                      >
-                        Add your filing date
-                      </button>
-                    )}
-                  </div>
-                </section>
+                    ) : undefined
+                  }
+                >
+                  {median && (
+                    <small>
+                      Typical wait {formatMonths(median.processingMonths!)} mo ·
+                      USCIS, {quarterLabel(median.fiscalYear, median.quarter)} ·{" "}
+                      {official?.label}
+                    </small>
+                  )}
+                  {!search.filed && (
+                    <button
+                      className="date-nudge"
+                      type="button"
+                      onClick={() => filedRef.current?.focus()}
+                    >
+                      Add your filing date
+                    </button>
+                  )}
+                </EstimateCard>
                 <Suspense fallback={<div className="skeleton" />}>
                   <DataChart
                     title="Official wait trend · months"
@@ -614,9 +611,7 @@ function Trends() {
                         <p>No community timeline available.</p>
                       ) : (
                         <>
-                          <div className="big-number">
-                            {months(cohort.p50)} months
-                          </div>
+                          <BigNumber>{months(cohort.p50)} months</BigNumber>
                           <p className="community-info">
                             {cohort.p10 != null && cohort.p90 != null
                               ? `Middle 80%: ${months(cohort.p10)}–${months(cohort.p90)} months`

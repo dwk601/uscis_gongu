@@ -158,8 +158,12 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await expect(question).toBeFocused()
   await expect(question).toHaveCSS("font-size", "16px")
   await question.fill("  What does the latest data say?  ")
-  await dialog.getByRole("button", { name: "Ask", exact: true }).click()
+  await dialog.getByRole("button", { name: "Ask", exact: true }).focus()
+  await page.keyboard.press("Enter")
   await expect(dialog.getByRole("status")).toHaveText("Answer ready.")
+  await expect(
+    dialog.getByRole("button", { name: "Ask", exact: true })
+  ).toBeFocused()
   await expect(
     dialog.getByRole("heading", { name: "Completed cases" })
   ).toBeVisible()
@@ -219,12 +223,15 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await expect(launcher).toHaveAttribute("aria-expanded", "false")
   await launcher.click()
   await dialog.getByRole("button", { name: "Ask", exact: true }).click()
-  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeVisible()
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused()
   await expect(dialog.getByRole("status")).toHaveText("Asking gongu…")
   await expect.poll(() => !!release).toBe(true)
   await dialog.getByRole("button", { name: "Cancel" }).click()
   release!()
   await expect(dialog.getByRole("status")).toHaveText("Question canceled.")
+  await expect(
+    dialog.getByRole("button", { name: "Ask", exact: true })
+  ).toBeFocused()
   await expect(question).toHaveValue("What about my next question?")
   release = undefined
   await dialog.getByRole("button", { name: "Ask", exact: true }).click()
@@ -236,4 +243,32 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await expect(dialog.getByRole("textbox")).toHaveCount(0)
   await expect(dialog.getByText("Late answer")).toHaveCount(0)
   await expect(dialog.getByText("12,500 cases", { exact: true })).toHaveCount(0)
+
+  await page.route("**/api/x/agent/ask", (route) =>
+    route.fulfill({
+      status: 401,
+      json: { status: 401, message: "The session has expired.", data: {} },
+    })
+  )
+  await page.route("**/api/collections/users/auth-refresh", (route) =>
+    route.fulfill({
+      status: 401,
+      json: { status: 401, message: "The session has expired.", data: {} },
+    })
+  )
+  await dialog.getByRole("link", { name: "Sign in" }).click()
+  await page.getByLabel("Email").fill("member@example.com")
+  await page.getByLabel("Password").fill("password123")
+  await page
+    .locator("form")
+    .getByRole("button", { name: "Sign in", exact: true })
+    .click()
+  await launcher.click()
+  await question.fill("Is my session still active?")
+  await dialog.getByRole("button", { name: "Ask", exact: true }).click()
+  await expect(dialog.getByRole("link", { name: "Sign in" })).toBeVisible()
+  await expect(page.getByLabel("Account menu")).toHaveCount(0)
+  await expect(
+    page.getByRole("banner").getByRole("link", { name: "Sign in" })
+  ).toBeVisible()
 })

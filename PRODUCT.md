@@ -20,7 +20,7 @@ Free, no-login case analytics that put official USCIS quarterly figures, visa bu
 
 ## Operating Context
 
-Browsing analytics never requires an account; signing in is only needed to ask gongu, post, comment, or upvote, and to manage settings.
+Used on phones and laptops, often repeatedly while waiting on a case. Browsing analytics never requires an account; signing in is only needed to ask gongu, post, comment, or upvote, and to manage settings.
 
 ## Capabilities and Constraints
 

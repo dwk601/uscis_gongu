@@ -110,7 +110,8 @@ function AgentSession({
       content.current?.scrollTo({ top: 0 })
     } catch (err) {
       if (!isCurrent()) return
-      const failure = agentError(err)
+      const failure = await agentError(err)
+      if (!isCurrent()) return
       if (failure.sessionEnded) {
         setAnswer(null)
         setBudget(null)
@@ -168,25 +169,19 @@ function AgentSession({
         )}
         <div className="agent-submit-row">
           <BudgetStatus budget={budget} />
-          {pending ? (
-            <Button
-              key="cancel"
-              className="chip"
-              type="button"
-              onClick={cancel}
-            >
-              Cancel
-            </Button>
-          ) : (
-            <Button
-              key="ask"
-              className="primary"
-              type="submit"
-              disabled={!length || tooLong}
-            >
-              Ask
-            </Button>
-          )}
+          <Button
+            className={pending ? "chip" : "primary"}
+            type="submit"
+            disabled={!pending && (!length || tooLong)}
+            onClick={(event) => {
+              if (request.current) {
+                event.preventDefault()
+                cancel()
+              }
+            }}
+          >
+            {pending ? "Cancel" : "Ask"}
+          </Button>
         </div>
       </form>
     </>

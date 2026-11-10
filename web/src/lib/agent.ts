@@ -1,4 +1,4 @@
-import { errorMessage } from "./auth"
+import { errorMessage, mutationErrorMessage } from "./auth"
 import { pb } from "./pb"
 
 export type AgentBlock =
@@ -61,7 +61,7 @@ export function askAgent(question: string, signal: AbortSignal) {
   })
 }
 
-export function agentError(error: unknown) {
+export async function agentError(error: unknown) {
   const e = error as {
     status?: number
     response?: {
@@ -85,7 +85,7 @@ export function agentError(error: unknown) {
   return {
     message:
       e.status === 401
-        ? "Your session ended. Please sign in again."
+        ? await mutationErrorMessage(error)
         : errorMessage(error),
     sessionEnded: e.status === 401,
     budget: undefined,

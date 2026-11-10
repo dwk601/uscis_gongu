@@ -683,15 +683,11 @@ td {
 .case-page > p {
   color: var(--muted);
 }
-.case-controls,
-.social-filters {
+.case-controls {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  align-items: end;
   margin: 28px 0;
-}
-.case-controls {
   align-items: start;
 }
 .case-controls label {
@@ -727,7 +723,6 @@ td {
   .case-controls > label > span:first-child {
     grid-column: 2;
     grid-row: 1;
-    font-size: 14px;
   }
   .case-controls .form-summary {
     grid-column: 1;

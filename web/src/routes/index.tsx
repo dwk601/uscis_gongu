@@ -223,7 +223,10 @@ function Home() {
       <div className="case-controls">
         <FormPicker
           forms={forms}
-          unavailable={result.isError}
+          unavailable={
+            result.isError &&
+            (result.error as { status?: number })?.status !== 404
+          }
           onRetry={() => void result.refetch()}
           value={search.form}
           label="Choose your case"
@@ -351,11 +354,13 @@ function Home() {
                       ? (community?.filingYear ?? year) != null
                         ? `Too many people who filed in ${community?.filingYear ?? year} are still waiting to show a range.`
                         : "Too many people are still waiting to show a range."
-                      : (data.summary?.eligibleReports ?? 0) > 0
-                        ? (community?.filingYear ?? year) != null
-                          ? `No community reports yet from people who filed in ${community?.filingYear ?? year}.`
-                          : "No community reports yet for this filing period."
-                        : "No community reports for this form yet."}
+                      : data.summary?.eligibleReports === 0
+                        ? "No community reports for this form yet."
+                        : data.summary?.eligibleReports == null
+                          ? "Community timelines aren't available for this form yet."
+                          : (community?.filingYear ?? year) != null
+                            ? `No community reports yet from people who filed in ${community?.filingYear ?? year}.`
+                            : "No community reports yet for this filing period."}
                 </p>
               )}
               {community &&

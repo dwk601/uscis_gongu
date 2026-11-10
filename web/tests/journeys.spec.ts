@@ -596,6 +596,7 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
           { form: "I-765", name: "Work permit (EAD)", featured: true },
           { form: "I-999", name: "Other application", featured: false },
           { form: "I-888", name: "Special application", featured: true },
+          { form: "I-777", name: "Unknown timeline", featured: true },
         ],
         form: "I-485",
         categoryLabel:
@@ -617,7 +618,9 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
               },
         trend: [],
         community:
-          selectedForm === "I-999" || selectedForm === "I-888"
+          selectedForm === "I-999" ||
+          selectedForm === "I-888" ||
+          selectedForm === "I-777"
             ? { filingYear: 2025, p25Days: null, p75Days: null }
             : selectedForm === "I-130"
               ? {
@@ -633,7 +636,12 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
                   asOfDate: "2026-05-01",
                 },
         summary: {
-          eligibleReports: selectedForm === "I-999" ? 0 : 31416,
+          eligibleReports:
+            selectedForm === "I-999"
+              ? 0
+              : selectedForm === "I-777"
+                ? null
+                : 31416,
           years: [2024, 2025],
         },
         freshness: [],
@@ -697,6 +705,14 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   })
   await expect(selectedOther).toBeFocused()
   await expect(selectedOther).toBeInViewport()
+  await page.getByRole("button", { name: /Unknown timeline/ }).click()
+  await expect(
+    page.getByText("Community timelines aren't available for this form yet.")
+  ).toBeVisible()
+  await expect(
+    page.getByText("No community reports for this form yet.")
+  ).toHaveCount(0)
+  await page.getByRole("button", { name: /Change form/ }).click()
   await page.getByRole("button", { name: /Special application/ }).click()
   await expect(
     page.getByText("No community reports yet from people who filed in 2025.")
@@ -750,6 +766,10 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   await page.getByRole("link", { name: "My case", exact: true }).click()
   await expect(page).toHaveURL(/form=I-485/)
   await page.goto("/?form=I-404")
+  await expect(page.getByRole("alert")).toContainText("not in the catalog")
+  await expect(page.getByText("Forms are unavailable right now.")).toHaveCount(
+    0
+  )
   await page.getByRole("button", { name: "Choose a form" }).click()
   await expect(
     page.getByRole("link", { name: "My case", exact: true })

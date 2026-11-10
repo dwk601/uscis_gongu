@@ -152,6 +152,7 @@
   grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;
   gap: 6px 12px;
+  margin: 28px 0;
 }
 .social-filters > .chip {
   grid-row: 2;
@@ -228,7 +229,6 @@
     grid-row: 1;
   }
   .account-signin {
-    min-height: 44px;
     padding: 9px 12px;
   }
   .social-card {

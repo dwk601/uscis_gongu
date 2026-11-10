@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"math"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -97,18 +98,22 @@ func agentWireSchema(schema agentSchema) agentSchema {
 	return out
 }
 
+var agentCodePattern = regexp.MustCompile(`^[A-Z0-9][A-Z0-9 ,/.&'-]{0,39}$`)
+var agentVisaCodePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9 ,/.&'-]{0,39}$`)
+
 // Only inspect populated, unexpired shared caches. Asking about one dataset
 // must not trigger unrelated readers or fail because another view is absent.
 func (a *api) agentCodeHints() map[string]string {
 	a.mu.Lock()
 	community, bulletin := a.cache["community"], a.cache["bulletin"]
 	a.mu.Unlock()
-	codes := func(values map[string]bool) string {
+	codes := func(values map[string]bool, pattern *regexp.Regexp) string {
 		out := make([]string, 0, len(values))
 		for value := range values {
-			if value != "" {
-				out = append(out, value)
+			if !pattern.MatchString(value) || agentLink.MatchString(value) {
+				return ""
 			}
+			out = append(out, value)
 		}
 		sort.Strings(out)
 		return strings.Join(out, ",")
@@ -119,7 +124,7 @@ func (a *api) agentCodeHints() map[string]string {
 		for _, row := range rows {
 			visas[str(row.VisaType)] = true
 		}
-		if values := codes(visas); values != "" {
+		if values := codes(visas, agentVisaCodePattern); values != "" {
 			hints["community_timelines"] = "VisaJourney day percentiles. visaType: " + values + "."
 		}
 	}
@@ -129,18 +134,16 @@ func (a *api) agentCodeHints() map[string]string {
 			categories[str(row.CategoryCode)] = true
 			countries[str(row.CountryCode)] = true
 		}
-		if len(categories) > 0 && len(countries) > 0 {
-			hints["bulletin"] = "DOS; month YYYY-MM or latest. category: " + codes(categories) + ". country: " + codes(countries) + "."
+		categoryCodes, countryCodes := codes(categories, agentCodePattern), codes(countries, agentCodePattern)
+		if categoryCodes != "" && countryCodes != "" {
+			hints["bulletin"] = "DOS; month YYYY-MM or latest. category: " + categoryCodes + ". country: " + countryCodes + "."
 		}
 	}
 	return hints
 }
 
-func (a *api) agentTools(terminal bool) []openai.ChatCompletionToolUnionParam {
+func (a *api) agentTools() []openai.ChatCompletionToolUnionParam {
 	names := []string{"forms", "estimate_date", "community_timelines", "bulletin", "answer"}
-	if terminal {
-		names = []string{"answer"}
-	}
 	hints := a.agentCodeHints()
 	out := make([]openai.ChatCompletionToolUnionParam, 0, len(names))
 	for _, name := range names {

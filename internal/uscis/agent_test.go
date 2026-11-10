@@ -240,7 +240,7 @@ func TestAgentContract(t *testing.T) {
 				factRefs := item["factRefs"].(map[string]any)
 				estimate := projections[2]["items"].([]any)[0].(map[string]any)
 				est := estimate["estimate"].(map[string]any)
-				if est["medianMonths"] != 2.5 || est["estimatedDate"] != "2024-03-17" || est["period"] != "FY 2025 quarter 2" {
+				if est["medianMonths"] != 2.5 || est["estimatedDate"] != "2024-03-17" || est["period"] != "FY 2025 quarter 2" || est["series"] != "All other cases" {
 					t.Errorf("estimate projection: %#v", estimate)
 				}
 				paragraph := fmt.Sprintf("I-765 reports {{%s}} received. Approval data is {{%s}}. The estimate is {{%s}}.", factRefs["received"], factRefs["approved"], estimate["estimateRef"])
@@ -258,7 +258,7 @@ func TestAgentContract(t *testing.T) {
 		if blocks[0].(map[string]any)["text"] != "I-765 reports 123 cases received. Approval data is not available. The estimate is 2024-03-17." {
 			t.Fatalf("resolved prose: %#v", blocks[0])
 		}
-		if v["kind"] != "answer" || len(blocks) != 4 || stat["value"] != nil || stat["label"] != "Work permit EAD, All other cases, Approved cases" || stat["unit"] != "cases" || estimate["medianMonths"] != 2.5 || estimate["estimatedDate"] != "2024-03-17" {
+		if v["kind"] != "answer" || len(blocks) != 4 || stat["value"] != nil || stat["label"] != "Work permit EAD, All other cases, Approved cases" || stat["unit"] != "cases" || estimate["medianMonths"] != 2.5 || estimate["estimatedDate"] != "2024-03-17" || estimate["series"] != "All other cases" {
 			t.Fatalf("grounded blocks: %#v", v)
 		}
 		sources := v["sources"].([]any)
@@ -418,11 +418,15 @@ func TestAgentContract(t *testing.T) {
 			{`{"kind":"clarification","blocks":[{"type":"paragraph","text":"Which form−please clarify?"}]}`, clarify},
 		} {
 			second := draft.second
+			warmCodes := draft.first == badStyle && second == clarify
 			h := newHarness(t, []step{
 				{name: "answer", args: draft.first, check: func(v map[string]any) {
 					toolsJSON, err := json.Marshal(v["tools"])
 					if err != nil || len(toolsJSON) > 3000 {
 						t.Errorf("tool schema byte cap: %d (%v)", len(toolsJSON), err)
+					}
+					if warmCodes && (strings.Contains(string(toolsJSON), "INJECT_HINT") || !strings.Contains(string(toolsJSON), "PHILIPPINES") || !strings.Contains(string(toolsJSON), "IR-1/CR-1")) {
+						t.Errorf("invalid cached codes must use safe static hints: %s", toolsJSON)
 					}
 					allowed := map[string]bool{"model": true, "messages": true, "tools": true, "tool_choice": true, "max_completion_tokens": true, "reasoning_effort": true}
 					for k := range v {
@@ -447,6 +451,15 @@ func TestAgentContract(t *testing.T) {
 					}
 				}},
 			})
+			if warmCodes {
+				for _, path := range []string{"/api/x/uscis/bulletin", "/api/x/uscis/forms/I-765/community"} {
+					res := httptest.NewRecorder()
+					h.mux.ServeHTTP(res, httptest.NewRequest("GET", path, nil))
+					if res.Code != 200 {
+						t.Fatalf("prime code cache: %d %s", res.Code, res.Body.String())
+					}
+				}
+			}
 			status := 200
 			if second == badStyle {
 				t.Setenv("AGENT_REASONING_EFFORT", "")

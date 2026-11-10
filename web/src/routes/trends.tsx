@@ -196,7 +196,6 @@ function Trends() {
   const community = useQuery(communityQuery(search.form))
   const [visa, setVisa] = useState<string | null>()
   const [sourceChoice, setSource] = useState<"reddit" | "visajourney">()
-  const [now] = useState(Date.now)
   const filedRef = useRef<HTMLInputElement>(null)
   const formRailRef = useRef<HTMLDivElement>(null)
   const journeyRailRef = useRef<HTMLDivElement>(null)
@@ -492,11 +491,7 @@ function Trends() {
                         ? `Estimated around ${month(date)}`
                         : `${formatMonths(median.processingMonths!)} months typical`
                   }
-                  note={
-                    date && date.getTime() < now ? (
-                      <p>Past the typical wait.</p>
-                    ) : undefined
-                  }
+                  estimatedDate={date}
                 >
                   {median && (
                     <small>

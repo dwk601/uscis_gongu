@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test"
 test("Ask gongu signs in, renders data, retains route state, and handles its budget", async ({
   page,
 }) => {
+  await page.clock.setFixedTime(new Date("2026-07-02T12:00:00Z"))
   await page.setViewportSize({ width: 390, height: 844 })
   const record = {
     id: "member000000001",
@@ -49,9 +50,9 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
         type: "date_estimate",
         form: "I-485",
         series: "Family",
-        filingDate: "2026-01-01",
+        filingDate: "2025-10-01",
         medianMonths: 8,
-        estimatedDate: "2026-09-01",
+        estimatedDate: "2026-06-01",
         period: "Jan–Mar 2026",
         sourceId: "official",
       },
@@ -182,8 +183,12 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   ).toBeVisible()
   await expect(dialog.getByText("12,500 cases", { exact: true })).toBeVisible()
   await expect(
-    dialog.getByRole("heading", { name: "Estimated around Sep 2026" })
+    dialog.getByRole("heading", { name: "Estimated around Jun 2026" })
   ).toBeVisible()
+  await expect(
+    dialog.getByText("Past the typical wait.", { exact: true })
+  ).toBeVisible()
+  await expect(dialog.locator(".estimate")).toContainText("I-485 · Family")
   await expect(
     dialog.getByRole("heading", { name: "Jan 1, 2014" })
   ).toBeVisible()

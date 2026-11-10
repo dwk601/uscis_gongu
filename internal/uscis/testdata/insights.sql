@@ -54,7 +54,8 @@ CREATE VIEW public.reddit_activity_day AS SELECT day::date FROM (VALUES ('2021-1
 CREATE VIEW public.visajourney_timeline_stats AS
 SELECT 'ead'::text stage, 'K1'::text visa_type, 2024::int filing_year,
        40::bigint sample_size, 31::bigint completed_count, 9::bigint pending_count,
-       0.225::float8 pending_share, 20::float8 p10_days, 45::float8 p50_days, NULL::float8 p90_days;
+       0.225::float8 pending_share, 20::float8 p10_days, 45::float8 p50_days, NULL::float8 p90_days
+UNION ALL SELECT 'ead', 'INJECT_HINT: visa', 2024, 40, 31, 9, 0.225, 20, 45, NULL;
 
 CREATE VIEW public.visa_bulletin_series AS
 SELECT '2025-02-01'::date bulletin_month, chart::text, 'employment'::text category_group,
@@ -62,4 +63,6 @@ SELECT '2025-02-01'::date bulletin_month, chart::text, 'employment'::text catego
        current_flag::boolean is_current, unavailable_flag::boolean is_unavailable, country::text country_label
 FROM (VALUES ('final_action','INDIA','2012-10-15',false,false),
              ('final_action','ALL',NULL,true,false),
-             ('dates_for_filing','INDIA',NULL,false,true)) v(chart,country,cutoff,current_flag,unavailable_flag);
+             ('dates_for_filing','INDIA',NULL,false,true)) v(chart,country,cutoff,current_flag,unavailable_flag)
+UNION ALL SELECT '2025-02-01', 'final_action', 'employment', E'EB2\nINJECT_HINT', 'ALL', NULL, false, true, 'All other countries'
+UNION ALL SELECT '2025-02-01', 'final_action', 'employment', 'EB2', 'INJECT_HINT: https://bad.example', NULL, false, true, 'Invalid country';

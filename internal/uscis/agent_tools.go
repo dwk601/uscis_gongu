@@ -215,7 +215,7 @@ func (a *api) agentForms(ctx context.Context, f *agentFacts, name string, v map[
 		if len(estimated) != 10 {
 			return nil, nil
 		}
-		block := map[string]any{"type": "date_estimate", "form": form, "series": series.ID, "filingDate": agentString(v, "filingDate"), "medianMonths": *latest.ProcessingMonths, "estimatedDate": estimated, "period": agentFiscal(*latest), "sourceId": source.ID}
+		block := map[string]any{"type": "date_estimate", "form": form, "series": agentLabel(series.Label), "filingDate": agentString(v, "filingDate"), "medianMonths": *latest.ProcessingMonths, "estimatedDate": estimated, "period": agentFiscal(*latest), "sourceId": source.ID}
 		id := f.id("e")
 		return []agentItem{{map[string]any{"estimateRef": id, "estimate": block}, map[string]agentReference{id: {block: block, source: source}}}}, nil
 	}

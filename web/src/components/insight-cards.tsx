@@ -1,17 +1,18 @@
-import type { CSSProperties, ReactNode } from "react"
+import { useState, type CSSProperties, type ReactNode } from "react"
 import { categoryHue, formHue, formInk } from "@/lib/palette"
 
 export function EstimateCard({
   form,
   title,
-  note,
+  estimatedDate,
   children,
 }: {
   form: string
   title: ReactNode
-  note?: ReactNode
+  estimatedDate?: Date
   children: ReactNode
 }) {
+  const [now] = useState(Date.now)
   return (
     <section
       className="panel estimate"
@@ -19,7 +20,9 @@ export function EstimateCard({
     >
       <div>
         <h2>{title}</h2>
-        {note}
+        {estimatedDate && estimatedDate.getTime() < now && (
+          <p>Past the typical wait.</p>
+        )}
       </div>
       <div>{children}</div>
     </section>

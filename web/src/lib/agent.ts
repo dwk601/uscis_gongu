@@ -7,7 +7,7 @@ export type AgentBlock =
       type: "stat"
       label: string
       value: number | null
-      unit: "months" | "days" | "cases" | "percent" | null
+      unit: "months" | "cases"
       period: string | null
       sourceId: string
     }

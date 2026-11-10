@@ -36,8 +36,7 @@ function AnswerBlock({
           <h3>{block.label}</h3>
           <BigNumber>
             {block.value == null ? "Unavailable" : block.value.toLocaleString()}
-            {block.value != null &&
-              (block.unit === "percent" ? "%" : block.unit && ` ${block.unit}`)}
+            {block.value != null && ` ${block.unit}`}
           </BigNumber>
           {block.period && <small>{block.period}</small>}
         </section>
@@ -47,6 +46,7 @@ function AnswerBlock({
         <EstimateCard
           form={block.form}
           title={`Estimated around ${dateLabel(block.estimatedDate, true)}`}
+          estimatedDate={new Date(`${block.estimatedDate}T00:00:00Z`)}
         >
           <small>
             Typical wait {formatMonths(block.medianMonths)} mo · {block.period}

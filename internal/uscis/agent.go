@@ -132,7 +132,7 @@ func (a *api) runAgent(ctx context.Context, app core.App, c agentConfig, m *agen
 	facts := &agentFacts{refs: map[string]agentReference{}}
 	dataCalls, rounds := 0, 0
 	repair, clarify := false, false
-	tools := a.agentTools(false)
+	tools := a.agentTools()
 	terminalTools := tools[len(tools)-1:]
 	var outputSpent, previousPrompt, previousVariableBytes, previousFixed int64
 	for calls := 0; calls < 4; calls++ {

@@ -191,6 +191,8 @@ function Home() {
     client
       .getQueriesData<CaseResponse>({ queryKey: ["uscis", "case"] })
       .find(([, value]) => value?.forms)?.[1]?.forms
+  const notFound =
+    result.isError && (result.error as { status?: number })?.status === 404
   const data =
     !search.form || result.isPlaceholderData ? undefined : result.data
   const filedInput = useRef<HTMLInputElement>(null)
@@ -220,57 +222,56 @@ function Home() {
       <h1>My case</h1>
       <p>Explore the typical wait for your case.</p>
       {!search.form && <h2>What are you waiting on?</h2>}
-      <div className="case-controls">
-        <FormPicker
-          forms={forms}
-          unavailable={
-            result.isError &&
-            (result.error as { status?: number })?.status !== 404
-          }
-          onRetry={() => void result.refetch()}
-          value={search.form}
-          label="Choose your case"
-          initiallyOpen={!search.form}
-          onChange={(form) => void navigate({ search: { ...search, form } })}
-        />
-        {search.form && (
-          <label>
-            <span>When did you file? (optional)</span>
-            <input
-              ref={filedInput}
-              aria-label="When did you file? (optional)"
-              type="date"
-              defaultValue={search.filed ?? ""}
-              onChange={(e) => {
-                const filed = e.currentTarget.value
-                if (validFiled(filed)) {
-                  committed.current = filed
-                  void navigate({ search: { ...search, filed } })
-                }
-              }}
-              onBlur={(e) => {
-                const input = e.currentTarget
-                if (validFiled(input.value)) return
-                if (!input.value && !input.validity.badInput) {
-                  committed.current = undefined
-                  void navigate({ search: { ...search, filed: undefined } })
-                } else input.value = committed.current ?? ""
-              }}
-            />
-            {!search.filed && (
-              <span className="case-date-hint">
-                Add it to see your estimated date
-              </span>
-            )}
-          </label>
-        )}
-      </div>
+      {!notFound && (
+        <div className="case-controls">
+          <FormPicker
+            forms={forms}
+            unavailable={result.isError}
+            onRetry={() => void result.refetch()}
+            value={search.form}
+            label="Choose your case"
+            initiallyOpen={!search.form}
+            onChange={(form) => void navigate({ search: { ...search, form } })}
+          />
+          {search.form && (
+            <label>
+              <span>When did you file? (optional)</span>
+              <input
+                ref={filedInput}
+                aria-label="When did you file? (optional)"
+                type="date"
+                defaultValue={search.filed ?? ""}
+                onChange={(e) => {
+                  const filed = e.currentTarget.value
+                  if (validFiled(filed)) {
+                    committed.current = filed
+                    void navigate({ search: { ...search, filed } })
+                  }
+                }}
+                onBlur={(e) => {
+                  const input = e.currentTarget
+                  if (validFiled(input.value)) return
+                  if (!input.value && !input.validity.badInput) {
+                    committed.current = undefined
+                    void navigate({ search: { ...search, filed: undefined } })
+                  } else input.value = committed.current ?? ""
+                }}
+              />
+              {!search.filed && (
+                <span className="case-date-hint">
+                  Add it to see your estimated date
+                </span>
+              )}
+            </label>
+          )}
+        </div>
+      )}
       {search.form && (result.isLoading || result.isPlaceholderData) && (
         <p role="status">Loading case data…</p>
       )}
       {search.form && result.isError && (
         <p role="alert">
-          {(result.error as { status?: number })?.status === 404 ? (
+          {notFound ? (
             <>
               This form is not in the catalog.{" "}
               <button

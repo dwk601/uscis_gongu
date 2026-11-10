@@ -767,10 +767,17 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   await expect(page).toHaveURL(/form=I-485/)
   await page.goto("/?form=I-404")
   await expect(page.getByRole("alert")).toContainText("not in the catalog")
+  await expect(
+    page.getByRole("group", { name: "Choose your case" })
+  ).toHaveCount(0)
+  await expect(page.getByText("Loading forms…")).toHaveCount(0)
   await expect(page.getByText("Forms are unavailable right now.")).toHaveCount(
     0
   )
   await page.getByRole("button", { name: "Choose a form" }).click()
+  await expect(
+    page.getByRole("button", { name: /Green card application/ })
+  ).toBeVisible()
   await expect(
     page.getByRole("link", { name: "My case", exact: true })
   ).toHaveAttribute("href", /form=I-485/)

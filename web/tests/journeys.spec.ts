@@ -617,8 +617,8 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
               },
         trend: [],
         community:
-          selectedForm === "I-999"
-            ? { p25Days: null, p75Days: null }
+          selectedForm === "I-999" || selectedForm === "I-888"
+            ? { filingYear: 2025, p25Days: null, p75Days: null }
             : selectedForm === "I-130"
               ? {
                   filingYear: 2025,
@@ -632,7 +632,10 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
                   p75Days: selectedForm === "I-765" ? 131 : 253,
                   asOfDate: "2026-05-01",
                 },
-        summary: { eligibleReports: 31416, years: [2024, 2025] },
+        summary: {
+          eligibleReports: selectedForm === "I-999" ? 0 : 31416,
+          years: [2024, 2025],
+        },
         freshness: [],
       },
     })
@@ -694,6 +697,11 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   })
   await expect(selectedOther).toBeFocused()
   await expect(selectedOther).toBeInViewport()
+  await page.getByRole("button", { name: /Special application/ }).click()
+  await expect(
+    page.getByText("No community reports yet from people who filed in 2025.")
+  ).toBeVisible()
+  await page.getByRole("button", { name: /Change form/ }).click()
   await page.getByRole("button", { name: /Green card application/ }).click()
   await expect(page.getByRole("button", { name: /Change form/ })).toBeFocused()
   await page.getByLabel("When did you file? (optional)").focus()
@@ -747,8 +755,15 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
     page.getByRole("link", { name: "My case", exact: true })
   ).toHaveAttribute("href", /form=I-485/)
   catalogUnavailable = true
+  await page.clock.install()
+  const beforeError = requests
   await page.goto("/")
-  await page.reload()
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await expect
+      .poll(() => requests)
+      .toBeGreaterThanOrEqual(beforeError + attempt)
+    await page.clock.runFor(5000)
+  }
   await expect(page.getByText("Forms are unavailable right now.")).toBeVisible({
     timeout: 20000,
   })

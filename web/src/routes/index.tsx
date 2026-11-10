@@ -349,7 +349,11 @@ function Home() {
                     : community?.p25Reason === "unreached" ||
                         community?.p75Reason === "unreached"
                       ? "A range has not yet been reached."
-                      : "No community reports for this form yet."}
+                      : (data.summary?.eligibleReports ?? 0) > 0
+                        ? (community?.filingYear ?? year) != null
+                          ? `No community reports yet from people who filed in ${community?.filingYear ?? year}.`
+                          : "No community reports yet for this filing period."
+                        : "No community reports for this form yet."}
                 </p>
               )}
               {community &&

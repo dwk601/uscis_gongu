@@ -39,8 +39,22 @@ SELECT ('2024-01-01'::date + n*7)::date AS week_start, topic::text,
        (n<>13) AS covered
 FROM generate_series(0,14) n CROSS JOIN (VALUES ('all'),('sevis'),('cpt'),('policy')) t(topic);
 
-CREATE VIEW public.uscis_form_quarter AS SELECT 2025::int fiscal_year, 1::int quarter, '2025-01-01'::date quarter_start, NULL::text category, form, description, NULL::numeric received, NULL::numeric approved, NULL::numeric denied, NULL::numeric completed, NULL::numeric pending, NULL::numeric processing_months, NULL::text source_file FROM (VALUES ('I-765', 'Application for Employment Authorization (All Other)'), ('I-485', 'Other')) v(form,description);
+CREATE VIEW public.uscis_form_quarter AS SELECT 2025::int fiscal_year, 1::int quarter, '2025-01-01'::date quarter_start, NULL::text category, form, description, NULL::numeric received, NULL::numeric approved, NULL::numeric denied, NULL::numeric completed, NULL::numeric pending, NULL::numeric processing_months, NULL::text source_file FROM (VALUES ('I-765', 'Application for Employment Authorization (All Other)'), ('I-485', 'Other')) v(form,description)
+UNION ALL SELECT 2025, q, ('2025-01-01'::date + (q-1)*90), NULL, 'I-765', 'Application for Employment Authorization (All Other)', 123, NULL, 7, 80, 300, median, 'fixture.csv' FROM (VALUES (2,2.5::numeric),(3,0::numeric),(4,NULL::numeric)) v(q,median);
 CREATE VIEW public.reddit_timeline_vs_uscis_quarter AS SELECT 'opt'::text case_type, premium, '2025-01-01'::date filed_month, 58::int approved_reports, 30::float8 p10_days, 60::float8 p50_days, 90::float8 p90_days, 'I-765'::text form, NULL::date quarter_start, NULL::numeric processing_months FROM (VALUES (NULL::boolean),(false)) v(premium);
 CREATE VIEW public.reddit_green_card_month_vs_bulletin AS SELECT '2025-01-01'::date AS month, 'employment_green_card'::text topic, 10::int posts, 20::int comments FROM generate_series(1,2);
 CREATE VIEW public.reddit_h1b_month_vs_lca AS SELECT '2025-01-01'::date AS month, 3::int h1b_posts, 4::int h1b_comments, 5::int lottery_posts, 6::int lottery_comments, NULL::int lca_cases, NULL::int lca_certified;
 CREATE VIEW public.reddit_activity_day AS SELECT day::date FROM (VALUES ('2021-10-30'),('2026-11-04')) v(day);
+
+CREATE VIEW public.visajourney_timeline_stats AS
+SELECT 'ead'::text stage, 'K1'::text visa_type, 2024::int filing_year,
+       40::bigint sample_size, 31::bigint completed_count, 9::bigint pending_count,
+       0.225::float8 pending_share, 20::float8 p10_days, 45::float8 p50_days, NULL::float8 p90_days;
+
+CREATE VIEW public.visa_bulletin_series AS
+SELECT '2025-02-01'::date bulletin_month, chart::text, 'employment'::text category_group,
+       'EB2'::text category_code, country::text country_code, cutoff::date cutoff_date,
+       current_flag::boolean is_current, unavailable_flag::boolean is_unavailable, country::text country_label
+FROM (VALUES ('final_action','IN','2012-10-15',false,false),
+             ('final_action','ROW',NULL,true,false),
+             ('dates_for_filing','IN',NULL,false,true)) v(chart,country,cutoff,current_flag,unavailable_flag);

@@ -3,6 +3,11 @@ import { expect, test } from "@playwright/test"
 test("filtered community remains readable when its summary fails", async ({
   page,
 }) => {
+  const submissions: string[] = []
+  await page.route("**/api/collections/posts/records", async (route) => {
+    submissions.push(route.request().postDataJSON().form)
+    await route.fulfill({ json: { id: "abcdefghijklmno" } })
+  })
   let fail = false
   let filter = ""
   let releaseCatalog: (() => void) | undefined
@@ -17,8 +22,9 @@ test("filtered community remains readable when its summary fails", async ({
     return route.fulfill({
       json: {
         forms: [
-          { form: "I-485", name: "Green card" },
-          { form: "I-130", name: "Family petition" },
+          { form: "I-485", name: "Green card", featured: true },
+          { form: "I-130", name: "Family petition", featured: true },
+          { form: "I-999", name: "Other application", featured: false },
         ],
         summary: { eligibleReports: 31416, years: [1997, 2025] },
       },
@@ -52,7 +58,14 @@ test("filtered community remains readable when its summary fails", async ({
   await expect(page.getByText("A timeline")).toBeVisible()
   expect(filter).toContain("I-485")
   fail = true
-  await page.getByLabel("Form", { exact: true }).selectOption("I-130")
+  const feedPicker = page.getByRole("group", {
+    name: "Filter community by form",
+  })
+  await feedPicker.getByRole("button", { name: /Change form/ }).click()
+  await feedPicker.getByRole("button", { name: /All forms/ }).click()
+  await expect(page).not.toHaveURL(/form=I-485/)
+  await feedPicker.getByRole("button", { name: /Change form/ }).click()
+  await feedPicker.getByRole("button", { name: /Family petition/ }).click()
   await expect(page.getByText("A timeline")).toBeVisible()
   await page.getByRole("link", { name: "Share my timeline" }).click()
   await expect(page).toHaveURL(/\/login/)
@@ -85,13 +98,29 @@ test("filtered community remains readable when its summary fails", async ({
     )
   })
   await page.goto("/community?form=I-130&compose=true")
-  const composerForm = page.getByLabel("Form (optional)")
-  await expect(composerForm).toHaveValue("I-130")
+  const composerForm = page.getByRole("group", { name: "Form for your post" })
+  await expect(
+    composerForm.getByRole("button", { name: /I-130/ })
+  ).toBeVisible()
   await expect.poll(() => !!releaseCatalog).toBe(true)
   releaseCatalog!()
-  await expect(composerForm).toHaveValue("I-130")
+  await expect(
+    composerForm.getByRole("button", { name: /Family petition/ })
+  ).toBeVisible()
   await expect(page).not.toHaveURL(/compose=/)
+  await page.getByLabel("Title").fill("My timeline")
+  await composerForm.getByRole("button", { name: /Change form/ }).click()
+  await composerForm.getByRole("button", { name: /Other forms/ }).click()
+  await composerForm.getByLabel("Search by name or form number").fill("I-999")
+  await composerForm.getByLabel("Search by name or form number").press("Enter")
+  expect(submissions).toEqual([])
+  await composerForm.getByRole("button", { name: /Other application/ }).click()
+  await page.getByRole("button", { name: "Post", exact: true }).click()
+  await expect.poll(() => submissions).toEqual(["I-999"])
+  await page.getByRole("button", { name: "Share my timeline" }).click()
   await page.getByRole("button", { name: "Cancel" }).click()
   await page.reload()
-  await expect(page.getByLabel("Form (optional)")).toHaveCount(0)
+  await expect(
+    page.getByRole("group", { name: "Form for your post" })
+  ).toHaveCount(0)
 })

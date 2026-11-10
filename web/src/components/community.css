@@ -78,8 +78,7 @@
   font-size: 14px;
 }
 .social-form input,
-.social-form textarea,
-.social-form select {
+.social-form textarea {
   width: 100%;
   padding: 12px 14px;
   border: 1px solid var(--hairline);
@@ -194,8 +193,7 @@
 }
 @media (max-width: 700px), (pointer: coarse) {
   .social-form input,
-  .social-form textarea,
-  .social-form select {
+  .social-form textarea {
     font-size: 16px;
   }
 }

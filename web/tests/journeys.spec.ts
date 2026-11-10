@@ -580,8 +580,10 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
     await route.fulfill({
       json: {
         forms: [
-          { form: "I-485", name: "Green card" },
-          { form: "I-130", name: "Family petition" },
+          { form: "I-485", name: "Green card", featured: true },
+          { form: "I-130", name: "Family petition", featured: true },
+          { form: "I-999", name: "Other application", featured: false },
+          { form: "I-888", name: "Special application", featured: true },
         ],
         form: "I-485",
         categoryLabel: "Family",
@@ -614,10 +616,27 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
     })
   })
   await page.goto("/")
+  await expect(
+    page.getByRole("link", { name: "Community", exact: true }).last()
+  ).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: /Special application/ })
+  ).toBeVisible()
+  await page.getByRole("button", { name: /Green card application/ }).click()
   await expect(page.getByText("2025 filers")).toBeVisible()
-  await page.getByLabel("Case form").selectOption("I-130")
+  await page.getByRole("button", { name: /Change form/ }).click()
+  await page.getByRole("button", { name: /Family petition/ }).click()
   await expect(page.getByText("Not enough reports for a range.")).toBeVisible()
-  await page.getByLabel("Case form").selectOption("I-485")
+  await page.getByRole("button", { name: /Change form/ }).click()
+  await page.getByRole("button", { name: /Other forms/ }).click()
+  await page.getByLabel("Search by name or form number").fill("I-999")
+  await page.getByRole("button", { name: /Other application/ }).click()
+  await page.getByRole("button", { name: /Change form/ }).click()
+  await expect(
+    page.getByRole("button", { name: /Other application.*Selected/ })
+  ).toBeFocused()
+  await page.getByRole("button", { name: /Green card application/ }).click()
+  await expect(page.getByRole("button", { name: /Change form/ })).toBeFocused()
   await page.getByLabel("Filed (optional)").focus()
   await page.keyboard.type("01012025")
   await expect(page.getByLabel("Filed (optional)")).toHaveValue("2025-01-01")

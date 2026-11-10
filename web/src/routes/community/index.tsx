@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query"
 import { caseQuery, type CaseResponse } from "@/lib/case"
-import { formLabel } from "@/lib/labels"
+import { FormPicker } from "@/components/form-picker"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useEffect, useState, type FormEvent } from "react"
 import { useAuth, mutationErrorMessage } from "@/lib/auth"
@@ -66,7 +66,7 @@ function Community() {
       await pb.collection("posts").create({
         title: data.get("title"),
         body: data.get("body"),
-        form: data.get("form"),
+        form: composerForm,
         author: user.id,
       })
       form.reset()
@@ -115,24 +115,13 @@ function Community() {
             Post (optional)
             <textarea name="body" maxLength={5000} />
           </label>
-          <label>
-            Form (optional)
-            <select
-              name="form"
-              value={composerForm}
-              onChange={(e) => setComposerForm(e.target.value)}
-            >
-              <option value="">No form</option>
-              {composerForm && !forms?.some((f) => f.form === composerForm) && (
-                <option value={composerForm}>{composerForm}</option>
-              )}
-              {forms?.map((f) => (
-                <option key={f.form} value={f.form}>
-                  {formLabel(f.form, forms)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <FormPicker
+            forms={forms}
+            value={composerForm}
+            onChange={setComposerForm}
+            label="Form for your post"
+            emptyLabel="No form"
+          />
           <button className="primary" disabled={busy}>
             {busy ? "Posting…" : "Post"}
           </button>
@@ -176,28 +165,15 @@ function Community() {
             {sort === "new" ? "New" : "Top"}
           </button>
         ))}
-        <label>
-          Form{" "}
-          <select
-            aria-label="Form"
-            value={search.form}
-            onChange={(e) =>
-              void navigate({
-                search: { ...search, form: e.target.value, compose: undefined },
-              })
-            }
-          >
-            <option value="">All forms</option>
-            {search.form && !forms?.some((f) => f.form === search.form) && (
-              <option value={search.form}>{search.form}</option>
-            )}
-            {forms?.map((f) => (
-              <option key={f.form} value={f.form}>
-                {formLabel(f.form, forms)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <FormPicker
+          forms={forms}
+          value={search.form}
+          label="Filter community by form"
+          emptyLabel="All forms"
+          onChange={(form) =>
+            void navigate({ search: { ...search, form, compose: undefined } })
+          }
+        />
       </div>
       {feed.isLoading && <p>Loading posts…</p>}
       {feed.isError && (

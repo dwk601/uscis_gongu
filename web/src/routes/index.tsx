@@ -9,6 +9,7 @@ import { caseQuery, type CaseResponse } from "@/lib/case"
 import type { OfficialPoint } from "@/lib/api"
 import { estimateDate, formatMonths, quarterLabel } from "@/lib/estimate"
 import { formHue, formInk } from "@/lib/palette"
+import { FormPicker } from "@/components/form-picker"
 
 export const Route = createFileRoute("/")({
   validateSearch: (
@@ -17,7 +18,7 @@ export const Route = createFileRoute("/")({
     form:
       typeof s.form === "string" && /^[A-Z0-9-]{1,12}$/.test(s.form)
         ? s.form
-        : "I-485",
+        : "",
     filed: validFiled(s.filed) ? (s.filed as string) : undefined,
   }),
   component: Home,
@@ -135,7 +136,7 @@ function Home() {
   const navigate = useNavigate({ from: "/" })
   const year = search.filed ? Number(search.filed.slice(0, 4)) : undefined
   const result = useQuery({
-    ...caseQuery(search.form, year),
+    ...caseQuery(search.form || "I-485", year),
     placeholderData: keepPreviousData,
   })
   const client = useQueryClient()
@@ -144,7 +145,8 @@ function Home() {
     client
       .getQueriesData<CaseResponse>({ queryKey: ["uscis", "case"] })
       .find(([, value]) => value?.forms)?.[1]?.forms
-  const data = result.isPlaceholderData ? undefined : result.data
+  const data =
+    !search.form || result.isPlaceholderData ? undefined : result.data
   const filedInput = useRef<HTMLInputElement>(null)
   const committed = useRef(search.filed)
   useEffect(() => {
@@ -171,65 +173,56 @@ function Home() {
     <main className="workspace case-page">
       <h1>My case</h1>
       <p>Explore the typical wait for your case.</p>
+      {!search.form && <h2>What are you waiting on?</h2>}
       <div className="case-controls">
-        <label>
-          Case form
-          <select
-            aria-label="Case form"
-            value={search.form}
-            onChange={(e) =>
-              void navigate({ search: { ...search, form: e.target.value } })
-            }
-          >
-            {!forms?.some((f) => f.form === search.form) && (
-              <option value={search.form}>{search.form}</option>
-            )}
-            {forms?.map((f) => (
-              <option key={f.form} value={f.form}>
-                {f.name} · {f.form}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Filed (optional)
-          <input
-            ref={filedInput}
-            aria-label="Filed (optional)"
-            type="date"
-            defaultValue={search.filed ?? ""}
-            onChange={(e) => {
-              const filed = e.currentTarget.value
-              if (validFiled(filed)) {
-                committed.current = filed
-                void navigate({ search: { ...search, filed } })
-              }
-            }}
-            onBlur={(e) => {
-              const input = e.currentTarget
-              if (validFiled(input.value)) return
-              if (!input.value && !input.validity.badInput) {
-                committed.current = undefined
-                void navigate({ search: { ...search, filed: undefined } })
-              } else input.value = committed.current ?? ""
-            }}
-          />
-        </label>
+        <FormPicker
+          forms={forms}
+          value={search.form}
+          label="Choose your case"
+          initiallyOpen={!search.form}
+          onChange={(form) => void navigate({ search: { ...search, form } })}
+        />
+        {search.form && (
+          <label>
+            Filed (optional)
+            <input
+              ref={filedInput}
+              aria-label="Filed (optional)"
+              type="date"
+              defaultValue={search.filed ?? ""}
+              onChange={(e) => {
+                const filed = e.currentTarget.value
+                if (validFiled(filed)) {
+                  committed.current = filed
+                  void navigate({ search: { ...search, filed } })
+                }
+              }}
+              onBlur={(e) => {
+                const input = e.currentTarget
+                if (validFiled(input.value)) return
+                if (!input.value && !input.validity.badInput) {
+                  committed.current = undefined
+                  void navigate({ search: { ...search, filed: undefined } })
+                } else input.value = committed.current ?? ""
+              }}
+            />
+          </label>
+        )}
       </div>
-      {(result.isLoading || result.isPlaceholderData) && (
+      {search.form && (result.isLoading || result.isPlaceholderData) && (
         <p role="status">Loading case data…</p>
       )}
       {result.isError && (
         <p role="alert">
           {(result.error as { status?: number })?.status === 404 ? (
             <>
-              This form is not in the catalog. Choose another form or{" "}
+              This form is not in the catalog.{" "}
               <button
                 onClick={() =>
-                  void navigate({ search: { ...search, form: "I-485" } })
+                  void navigate({ search: { ...search, form: "" } })
                 }
               >
-                return to I-485
+                Choose a form
               </button>
               .
             </>
@@ -369,14 +362,16 @@ function Home() {
       )}
       <div className="case-links">
         <Link to="/community" search={{ sort: "new", form: search.form }}>
-          Community for {search.form}
+          {search.form ? `Community for ${search.form}` : "Community"}
         </Link>
         <details>
           <summary>More data</summary>
           <div>
-            <Link to="/trends" search={{ form: search.form }}>
-              Trends for {search.form}
-            </Link>
+            {search.form && (
+              <Link to="/trends" search={{ form: search.form }}>
+                Trends for {search.form}
+              </Link>
+            )}
             <Link
               to="/bulletin"
               search={{

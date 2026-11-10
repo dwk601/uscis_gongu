@@ -671,16 +671,13 @@ td {
   align-items: end;
   margin: 28px 0;
 }
-.case-controls label,
-.social-filters label {
+.case-controls label {
   display: grid;
   gap: 6px;
   font-size: 14px;
   min-width: 0;
 }
-.case-controls select,
-.case-controls input,
-.social-filters select {
+.case-controls input {
   min-height: 44px;
   max-width: 100%;
   border: 1px solid var(--hairline);
@@ -690,7 +687,7 @@ td {
   color: var(--ink);
   font: inherit;
 }
-.case-controls label:first-child {
+.case-controls > .form-picker {
   flex: 1 1 260px;
 }
 .case-grid {
@@ -761,9 +758,7 @@ td {
   .case-grid {
     grid-template-columns: 1fr;
   }
-  .case-controls select,
-  .case-controls input,
-  .social-filters select {
+  .case-controls input {
     font-size: 16px;
   }
 }
@@ -777,4 +772,99 @@ td {
 .social-summary {
   font-size: 1.125rem;
   font-weight: 600;
+}
+.form-picker {
+  min-width: 0;
+}
+.form-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 48px;
+  padding: 9px 16px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.form-summary > span:last-child {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+.form-summary small,
+.form-choice small {
+  display: block;
+  font-size: 12px;
+}
+.form-picker-options {
+  padding: 16px 0;
+}
+.form-picker-heading {
+  font-size: 1.15rem;
+  margin: 0 0 12px;
+}
+.form-picker-options section {
+  margin: 18px 0;
+}
+.form-picker-options h3 {
+  font-size: 1rem;
+  margin: 0 0 8px;
+}
+.form-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.form-choice {
+  min-height: 48px;
+  max-width: 100%;
+  padding: 9px 14px;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+.form-choice[aria-pressed="true"] {
+  border-color: currentColor;
+}
+.form-choice-empty {
+  background: var(--panel);
+  color: var(--ink);
+  border-color: var(--hairline);
+}
+.form-other-toggle,
+.form-clear {
+  min-height: 44px;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.form-other label {
+  display: block;
+  margin: 8px 0;
+}
+.form-other input {
+  min-height: 44px;
+  max-width: 100%;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  padding: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+}
+.form-other .form-choices {
+  margin-top: 12px;
 }

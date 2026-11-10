@@ -1,0 +1,193 @@
+import { useId, useRef, useState } from "react"
+import type { FormSummary } from "@/lib/api"
+import { formHue, formInk } from "@/lib/palette"
+
+const groups: [string, string[]][] = [
+  ["Green cards", ["I-485", "I-140", "I-526", "I-90", "I-751"]],
+  ["Family", ["I-130", "I-129F"]],
+  ["Work & staying in the U.S.", ["I-765", "I-129", "I-539", "I-821D"]],
+  ["Citizenship", ["N-400"]],
+  ["Travel", ["I-131"]],
+  ["Other situations", ["I-360", "I-601A"]],
+]
+const names: Record<string, string> = {
+  "I-485": "Green card application",
+  "I-765": "Work permit",
+  "N-400": "U.S. citizenship",
+  "I-131": "Travel documents",
+}
+
+export function FormPicker({
+  forms,
+  value,
+  onChange,
+  label,
+  emptyLabel,
+  initiallyOpen = false,
+}: {
+  forms?: FormSummary[]
+  value: string
+  onChange: (value: string) => void
+  label: string
+  emptyLabel?: string
+  initiallyOpen?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [other, setOther] = useState(false)
+  const [filter, setFilter] = useState("")
+  const expanded = initiallyOpen || open
+  const id = useId()
+  const root = useRef<HTMLDivElement>(null)
+  const summary = useRef<HTMLButtonElement>(null)
+  const selected = forms?.find((f) => f.form === value)
+  const featured = forms?.filter((f) => f.featured) ?? []
+  const others = forms?.filter((f) => !f.featured) ?? []
+  const mapped = groups.flatMap(([, codes]) => codes)
+  const close = () => {
+    setOpen(false)
+    requestAnimationFrame(() => summary.current?.focus())
+  }
+  const show = () => {
+    setFilter("")
+    setOther(!!selected && !selected.featured)
+    setOpen(true)
+    requestAnimationFrame(() => {
+      const target =
+        root.current?.querySelector<HTMLButtonElement>(
+          '[aria-pressed="true"]'
+        ) ?? root.current?.querySelector<HTMLButtonElement>(".form-choice")
+      ;(
+        target ??
+        root.current?.querySelector<HTMLElement>(".form-picker-heading")
+      )?.focus()
+    })
+  }
+  const choose = (form: string) => {
+    if (form !== value) onChange(form)
+    close()
+  }
+  const choice = (f: FormSummary) => (
+    <button
+      type="button"
+      className="form-choice"
+      key={f.form}
+      aria-pressed={value === f.form}
+      onClick={() => choose(f.form)}
+      style={{ background: formHue(f.form), color: formInk(f.form) }}
+    >
+      <span>{names[f.form] ?? f.name}</span>
+      <small>
+        {f.form}
+        {value === f.form ? " · Selected" : ""}
+      </small>
+    </button>
+  )
+  const matches = others.filter((f) =>
+    `${f.form} ${f.name} ${names[f.form] ?? ""}`
+      .toLowerCase()
+      .includes(filter.toLowerCase().trim())
+  )
+  return (
+    <div
+      className="form-picker"
+      ref={root}
+      role="group"
+      aria-label={label}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && open) {
+          e.preventDefault()
+          close()
+        }
+      }}
+    >
+      {!initiallyOpen && (
+        <button
+          ref={summary}
+          type="button"
+          className="form-summary"
+          aria-expanded={expanded}
+          onClick={() => (open ? close() : show())}
+        >
+          <span>
+            {selected
+              ? (names[value] ?? selected.name)
+              : value || emptyLabel || "Choose a form"}
+            {selected && <small>{value}</small>}
+          </span>
+          <span>Change form</span>
+        </button>
+      )}
+      {expanded && (
+        <div className="form-picker-options">
+          <h2 className="form-picker-heading" tabIndex={-1}>
+            {label}
+          </h2>
+          {emptyLabel && (
+            <button
+              type="button"
+              className="form-choice form-choice-empty"
+              aria-pressed={!value}
+              onClick={() => choose("")}
+            >
+              {emptyLabel}
+              {!value && " · Selected"}
+            </button>
+          )}
+          {!forms && <p role="status">Forms are unavailable right now.</p>}
+          {groups.map(([heading, codes]) => {
+            const items = featured.filter(
+              (f) =>
+                codes.includes(f.form) ||
+                (heading === "Other situations" && !mapped.includes(f.form))
+            )
+            return items.length ? (
+              <section key={heading}>
+                <h3>{heading}</h3>
+                <div className="form-choices">{items.map(choice)}</div>
+              </section>
+            ) : null
+          })}
+          {others.length > 0 && (
+            <div className="form-other">
+              <button
+                type="button"
+                className="form-other-toggle"
+                aria-expanded={other}
+                onClick={() => setOther(!other)}
+              >
+                Other forms ({others.length})
+              </button>
+              {other && (
+                <div>
+                  <label htmlFor={id}>Search by name or form number</label>
+                  <input
+                    id={id}
+                    type="search"
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.preventDefault()
+                    }}
+                  />
+                  {filter && (
+                    <button
+                      className="form-clear"
+                      type="button"
+                      onClick={() => setFilter("")}
+                    >
+                      Clear search
+                    </button>
+                  )}
+                  <div className="form-choices">{matches.map(choice)}</div>
+                  {!matches.length && (
+                    <p>No forms found. Try another name or form number.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

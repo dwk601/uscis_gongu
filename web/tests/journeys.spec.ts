@@ -618,6 +618,7 @@ test("bulletin selection and historical status", async ({ page }) => {
   ).toBeVisible()
   await page.getByRole("button", { name: "Family", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Jan 1, 2019" })).toBeVisible()
+  await page.getByRole("button", { name: "Family", exact: true }).focus()
   await page.keyboard.press("Escape")
   await expect(page.getByRole("button", { name: /Change/ })).toBeFocused()
   await page.goto("/bulletin?category=EB5-RC")

@@ -143,10 +143,19 @@ function BulletinPage() {
   }))
   const savedForm = sessionStorage.getItem("gongu-last-case-form") || ""
   return (
-    <main className="workspace bulletin-page">
+    <main
+      className="workspace bulletin-page"
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && known && expanded) {
+          event.preventDefault()
+          focusSummary.current = true
+          setExpanded(false)
+        }
+      }}
+    >
       <div className="bulletin-heading">
         <h1>Visa bulletin</h1>
-        {series && (
+        {known && (
           <div className="controls" role="group" aria-label="Bulletin chart">
             <button
               className="chip"
@@ -214,16 +223,7 @@ function BulletinPage() {
         </button>
       )}
       {group && (!known || expanded) && (
-        <section
-          className="bulletin-categories"
-          onKeyDown={(event) => {
-            if (event.key === "Escape" && known) {
-              event.preventDefault()
-              focusSummary.current = true
-              setExpanded(false)
-            }
-          }}
-        >
+        <section className="bulletin-categories">
           <h2>Choose a category</h2>
           {bulletin.isLoading ? (
             <p role="status">Loading categories…</p>
@@ -299,7 +299,10 @@ function BulletinPage() {
               {!series && (
                 <p role="alert">
                   {countryLabel(country)} is not available for this category.{" "}
-                  <button onClick={() => update({ country: "ALL" })}>
+                  <button
+                    className="chip"
+                    onClick={() => update({ country: "ALL" })}
+                  >
                     Use All other countries
                   </button>
                 </p>

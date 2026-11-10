@@ -386,6 +386,11 @@ td {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+.bulletin-page .bulletin-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
 .bulletin-card {
   background: #d3e39a;
   color: #171717;
@@ -692,6 +697,9 @@ td {
 .site-header .theme-toggle {
   min-width: 44px;
 }
+.site-header .brand {
+  min-height: 44px;
+}
 .landing-page > p {
   color: var(--muted);
 }
@@ -736,6 +744,20 @@ td {
 .bulletin-category-list {
   display: grid;
   gap: 8px;
+}
+.bulletin-category-list .form-summary > span:last-child {
+  text-decoration: none;
+  white-space: normal;
+}
+.bulletin-category-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.bulletin-category-name small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
 }
 .bulletin-skeletons {
   display: flex;

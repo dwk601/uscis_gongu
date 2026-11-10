@@ -59,6 +59,19 @@ const cutoffDate = (value: string) =>
     year: "numeric",
     timeZone: "UTC",
   })
+function CategoryName({ code }: { code: string }) {
+  const [description, categoryCode, ...qualifiers] =
+    categoryLabel(code).split(" · ")
+  return (
+    <span className="bulletin-category-name">
+      <span>
+        {description}
+        {qualifiers.length > 0 && ` · ${qualifiers.join(" · ")}`}
+      </span>
+      {categoryCode && <small>{categoryCode}</small>}
+    </span>
+  )
+}
 function BulletinPage() {
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
@@ -166,7 +179,7 @@ function BulletinPage() {
           </button>
         ))}
       </div>
-      {group === groups[0] && (
+      {group === groups[0] && (!known || expanded) && (
         <p>
           Spouse, parent, or unmarried child under 21 of a U.S. citizen? No
           bulletin wait.{" "}
@@ -193,7 +206,7 @@ function BulletinPage() {
           className="form-summary"
           onClick={() => setExpanded(true)}
         >
-          <span>{categoryLabel(category)}</span>
+          <CategoryName code={category} />
           <span>Change</span>
         </button>
       )}
@@ -228,7 +241,7 @@ function BulletinPage() {
                       update({ category: c.code, group: undefined })
                     }}
                   >
-                    {categoryLabel(c.code)}
+                    <CategoryName code={c.code} />
                   </button>
                 ))}
             </div>

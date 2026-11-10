@@ -387,17 +387,31 @@ td {
   text-underline-offset: 3px;
 }
 .bulletin-page .bulletin-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
+  padding-block: 12px;
 }
 .bulletin-card {
   background: #d3e39a;
   color: #171717;
 }
 .bulletin-card h2 {
-  font-size: 3rem;
+  font-size: clamp(2rem, 5.5vw, 3rem);
   letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+}
+.bulletin-historical {
+  display: table;
+  margin: 0 0 16px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #171717;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+}
+@media (max-width: 900px) {
+  .bulletin-page .workspace-grid {
+    grid-template-columns: 1fr;
+  }
 }
 .chart-legend {
   display: flex;
@@ -490,16 +504,6 @@ td {
   .controls {
     gap: 7px;
   }
-  .bulletin-rail {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding: 8px;
-    margin: 0 -8px 10px;
-  }
-  .bulletin-rail > * {
-    flex: none;
-    white-space: nowrap;
-  }
   .form-rail .chip {
     max-width: 100%;
     white-space: normal;
@@ -538,20 +542,8 @@ td {
 .controls .chip {
   white-space: normal;
 }
-.chip-rail,
-.bulletin-rail {
+.chip-rail {
   overscroll-behavior-inline: contain;
-}
-.bulletin-rail {
-  margin-top: 16px;
-}
-.selected-category {
-  display: none;
-}
-@media (max-width: 700px) {
-  .selected-category {
-    display: block;
-  }
 }
 @media (max-width: 700px), (pointer: coarse) {
   button,
@@ -683,7 +675,19 @@ td {
 }
 
 .landing-page h1 {
-  max-width: 12ch;
+  max-width: 18ch;
+  text-wrap: balance;
+}
+.bulletin-prompt {
+  font-size: 1.15rem;
+  margin: 28px 0 12px;
+}
+.bulletin-page button,
+.bulletin-page summary {
+  min-height: 44px;
+}
+.bulletin-page summary {
+  align-content: center;
 }
 .bulletin-page .chip,
 .site-header nav a,
@@ -783,7 +787,9 @@ td {
     grid-template-columns: 1fr;
   }
   .landing-choices a,
-  .bulletin-page .panel {
+  .bulletin-page .panel,
+  .case-page .case-answer,
+  .case-page .case-panel {
     padding: 24px;
   }
   .landing-choices a {

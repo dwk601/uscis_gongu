@@ -589,7 +589,14 @@ test("bulletin selection and historical status", async ({ page }) => {
         categories: [{ code: "F2A" }, { code: "EB2" }, { code: "EB5-RC" }],
         series: [
           { country: "ALL", points: [point] },
-          { country: "INDIA", points: [point] },
+          {
+            country: "INDIA",
+            points: [
+              category === "F2A"
+                ? { month: "2024-03-01", cutoff: "2019-01-01", status: "date" }
+                : point,
+            ],
+          },
         ],
       },
     })
@@ -606,11 +613,20 @@ test("bulletin selection and historical status", async ({ page }) => {
   const before = requests
   await page.getByRole("button", { name: "India", exact: true }).click()
   expect(requests).toBe(before)
+  await expect(
+    page.getByText("Historical · last bulletin Mar 2024")
+  ).toBeVisible()
+  await page.getByRole("button", { name: "Family", exact: true }).click()
+  await expect(page.getByRole("heading", { name: "Jan 1, 2019" })).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(page.getByRole("button", { name: /Change/ })).toBeFocused()
   await page.goto("/bulletin?category=EB5-RC")
   await expect(
     page.getByRole("heading", { name: "Current", exact: true })
   ).toBeVisible()
-  await expect(page.getByText(/Historical · Bulletin Apr 2022/)).toBeVisible()
+  await expect(
+    page.getByText("Historical · last bulletin Apr 2022")
+  ).toBeVisible()
   await expect(page.getByText(/no dated cutoff to plot/i)).toBeVisible()
   await page.goto("/bulletin?category=UNKNOWN")
   await expect(page.getByRole("alert")).toContainText("not in the catalog")
@@ -709,6 +725,15 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
     page.getByRole("button", { name: /Special application/ })
   ).toBeVisible()
   await page.getByRole("button", { name: /Green card application/ }).click()
+  await expect(
+    page.getByText("People who filed in 2025: about 4.3–8.3 months")
+  ).toBeVisible()
+  await expect(page).not.toHaveURL(/view=case/)
+  await page.getByRole("link", { name: "gongu" }).click()
+  await expect(
+    page.getByRole("link", { name: "Check my case timeline" })
+  ).toHaveAttribute("href", /form=I-485/)
+  await page.getByRole("link", { name: "Check my case timeline" }).click()
   await expect(
     page.getByText("People who filed in 2025: about 4.3–8.3 months")
   ).toBeVisible()

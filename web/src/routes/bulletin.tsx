@@ -146,23 +146,26 @@ function BulletinPage() {
     <main className="workspace bulletin-page">
       <div className="bulletin-heading">
         <h1>Visa bulletin</h1>
-        <div className="controls" role="group" aria-label="Bulletin chart">
-          <button
-            className="chip"
-            aria-pressed={chart === "final_action"}
-            onClick={() => update({ chart: "final_action" })}
-          >
-            Approval cutoff
-          </button>
-          <button
-            className="chip"
-            aria-pressed={chart === "dates_for_filing"}
-            onClick={() => update({ chart: "dates_for_filing" })}
-          >
-            Filing cutoff
-          </button>
-        </div>
+        {series && (
+          <div className="controls" role="group" aria-label="Bulletin chart">
+            <button
+              className="chip"
+              aria-pressed={chart === "final_action"}
+              onClick={() => update({ chart: "final_action" })}
+            >
+              Approval cutoff
+            </button>
+            <button
+              className="chip"
+              aria-pressed={chart === "dates_for_filing"}
+              onClick={() => update({ chart: "dates_for_filing" })}
+            >
+              Filing cutoff
+            </button>
+          </div>
+        )}
       </div>
+      {!group && <h2 className="bulletin-prompt">Which group fits you?</h2>}
       <div className="controls" role="group" aria-label="Bulletin group">
         {groups.map((item) => (
           <button
@@ -172,7 +175,7 @@ function BulletinPage() {
             aria-pressed={group === item}
             onClick={() => {
               setExpanded(true)
-              update({ group: item, category: undefined })
+              if (item !== group) update({ group: item, category: undefined })
             }}
           >
             {item}
@@ -211,7 +214,16 @@ function BulletinPage() {
         </button>
       )}
       {group && (!known || expanded) && (
-        <section className="bulletin-categories">
+        <section
+          className="bulletin-categories"
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && known) {
+              event.preventDefault()
+              focusSummary.current = true
+              setExpanded(false)
+            }
+          }}
+        >
           <h2>Choose a category</h2>
           {bulletin.isLoading ? (
             <p role="status">Loading categories…</p>
@@ -303,6 +315,11 @@ function BulletinPage() {
               className="panel bulletin-card"
               style={{ background: categoryHue(category) }}
             >
+              {historical && current?.month && (
+                <p className="bulletin-historical">
+                  Historical · last bulletin {month(current.month)}
+                </p>
+              )}
               <h2>
                 {current?.status === "current"
                   ? "Current"
@@ -320,7 +337,6 @@ function BulletinPage() {
                     : `Moved ${Math.abs(monthlyChange).toLocaleString()} days ${monthlyChange > 0 ? "forward" : "back"} since last month`}
               </p>
               <p>
-                {historical ? "Historical · " : ""}
                 {current?.month ? `Bulletin ${month(current.month)} · ` : ""}
                 {categoryLabel(category)} · {countryLabel(series.country)} ·{" "}
                 {chart === "final_action" ? "Approval cutoff" : "Filing cutoff"}

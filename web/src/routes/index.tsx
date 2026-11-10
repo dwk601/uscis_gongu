@@ -272,7 +272,9 @@ function CasePage() {
             value={search.form}
             label="Choose your case"
             initiallyOpen={!search.form}
-            onChange={(form) => void navigate({ search: { ...search, form } })}
+            onChange={(form) =>
+              void navigate({ search: { ...search, form, view: undefined } })
+            }
           />
           {search.form && (
             <label>

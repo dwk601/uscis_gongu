@@ -59,7 +59,6 @@ export default function DataChart({
   band,
   calendar,
   dateValues,
-  extras = [],
   pending,
 }: {
   title: string
@@ -69,7 +68,6 @@ export default function DataChart({
   band?: boolean
   calendar?: boolean
   dateValues?: boolean
-  extras?: ChartRow[][]
   pending?: string
 }) {
   const x = (row: ChartRow) => (calendar ? new Date(row.x) : row.x)
@@ -86,15 +84,6 @@ export default function DataChart({
             }),
           ]
         : []),
-      ...extras.map((extra) =>
-        lineY(extra, {
-          x,
-          y: "value",
-          stroke: "#999990",
-          strokeWidth: 1,
-          strokeOpacity: 0.6,
-        })
-      ),
       lineY(rows, {
         x,
         y: "value",
@@ -170,18 +159,6 @@ export default function DataChart({
             {second}
           </span>
           {pending && <span>Pending: {pending}</span>}
-        </div>
-      )}
-      {extras.length > 0 && (
-        <div className="chart-legend">
-          <span>
-            <i style={{ background: "var(--chart-stroke)" }} />
-            Selected country
-          </span>
-          <span>
-            <i style={{ background: "#999990" }} />
-            Other countries
-          </span>
         </div>
       )}
       {rows.some((row) => row.status && row.status !== "date") && (

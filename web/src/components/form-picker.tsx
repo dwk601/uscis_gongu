@@ -52,10 +52,11 @@ export function FormPicker({
     setOpen(true)
     requestAnimationFrame(() => {
       if (selected && !selected.featured) {
-        root.current?.scrollIntoView({ block: "start" })
-        root.current
-          ?.querySelector<HTMLButtonElement>(".form-other-toggle")
-          ?.focus({ preventScroll: true })
+        const target = root.current?.querySelector<HTMLButtonElement>(
+          '.form-other .form-choice[aria-pressed="true"]'
+        )
+        target?.focus({ preventScroll: true })
+        target?.scrollIntoView({ block: "nearest" })
         return
       }
       const target =

@@ -575,12 +575,15 @@ test("Reddit failures remain local and retryable", async ({ page }) => {
 
 test("my case keeps a same-year filing change local", async ({ page }) => {
   let requests = 0
+  let catalogUnavailable = false
   let releaseCatalog: () => void = () => {}
   const catalogReady = new Promise<void>((resolve) => {
     releaseCatalog = resolve
   })
   await page.route("**/api/x/uscis/case**", async (route) => {
     requests++
+    if (catalogUnavailable)
+      return route.fulfill({ status: 503, json: { message: "Unavailable" } })
     if (requests === 1) await catalogReady
     const selectedForm = new URL(route.request().url()).searchParams.get("form")
     if (selectedForm === "I-404")
@@ -597,29 +600,38 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
         form: "I-485",
         categoryLabel:
           selectedForm === "I-765" ? "Adjustment of status" : "Family",
-        official: {
-          medianMonths: 12,
-          period: "2026-04-01",
-          previousMedianMonths: 10,
-          previousPeriod: "2026-01-01",
-          trend: "up",
-          asOfDate: "2026-05-01",
-        },
-        trend: [],
-        community:
-          new URL(route.request().url()).searchParams.get("form") === "I-130"
+        official:
+          selectedForm === "I-999"
             ? {
-                filingYear: 2025,
-                p25Days: null,
-                p75Days: null,
-                reason: "insufficient",
+                medianMonths: null,
+                period: null,
+                reason: "unavailable",
               }
             : {
-                filingYear: 2025,
-                p25Days: 130,
-                p75Days: selectedForm === "I-765" ? 131 : 253,
+                medianMonths: 12,
+                period: "2026-04-01",
+                previousMedianMonths: 10,
+                previousPeriod: "2026-01-01",
+                trend: "up",
                 asOfDate: "2026-05-01",
               },
+        trend: [],
+        community:
+          selectedForm === "I-999"
+            ? { p25Days: null, p75Days: null }
+            : selectedForm === "I-130"
+              ? {
+                  filingYear: 2025,
+                  p25Days: null,
+                  p75Days: null,
+                  reason: "insufficient",
+                }
+              : {
+                  filingYear: 2025,
+                  p25Days: 130,
+                  p75Days: selectedForm === "I-765" ? 131 : 253,
+                  asOfDate: "2026-05-01",
+                },
         summary: { eligibleReports: 31416, years: [2024, 2025] },
         freshness: [],
       },
@@ -656,7 +668,10 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   ).toBeVisible()
   await page.getByRole("button", { name: /Change form/ }).click()
   await page.getByRole("button", { name: /Family petition/ }).click()
-  await expect(page.getByText("Not enough reports for a range.")).toBeVisible()
+  await expect(
+    page.getByText("Not enough reports yet to show a range.")
+  ).toBeVisible()
+  await expect(page.getByText("VisaJourney", { exact: true })).toHaveCount(0)
   await page.getByRole("button", { name: /Change form/ }).click()
   await page.getByRole("button", { name: /Browse all other forms/ }).click()
   await page.getByLabel("Search by name or form number").fill("green card")
@@ -665,10 +680,20 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   ).toBeVisible()
   await page.getByLabel("Search by name or form number").fill("I-999")
   await page.getByRole("button", { name: /Other application/ }).click()
-  await page.getByRole("button", { name: /Change form/ }).click()
   await expect(
-    page.getByRole("button", { name: /Browse all other forms/ })
-  ).toBeFocused()
+    page.getByText("No community reports for this form yet.")
+  ).toBeVisible()
+  await expect(
+    page.getByText("USCIS hasn't published a typical wait for this form.")
+  ).toBeVisible()
+  await expect(page.getByText(/Period unavailable/)).toHaveCount(0)
+  await expect(page.getByText("VisaJourney", { exact: true })).toHaveCount(0)
+  await page.getByRole("button", { name: /Change form/ }).click()
+  const selectedOther = page.getByRole("button", {
+    name: /Other application.*Selected/,
+  })
+  await expect(selectedOther).toBeFocused()
+  await expect(selectedOther).toBeInViewport()
   await page.getByRole("button", { name: /Green card application/ }).click()
   await expect(page.getByRole("button", { name: /Change form/ })).toBeFocused()
   await page.getByLabel("When did you file? (optional)").focus()
@@ -721,4 +746,16 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   await expect(
     page.getByRole("link", { name: "My case", exact: true })
   ).toHaveAttribute("href", /form=I-485/)
+  catalogUnavailable = true
+  await page.goto("/")
+  await page.reload()
+  await expect(page.getByText("Forms are unavailable right now.")).toBeVisible({
+    timeout: 20000,
+  })
+  await expect(page.getByRole("alert")).toHaveCount(0)
+  catalogUnavailable = false
+  await page.getByRole("button", { name: "Try again" }).click()
+  await expect(
+    page.getByRole("button", { name: /Green card application/ })
+  ).toBeVisible()
 })

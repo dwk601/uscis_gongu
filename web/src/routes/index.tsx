@@ -157,9 +157,9 @@ function MiniTrend({ values }: { values: (number | null)[] }) {
 }
 
 function periodLabel(period: string | null | undefined) {
-  if (!period) return "Period unavailable"
+  if (!period) return null
   const date = new Date(`${period}T00:00:00Z`)
-  if (Number.isNaN(date.getTime())) return "Period unavailable"
+  if (Number.isNaN(date.getTime())) return null
   const month = date.getUTCMonth()
   return quarterLabel(
     date.getUTCFullYear() + (month >= 9 ? 1 : 0),
@@ -224,6 +224,7 @@ function Home() {
         <FormPicker
           forms={forms}
           unavailable={result.isError}
+          onRetry={() => void result.refetch()}
           value={search.form}
           label="Choose your case"
           initiallyOpen={!search.form}
@@ -264,7 +265,7 @@ function Home() {
       {search.form && (result.isLoading || result.isPlaceholderData) && (
         <p role="status">Loading case data…</p>
       )}
-      {result.isError && (
+      {search.form && result.isError && (
         <p role="alert">
           {(result.error as { status?: number })?.status === 404 ? (
             <>
@@ -315,13 +316,14 @@ function Home() {
                 </p>
               )}
               <p>
-                {categoryLabel(data.categoryLabel, search.form)} · USCIS data,{" "}
-                {periodLabel(official?.period)}
+                {categoryLabel(data.categoryLabel, search.form)} · USCIS data
+                {periodLabel(official?.period) &&
+                  `, ${periodLabel(official?.period)}`}
                 {official?.asOfDate &&
                   ` (as of ${humanDate(official.asOfDate)})`}
               </p>
               {official?.medianMonths == null && official?.reason && (
-                <p>Official median unavailable for this form.</p>
+                <p>USCIS hasn't published a typical wait for this form.</p>
               )}
               <h3>What others reported</h3>
               {community &&
@@ -343,20 +345,22 @@ function Home() {
               ) : (
                 <p>
                   {community?.reason === "insufficient"
-                    ? "Not enough reports for a range."
+                    ? "Not enough reports yet to show a range."
                     : community?.p25Reason === "unreached" ||
                         community?.p75Reason === "unreached"
                       ? "A range has not yet been reached."
-                      : "Range unavailable for this cohort."}
+                      : "No community reports for this form yet."}
                 </p>
               )}
-              {community && (
-                <p>
-                  VisaJourney
-                  {community.asOfDate &&
-                    ` · as of ${humanDate(community.asOfDate)}`}
-                </p>
-              )}
+              {community &&
+                ((community.p25Days != null && community.p75Days != null) ||
+                  community.asOfDate) && (
+                  <p>
+                    VisaJourney
+                    {community.asOfDate &&
+                      ` · as of ${humanDate(community.asOfDate)}`}
+                  </p>
+                )}
               {search.filed && <p>Estimates, not USCIS commitments.</p>}
             </section>
             <section className="case-panel">

@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react"
+import { useId, useRef, useState, type ReactNode } from "react"
 import type { FormSummary } from "@/lib/api"
 import { formHue, formInk } from "@/lib/palette"
 
@@ -20,6 +20,8 @@ export function FormPicker({
   caption,
   unavailable = false,
   onRetry,
+  inline = false,
+  adjacent,
 }: {
   forms?: FormSummary[]
   value: string
@@ -30,15 +32,25 @@ export function FormPicker({
   caption?: string
   unavailable?: boolean
   onRetry?: () => void
+  inline?: boolean
+  adjacent?: ReactNode
 }) {
   const [open, setOpen] = useState(false)
-  const [other, setOther] = useState(false)
+  const [otherState, setOtherState] = useState<{
+    value: string
+    open: boolean
+  }>()
   const [filter, setFilter] = useState("")
   const expanded = initiallyOpen || open
   const id = useId()
   const root = useRef<HTMLDivElement>(null)
   const summary = useRef<HTMLButtonElement>(null)
   const selected = forms?.find((f) => f.form === value)
+  const other =
+    otherState?.value === value
+      ? otherState.open
+      : inline && !!selected && !selected.featured
+  const setOther = (open: boolean) => setOtherState({ value, open })
   const featured = forms?.filter((f) => f.featured) ?? []
   const others = forms?.filter((f) => !f.featured) ?? []
   const mapped = groups.flatMap(([, codes]) => codes)
@@ -71,7 +83,7 @@ export function FormPicker({
   }
   const choose = (form: string) => {
     if (form !== value) onChange(form)
-    close()
+    if (!inline) close()
   }
   const choice = (f: FormSummary) => (
     <button
@@ -94,7 +106,7 @@ export function FormPicker({
   )
   return (
     <div
-      className="form-picker"
+      className={inline ? "form-picker form-picker-inline" : "form-picker"}
       ref={root}
       role="group"
       aria-label={label}
@@ -151,31 +163,40 @@ export function FormPicker({
               )}
             </p>
           )}
-          {groups.map(([heading, codes]) => {
-            const items = featured.filter(
-              (f) =>
-                codes.includes(f.form) ||
-                (heading === "Other situations" && !mapped.includes(f.form))
-            )
-            return items.length ? (
-              <section key={heading}>
-                <h3>{heading}</h3>
-                <div className="form-choices">{items.map(choice)}</div>
-              </section>
-            ) : null
-          })}
-          {others.length > 0 && (
+          {inline ? (
+            <div className="form-choices form-inline-featured">
+              {featured.map(choice)}
+            </div>
+          ) : (
+            groups.map(([heading, codes]) => {
+              const items = featured.filter(
+                (f) =>
+                  codes.includes(f.form) ||
+                  (heading === "Other situations" && !mapped.includes(f.form))
+              )
+              return items.length ? (
+                <section key={heading}>
+                  <h3>{heading}</h3>
+                  <div className="form-choices">{items.map(choice)}</div>
+                </section>
+              ) : null
+            })
+          )}
+          {(others.length > 0 || adjacent) && (
             <div className="form-other">
-              <button
-                type="button"
-                className="form-other-toggle"
-                aria-expanded={other}
-                onClick={() => setOther(!other)}
-              >
-                Don't see yours? Browse all other forms ({others.length})
-              </button>
+              {others.length > 0 && (
+                <button
+                  type="button"
+                  className="form-other-toggle"
+                  aria-expanded={other}
+                  onClick={() => setOther(!other)}
+                >
+                  Don't see yours? Browse all other forms ({others.length})
+                </button>
+              )}
+              {adjacent}
               {other && (
-                <div>
+                <div className="form-other-options">
                   <label htmlFor={id}>Search by name or form number</label>
                   <input
                     id={id}

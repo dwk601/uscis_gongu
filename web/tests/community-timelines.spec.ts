@@ -4,6 +4,12 @@ test("visa routes remain usable across form history", async ({ page }) => {
   const forms = [
     { form: "N-400", name: "Citizenship", featured: true, defaultSeries: "" },
     {
+      form: "I-999",
+      name: "Other application",
+      featured: false,
+      defaultSeries: "",
+    },
+    {
       form: "I-485",
       name: "Green card application",
       featured: true,
@@ -23,7 +29,11 @@ test("visa routes remain usable across form history", async ({ page }) => {
   await page.route("**/api/x/uscis/**", async (route) => {
     const path = new URL(route.request().url()).pathname
     if (path.endsWith("/forms")) return route.fulfill({ json: { forms } })
-    const form = path.includes("N-400") ? "N-400" : "I-485"
+    const form = path.includes("N-400")
+      ? "N-400"
+      : path.includes("I-999")
+        ? "I-999"
+        : "I-485"
     if (path.endsWith("/community")) {
       const values =
         form === "N-400"
@@ -61,8 +71,19 @@ test("visa routes remain usable across form history", async ({ page }) => {
   await expect(page.getByRole("button", { name: /IR-1\/CR-1/ })).toBeVisible()
   await expect(page.getByRole("button", { name: /K1|K-1/ })).toBeVisible()
   await page.getByRole("button", { name: "All forms" }).click()
+  await expect(page.getByRole("button", { name: /I-485/ })).toBeVisible()
+  await page.getByRole("button", { name: /Browse all other forms/ }).click()
+  await page.getByLabel("Search by name or form number").fill("I-999")
+  await page.getByRole("button", { name: /Other application/ }).click()
+  await expect(page).toHaveURL(/form=I-999/)
+  await page.goBack()
+  await page.goForward()
+  await expect(
+    page.getByRole("button", { name: /Other application.*Selected/ })
+  ).toBeVisible()
   await page.getByRole("button", { name: /I-485/ }).click()
   await page.getByRole("button", { name: /K3|K-3/ }).click()
+  await page.goBack()
   await page.goBack()
   await expect(page.getByRole("button", { name: /IR-1\/CR-1/ })).toBeVisible()
   const routes = page.getByRole("group", { name: "Visa route" })

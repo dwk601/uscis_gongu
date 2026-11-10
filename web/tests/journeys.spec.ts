@@ -1,5 +1,66 @@
 import { expect, test } from "@playwright/test"
 
+test("route focus follows screen changes, not in-page updates", async ({
+  page,
+}) => {
+  await page.route("**/api/**", async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (path === "/api/x/uscis/case")
+      return route.fulfill({
+        json: {
+          forms: [{ form: "I-485", name: "Green card", featured: true }],
+          form: "I-485",
+          categoryLabel: "Family",
+          official: null,
+          community: null,
+          summary: { years: [] },
+          trend: [],
+          freshness: [],
+        },
+      })
+    if (path === "/api/x/uscis/forms")
+      return route.fulfill({
+        json: {
+          forms: [{ form: "I-485", name: "Green card", featured: true }],
+        },
+      })
+    if (path.endsWith("/community"))
+      return route.fulfill({ json: { series: [] } })
+    if (path === "/api/x/uscis/forms/I-485")
+      return route.fulfill({ json: { name: "Green card", official: [] } })
+    if (path === "/api/x/uscis/bulletin")
+      return route.fulfill({ json: { categories: [], series: [] } })
+    return route.abort()
+  })
+  await page.goto("/")
+  await expect(
+    page.getByRole("heading", { name: "Find your next step." })
+  ).not.toBeFocused()
+  await page.getByRole("link", { name: "My case", exact: true }).click()
+  await expect(
+    page.getByRole("heading", { name: "My case", exact: true })
+  ).toBeFocused()
+  await page.getByRole("button", { name: /Green card/ }).click()
+  await expect(
+    page.getByRole("heading", { name: "My case", exact: true })
+  ).not.toBeFocused()
+  await page
+    .getByRole("link", { name: "Visa bulletin", exact: true })
+    .first()
+    .click()
+  await expect(
+    page.getByRole("heading", { name: "Visa bulletin", exact: true })
+  ).toBeFocused()
+  await page.goBack()
+  await expect(
+    page.getByRole("heading", { name: "My case", exact: true })
+  ).toBeFocused()
+  await page.getByRole("link", { name: "gongu" }).click()
+  await expect(
+    page.getByRole("heading", { name: "Find your next step." })
+  ).toBeFocused()
+})
+
 test("journey navigation preserves an explicit series without refetching the form", async ({
   page,
 }) => {

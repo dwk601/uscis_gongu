@@ -1135,3 +1135,45 @@ td {
 .form-other .form-choices {
   margin-top: 12px;
 }
+.form-picker-inline .form-picker-options {
+  padding: 0 0 18px;
+}
+.form-inline-featured {
+  padding: 8px 5px;
+  margin: 0 -5px 10px;
+}
+.form-picker-inline .form-other {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  align-items: center;
+  gap: 8px;
+}
+.form-picker-inline .form-other-toggle {
+  grid-row: 2;
+}
+.form-picker-inline .trend-filed {
+  display: contents;
+}
+.form-picker-inline .trend-filed > span:first-child {
+  grid-column: 2;
+  grid-row: 1;
+}
+.form-picker-inline .trend-filed > input {
+  grid-column: 2;
+  grid-row: 2;
+}
+.form-picker-inline .form-other-options,
+.form-picker-inline .filed-hint {
+  grid-column: 1 / -1;
+}
+@media (max-width: 520px) {
+  .form-picker-inline .form-other {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .form-picker-inline .form-other-toggle,
+  .form-picker-inline .trend-filed > span:first-child,
+  .form-picker-inline .trend-filed > input {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}

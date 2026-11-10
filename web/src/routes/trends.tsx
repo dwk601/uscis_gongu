@@ -23,6 +23,7 @@ import {
 import { formHue, formInk } from "@/lib/palette"
 import { visaLabel } from "@/lib/labels"
 import { JourneyPicker } from "@/components/journey-picker"
+import { FormPicker } from "@/components/form-picker"
 import { Insight } from "@/components/insights"
 import {
   availableJourneyForms,
@@ -359,76 +360,75 @@ function Trends() {
         <Insight id={insight} />
       ) : (
         <>
-          <div
-            ref={formRailRef}
-            className="chip-rail form-rail"
-            role="group"
-            aria-label="Form"
-            tabIndex={0}
-          >
-            {(journey === "all"
-              ? (forms.data?.forms
-                  .filter((f) => f.featured)
-                  .map((f) => ({ form: f.form, label: f.name })) ?? [])
-              : choices
-            ).map((f) => (
-              <button
-                key={f.form}
-                className="chip"
-                aria-pressed={f.form === search.form}
-                onClick={() => {
-                  if (f.form !== search.form) {
-                    setVisa(undefined)
-                    setSource(undefined)
-                    update({ form: f.form, journey, series: undefined })
-                  }
-                }}
-              >
-                {f.label} <small>· {f.form}</small>
-              </button>
-            ))}
-          </div>
-          <div className="controls">
-            {journey === "all" && (
-              <select
-                className="field"
-                aria-label="More forms"
-                value={summary && !summary.featured ? search.form : ""}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    if (e.target.value !== search.form) {
+          {journey === "all" ? (
+            <FormPicker
+              forms={forms.data?.forms}
+              value={search.form}
+              label="Form"
+              caption="Choose a form"
+              initiallyOpen
+              inline
+              unavailable={forms.isError}
+              onRetry={() => void forms.refetch()}
+              onChange={(form) => {
+                if (form !== search.form) {
+                  setVisa(undefined)
+                  setSource(undefined)
+                  update({ form, journey, series: undefined })
+                }
+              }}
+              adjacent={
+                <label className="field-label trend-filed">
+                  <span>Filed</span>
+                  <FiledInput
+                    className="field"
+                    inputRef={filedRef}
+                    value={search.filed}
+                    onCommit={(filed) => update({ filed })}
+                  />
+                </label>
+              }
+            />
+          ) : (
+            <div
+              ref={formRailRef}
+              className="chip-rail form-rail"
+              role="group"
+              aria-label="Form"
+              tabIndex={0}
+            >
+              {choices.map((f) => (
+                <button
+                  key={f.form}
+                  className="chip"
+                  aria-pressed={f.form === search.form}
+                  onClick={() => {
+                    if (f.form !== search.form) {
                       setVisa(undefined)
                       setSource(undefined)
-                      update({
-                        form: e.target.value,
-                        journey,
-                        series: undefined,
-                      })
+                      update({ form: f.form, journey, series: undefined })
                     }
-                  }
-                }}
-              >
-                <option value="">More forms</option>
-                {forms.data?.forms
-                  .filter((f) => !f.featured)
-                  .map((f) => (
-                    <option key={f.form} value={f.form}>
-                      {f.name} · {f.form}
-                    </option>
-                  ))}
-              </select>
-            )}
-            <label className="field-label">
-              Filed{" "}
-              <FiledInput
-                className="field"
-                inputRef={filedRef}
-                value={search.filed}
-                onCommit={(filed) => update({ filed })}
-              />
-            </label>
-          </div>
-          {forms.isError && (
+                  }}
+                >
+                  {f.label} <small>· {f.form}</small>
+                </button>
+              ))}
+            </div>
+          )}
+          {journey !== "all" && (
+            <div className="controls">
+              <label className="field-label">
+                Filed{" "}
+                <FiledInput
+                  className="field"
+                  inputRef={filedRef}
+                  value={search.filed}
+                  onCommit={(filed) => update({ filed })}
+                />
+              </label>
+            </div>
+          )}
+          {journey !== "all" && forms.isError && (
             <p className="error">
               Forms unavailable.{" "}
               <button onClick={() => void forms.refetch()}>Try again</button>

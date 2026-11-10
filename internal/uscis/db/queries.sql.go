@@ -59,6 +59,116 @@ func (q *Queries) Bulletin(ctx context.Context) ([]BulletinRow, error) {
 	return items, nil
 }
 
+const caseEstimates = `-- name: CaseEstimates :many
+SELECT e.form, e.category, e.filing_year, e.is_default_cohort, e.official_description,
+ e.official_median_months, e.official_period, e.official_previous_median_months,
+ e.official_previous_period, e.latest_reporting_period, e.official_trend, e.as_of_date,
+ e.official_reason, e.official_source, e.official_population, e.p25_days, e.p50_days,
+ e.p75_days, e.eligible_count, e.completed_count, e.censored_count, e.excluded_count,
+ e.visa_types, e.community_as_of_date, e.community_refreshed_at, e.community_reason,
+ e.p25_reason, e.p75_reason, e.community_source, e.community_method, e.community_population,
+ (SELECT json_build_object('eligibleReports', coalesce(sum(s.eligible_count), 0),
+   'years', coalesce(json_agg(DISTINCT s.filing_year ORDER BY s.filing_year) FILTER (WHERE s.filing_year IS NOT NULL), '[]'::json))
+  FROM public.case_community_stats s WHERE s.form = $1)::json AS summary,
+ (SELECT coalesce(json_agg(json_build_object('source', r.source, 'latestStatus', r.latest_run_status,
+   'latestAttemptStartedAt', r.latest_run_started_at, 'latestAttemptFinishedAt', r.latest_run_finished_at,
+   'lastSuccessAt', r.last_successful_run_finished_at, 'lastDataAt', r.last_recorded_data_run_finished_at,
+   'lastDataStatus', r.last_recorded_data_run_status, 'latestAttemptFailed', r.latest_run_status = 'failed') ORDER BY r.source), '[]'::json)
+  FROM public.source_refresh_status r WHERE r.source IN ('uscis_quarterly', 'visajourney'))::json AS freshness
+FROM public.case_estimate_current e WHERE e.form = $1 AND e.official_description IS NOT NULL
+ORDER BY e.category, e.filing_year
+`
+
+type CaseEstimatesRow struct {
+	Form                         *string
+	Category                     *string
+	FilingYear                   *int32
+	IsDefaultCohort              *bool
+	OfficialDescription          *string
+	OfficialMedianMonths         *float64
+	OfficialPeriod               pgtype.Date
+	OfficialPreviousMedianMonths *float64
+	OfficialPreviousPeriod       pgtype.Date
+	LatestReportingPeriod        pgtype.Date
+	OfficialTrend                *string
+	AsOfDate                     pgtype.Date
+	OfficialReason               *string
+	OfficialSource               *string
+	OfficialPopulation           *string
+	P25Days                      *int32
+	P50Days                      *int32
+	P75Days                      *int32
+	EligibleCount                *int64
+	CompletedCount               *int64
+	CensoredCount                *int64
+	ExcludedCount                *int64
+	VisaTypes                    []string
+	CommunityAsOfDate            pgtype.Date
+	CommunityRefreshedAt         pgtype.Timestamptz
+	CommunityReason              *string
+	P25Reason                    *string
+	P75Reason                    *string
+	CommunitySource              *string
+	CommunityMethod              *string
+	CommunityPopulation          *string
+	Summary                      []byte
+	Freshness                    []byte
+}
+
+func (q *Queries) CaseEstimates(ctx context.Context, form *string) ([]CaseEstimatesRow, error) {
+	rows, err := q.db.Query(ctx, caseEstimates, form)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CaseEstimatesRow
+	for rows.Next() {
+		var i CaseEstimatesRow
+		if err := rows.Scan(
+			&i.Form,
+			&i.Category,
+			&i.FilingYear,
+			&i.IsDefaultCohort,
+			&i.OfficialDescription,
+			&i.OfficialMedianMonths,
+			&i.OfficialPeriod,
+			&i.OfficialPreviousMedianMonths,
+			&i.OfficialPreviousPeriod,
+			&i.LatestReportingPeriod,
+			&i.OfficialTrend,
+			&i.AsOfDate,
+			&i.OfficialReason,
+			&i.OfficialSource,
+			&i.OfficialPopulation,
+			&i.P25Days,
+			&i.P50Days,
+			&i.P75Days,
+			&i.EligibleCount,
+			&i.CompletedCount,
+			&i.CensoredCount,
+			&i.ExcludedCount,
+			&i.VisaTypes,
+			&i.CommunityAsOfDate,
+			&i.CommunityRefreshedAt,
+			&i.CommunityReason,
+			&i.P25Reason,
+			&i.P75Reason,
+			&i.CommunitySource,
+			&i.CommunityMethod,
+			&i.CommunityPopulation,
+			&i.Summary,
+			&i.Freshness,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const community = `-- name: Community :many
 SELECT stage, visa_type, filing_year, sample_size, completed_count, pending_count, pending_share, p10_days, p50_days, p90_days
 FROM public.visajourney_timeline_stats

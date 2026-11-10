@@ -28,6 +28,7 @@ func Register(app core.App) {
 		})
 
 		handlers := &api{q: db.New(pool), cache: make(map[string]entry)}
+		e.Router.GET("/api/x/uscis/case", handlers.caseScreen)
 		e.Router.GET("/api/x/uscis/forms", handlers.formList)
 		e.Router.GET("/api/x/uscis/forms/{form}", handlers.form)
 		e.Router.GET("/api/x/uscis/forms/{form}/community", handlers.community)

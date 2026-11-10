@@ -27,11 +27,14 @@ func TestAgentContract(t *testing.T) {
 	// The only fake is the remote provider. Requests still cross authentication,
 	// PocketBase transactions, the official SDK, sqlc and read-only PostgreSQL.
 	type step struct {
-		name, args string
-		status     int
-		check      func(map[string]any)
-		argsFrom   func(map[string]any) string
-		noUsage    bool
+		name, args  string
+		status      int
+		check       func(map[string]any)
+		argsFrom    func(map[string]any) string
+		noUsage     bool
+		toolsFrom   func(map[string]any) []any
+		block       <-chan struct{}
+		untilCancel bool
 	}
 	type harness struct {
 		app    *tests.TestApp
@@ -63,6 +66,17 @@ func TestAgentContract(t *testing.T) {
 			if s.check != nil {
 				s.check(v)
 			}
+			if s.untilCancel {
+				<-r.Context().Done()
+				return
+			}
+			if s.block != nil {
+				select {
+				case <-s.block:
+				case <-r.Context().Done():
+					return
+				}
+			}
 			w.Header().Set("Content-Type", "application/json")
 			if s.status != 0 {
 				w.WriteHeader(s.status)
@@ -76,7 +90,11 @@ func TestAgentContract(t *testing.T) {
 			if s.argsFrom != nil {
 				s.args = s.argsFrom(v)
 			}
-			json.NewEncoder(w).Encode(map[string]any{"id": "completion", "object": "chat.completion", "model": "fixture-model", "choices": []any{map[string]any{"index": 0, "finish_reason": "tool_calls", "message": map[string]any{"role": "assistant", "content": "Never render this raw text 9999", "tool_calls": []any{tool(s.name, s.args)}}}}, "usage": map[string]int{"prompt_tokens": 13, "completion_tokens": 7}})
+			calls := []any{tool(s.name, s.args)}
+			if s.toolsFrom != nil {
+				calls = s.toolsFrom(v)
+			}
+			json.NewEncoder(w).Encode(map[string]any{"id": "completion", "object": "chat.completion", "model": "fixture-model", "choices": []any{map[string]any{"index": 0, "finish_reason": "tool_calls", "message": map[string]any{"role": "assistant", "content": "Never render this raw text 9999", "tool_calls": calls}}}, "usage": map[string]int{"prompt_tokens": 13, "completion_tokens": 7}})
 		}))
 		t.Cleanup(server.Close)
 		t.Setenv("AGENT_BASE_URL", server.URL+"/v1/")
@@ -146,12 +164,17 @@ func TestAgentContract(t *testing.T) {
 	}
 	results := func(v map[string]any) []map[string]any {
 		out := []map[string]any{}
+		total := 0
 		for _, raw := range v["messages"].([]any) {
 			msg := raw.(map[string]any)
 			if msg["role"] != "tool" {
 				continue
 			}
 			text := msg["content"].(string)
+			total += len(text)
+			if total > 3000 {
+				t.Errorf("combined tool result cap: %d", total)
+			}
 			if len([]byte(text)) > 1200 {
 				t.Errorf("tool result exceeds cap: %d", len(text))
 			}
@@ -169,46 +192,65 @@ func TestAgentContract(t *testing.T) {
 	const badStyle = `{"kind":"clarification","blocks":[{"type":"paragraph","text":"Which form—please clarify?"}]}`
 
 	t.Run("grounded answer and input boundary", func(t *testing.T) {
-		var rowRef, approvedRef, estimateRef, selectedSeries string
 		h := newHarness(t, []step{
 			{name: "forms", args: formsArgs},
-			{name: "estimate_date", argsFrom: func(map[string]any) string {
-				return fmt.Sprintf(`{"form":"I-765","series":%q,"filingDate":"2024-01-01"}`, selectedSeries)
-			}, check: func(v map[string]any) {
-				r := results(v)[0]
+			{toolsFrom: func(v map[string]any) []any {
+				options := results(v)[0]["items"].([]any)
+				if len(options) != 2 {
+					t.Errorf("series options: %#v", options)
+				}
+				selected := ""
+				labels := map[string]bool{}
+				for _, raw := range options {
+					row := raw.(map[string]any)["row"].(map[string]any)
+					labels[row["label"].(string)] = true
+					if row["period"] != "FY 2025 quarter 4" {
+						t.Errorf("option period: %#v", row)
+					}
+					if row["label"] == "All other cases" {
+						selected = row["series"].(string)
+					}
+				}
+				if !labels["Asylum"] || !labels["All other cases"] || selected == "" {
+					t.Errorf("series discovery: %#v", options)
+				}
+				estimate := tool("estimate_date", fmt.Sprintf(`{"form":"I-765","series":%q,"filingDate":"2024-01-01"}`, selected))
+				estimate["id"] = "call_2"
+				return []any{tool("forms", fmt.Sprintf(`{"form":"I-765","series":%q}`, selected)), estimate}
+			}},
+			{name: "answer", argsFrom: func(v map[string]any) string {
+				projections := results(v)
+				r := projections[1]
 				if r["truncated"] != true || r["omitted"].(float64) < 1 || int(r["omitted"].(float64))+len(r["items"].([]any)) != 4 {
 					t.Errorf("bounded projection: %#v", r)
 				}
 				item := r["items"].([]any)[0].(map[string]any)
 				row := item["row"].(map[string]any)
-				rowRef = item["rowRef"].(string)
-				approvedRef = item["factRefs"].(map[string]any)["approved"].(string)
-				selectedSeries = row["series"].(string)
 				if row["received"] != float64(123) || row["approved"] != nil || row["processingMonths"] != nil || row["label"] != "Work permit EAD, All other cases" {
 					t.Errorf("official projection: %#v", item)
 				}
-			}},
-			{name: "answer", argsFrom: func(map[string]any) string {
-				return fmt.Sprintf(`{"kind":"answer","blocks":[{"type":"stat","factRef":%q},{"type":"table","rowRefs":[%q],"columns":["label","received","approved","period"]},{"type":"date_estimate","estimateRef":%q}]}`, approvedRef, rowRef, estimateRef)
-			}, check: func(v map[string]any) {
-				r := results(v)[1]
-				item := r["items"].([]any)[0].(map[string]any)
-				estimateRef = item["estimateRef"].(string)
-				est := item["estimate"].(map[string]any)
+				factRefs := item["factRefs"].(map[string]any)
+				estimate := projections[2]["items"].([]any)[0].(map[string]any)
+				est := estimate["estimate"].(map[string]any)
 				if est["medianMonths"] != 2.5 || est["estimatedDate"] != "2024-03-17" || est["period"] != "FY 2025 quarter 2" {
-					t.Errorf("estimate projection: %#v", item)
+					t.Errorf("estimate projection: %#v", estimate)
 				}
+				paragraph := fmt.Sprintf("I-765 reports {{%s}} received. Approval data is {{%s}}. The estimate is {{%s}}.", factRefs["received"], factRefs["approved"], estimate["estimateRef"])
+				return fmt.Sprintf(`{"kind":"answer","blocks":[{"type":"paragraph","text":%q},{"type":"stat","factRef":%q},{"type":"table","rowRefs":[%q],"columns":["label","received","approved","period"]},{"type":"date_estimate","estimateRef":%q}]}`, paragraph, factRefs["approved"], item["rowRef"], estimate["estimateRef"])
 			}},
 		})
 		ask(t, h, `{"question":"hello"}`, "", 401)
-		for _, body := range []string{`{}`, `{"question":" "}`, `{"question":42}`, `{"Question":"hi"}`, `{"question":null}`, `[]`, `{"question":"hi","user":"spoof"}`, `{"question":"hi"} {}`, `{"question":"` + strings.Repeat("a", 2001) + `"}`, strings.Repeat(" ", 8193)} {
+		for _, body := range []string{`{}`, `{"question":" "}`, `{"question":42}`, `{"Question":"hi"}`, `{"question":null}`, `[]`, `{"question":"hi","user":"spoof"}`, `{"question":"hi"} {}`, `{"question":"a","question":"b"}`, `{"question":"` + strings.Repeat("a", 2001) + `"}`, `{"question":"` + strings.Repeat(`\u4e00`, 2000) + `"}`} {
 			ask(t, h, body, h.tokens[0], 400)
 		}
 		v := ask(t, h, `{"question":"  Compare the official data and estimate.  "}`, h.tokens[0], 200)
 		blocks := v["blocks"].([]any)
-		stat := blocks[0].(map[string]any)
-		estimate := blocks[2].(map[string]any)
-		if v["kind"] != "answer" || len(blocks) != 3 || stat["value"] != nil || stat["label"] != "Work permit EAD, All other cases, Approved cases" || stat["unit"] != "cases" || estimate["medianMonths"] != 2.5 || estimate["estimatedDate"] != "2024-03-17" {
+		stat := blocks[1].(map[string]any)
+		estimate := blocks[3].(map[string]any)
+		if blocks[0].(map[string]any)["text"] != "I-765 reports 123 cases received. Approval data is not available. The estimate is 2024-03-17." {
+			t.Fatalf("resolved prose: %#v", blocks[0])
+		}
+		if v["kind"] != "answer" || len(blocks) != 4 || stat["value"] != nil || stat["label"] != "Work permit EAD, All other cases, Approved cases" || stat["unit"] != "cases" || estimate["medianMonths"] != 2.5 || estimate["estimatedDate"] != "2024-03-17" {
 			t.Fatalf("grounded blocks: %#v", v)
 		}
 		sources := v["sources"].([]any)
@@ -251,25 +293,47 @@ func TestAgentContract(t *testing.T) {
 			name, args, answer string
 			check              func(map[string]any)
 		}{
+			{"forms", `{"form":"I-131","query":"NACARA"}`, `{"kind":"clarification","blocks":[{"type":"paragraph","text":"Do you mean {{r1.label}}?"}]}`, func(item map[string]any) {
+				row := item["row"].(map[string]any)
+				if row["label"] != "A to B NACARA, urgent, now" || row["period"] != "FY 2025 quarter 4" {
+					t.Errorf("normalized option: %#v", row)
+				}
+			}},
+			{"forms", `{"form":"I-129F"}`, `{"kind":"answer","blocks":[{"type":"table","rowRefs":["r1"],"columns":["label"]}]}`, func(item map[string]any) {
+				if item["row"].(map[string]any)["label"] != "Fiancé or fiancée or spouse petition, Petition for Alien Fiancé or fiancée" {
+					t.Errorf("normalized fiance label: %#v", item)
+				}
+			}},
+			{"forms", `{"query":"fiancé"}`, `{"kind":"answer","blocks":[{"type":"paragraph","text":"The catalog calls this {{r1.name}}."}]}`, func(item map[string]any) {
+				row := item["row"].(map[string]any)
+				if row["form"] != "I-129F" || row["name"] != "Fiancé or fiancée or spouse petition" {
+					t.Errorf("filtered catalog: %#v", row)
+				}
+			}},
+			{"forms", `{"offset":2}`, `{"kind":"answer","blocks":[{"type":"paragraph","text":"The catalog calls this {{r1.name}}."}]}`, func(item map[string]any) {
+				if item["row"].(map[string]any)["form"] != "I-131" {
+					t.Errorf("catalog offset: %#v", item)
+				}
+			}},
 			{"community_timelines", `{"form":"I-765","visaType":"K1","filingYear":2024}`, `{"kind":"answer","blocks":[{"type":"table","rowRefs":["r1"],"columns":["sampleSize","completed","p50","p90"]}]}`, func(item map[string]any) {
 				row := item["row"].(map[string]any)
 				if row["sampleSize"] != float64(40) || row["completed"] != float64(31) || row["p50"] != float64(45) || row["p90"] != nil || row["meaning"] != "Application filed to work permit approved. Percentiles describe completed reports only." {
 					t.Errorf("community fixture: %#v", row)
 				}
 			}},
-			{"bulletin", `{"category":"EB2","country":"IN","chart":"final_action"}`, `{"kind":"answer","blocks":[{"type":"bulletin_cutoff","cutoffRef":"c1"}]}`, func(item map[string]any) {
+			{"bulletin", `{"category":"EB2","country":"INDIA","chart":"final_action"}`, `{"kind":"answer","blocks":[{"type":"bulletin_cutoff","cutoffRef":"c1"}]}`, func(item map[string]any) {
 				cutoff := item["cutoff"].(map[string]any)
-				if cutoff["status"] != "date" || cutoff["cutoff"] != "2012-10-15" || cutoff["month"] != "2025-02" {
+				if cutoff["status"] != "date" || cutoff["cutoff"] != "2012-10-15" || cutoff["month"] != "2025-02" || cutoff["country"] != "INDIA" {
 					t.Errorf("date cutoff: %#v", cutoff)
 				}
 			}},
-			{"bulletin", `{"category":"EB2","country":"ROW","chart":"final_action"}`, `{"kind":"answer","blocks":[{"type":"bulletin_cutoff","cutoffRef":"c1"}]}`, func(item map[string]any) {
+			{"bulletin", `{"category":"EB2","country":"ALL","chart":"final_action"}`, `{"kind":"answer","blocks":[{"type":"bulletin_cutoff","cutoffRef":"c1"}]}`, func(item map[string]any) {
 				cutoff := item["cutoff"].(map[string]any)
 				if cutoff["status"] != "current" || cutoff["cutoff"] != nil {
 					t.Errorf("current cutoff: %#v", cutoff)
 				}
 			}},
-			{"bulletin", `{"category":"EB2","country":"IN","chart":"dates_for_filing","month":"2025-02"}`, `{"kind":"answer","blocks":[{"type":"bulletin_cutoff","cutoffRef":"c1"}]}`, func(item map[string]any) {
+			{"bulletin", `{"category":"EB2","country":"INDIA","chart":"dates_for_filing","month":"2025-02"}`, `{"kind":"answer","blocks":[{"type":"bulletin_cutoff","cutoffRef":"c1"}]}`, func(item map[string]any) {
 				cutoff := item["cutoff"].(map[string]any)
 				if cutoff["status"] != "unavailable" || cutoff["cutoff"] != nil {
 					t.Errorf("unavailable cutoff: %#v", cutoff)
@@ -281,13 +345,22 @@ func TestAgentContract(t *testing.T) {
 				item := r["items"].([]any)[0].(map[string]any)
 				tc.check(item)
 				if ref, ok := item["rowRef"].(string); ok {
-					return strings.ReplaceAll(tc.answer, `"r1"`, fmt.Sprintf("%q", ref))
+					return strings.ReplaceAll(tc.answer, "r1", ref)
 				}
-				return strings.ReplaceAll(tc.answer, `"c1"`, fmt.Sprintf("%q", item["cutoffRef"]))
+				return strings.ReplaceAll(tc.answer, "c1", item["cutoffRef"].(string))
 			}}})
 			v := ask(t, h, `{"question":"Show the selected data."}`, h.tokens[0], 200)
 			if len(v["blocks"].([]any)) != 1 || len(v["sources"].([]any)) != 1 {
 				t.Fatalf("reader blocks/sources: %#v", v)
+			}
+			if tc.args == `{"form":"I-131","query":"NACARA"}` && v["blocks"].([]any)[0].(map[string]any)["text"] != "Do you mean A to B NACARA, urgent, now?" {
+				t.Fatalf("normalized explanation: %#v", v)
+			}
+			if tc.name == "community_timelines" {
+				source := v["sources"].([]any)[0].(map[string]any)
+				if source["label"] != "VisaJourney self-reported timelines, I-765, K1, Application filed to work permit approved" || source["period"] != "Filing cohort 2024" {
+					t.Fatalf("normalized source: %#v", source)
+				}
 			}
 		}
 	})
@@ -310,19 +383,31 @@ func TestAgentContract(t *testing.T) {
 			{name: "answer", args: `{"kind":"answer","blocks":[{"type":"stat","factRef":"made-up"}]}`},
 			{name: "answer", args: `{"kind":"answer","blocks":[{"type":"stat","factRef":"made-up","value":9999}]}`},
 		} {
-			h := newHarness(t, []step{s})
+			steps := []step{s}
+			if s.name == "answer" {
+				steps = append(steps, s)
+			}
+			h := newHarness(t, steps)
 			start := time.Now()
 			ask(t, h, `{"question":"Tell me."}`, h.tokens[0], 503)
-			if time.Since(start) > time.Second || h.calls.Load() != 1 {
+			if time.Since(start) > time.Second || int(h.calls.Load()) != len(steps) {
 				t.Fatal("invalid selection dispatched a reader or retried")
 			}
 		}
 	})
 
 	t.Run("style repair and provider wire contract", func(t *testing.T) {
-		for _, second := range []string{clarify, badStyle} {
+		for _, draft := range []struct{ first, second string }{
+			{badStyle, clarify}, {badStyle, badStyle},
+			{`{"kind":"clarification","blocks":[{"type":"paragraph","text":"There are 123 pending cases."}]}`, clarify},
+			{`{"kind":"clarification","blocks":[{"type":"paragraph","text":"Which form--please clarify?"}]}`, clarify},
+			{`{"kind":"clarification","blocks":[{"type":"paragraph","text":"Which form―please clarify?"}]}`, clarify},
+			{`{"kind":"clarification","blocks":[{"type":"paragraph","text":"Which form‒please clarify?"}]}`, clarify},
+			{`{"kind":"clarification","blocks":[{"type":"paragraph","text":"Which form−please clarify?"}]}`, clarify},
+		} {
+			second := draft.second
 			h := newHarness(t, []step{
-				{name: "answer", args: badStyle, check: func(v map[string]any) {
+				{name: "answer", args: draft.first, check: func(v map[string]any) {
 					allowed := map[string]bool{"model": true, "messages": true, "tools": true, "tool_choice": true, "max_completion_tokens": true, "reasoning_effort": true}
 					for k := range v {
 						if !allowed[k] {
@@ -359,19 +444,26 @@ func TestAgentContract(t *testing.T) {
 	})
 
 	t.Run("reader and provider failures charge usage", func(t *testing.T) {
-		for _, s := range []step{{name: "forms", args: formsArgs}, {status: 400}, {status: 400, noUsage: true}} {
-			if s.status == 0 {
+		for _, s := range []step{{name: "forms", args: formsArgs}, {status: 400}, {status: 400, noUsage: true}, {untilCancel: true}} {
+			if s.status == 0 && !s.untilCancel {
 				if _, err := fixture.Exec(context.Background(), "ALTER VIEW public.uscis_form_quarter RENAME TO saved_agent_forms"); err != nil {
 					t.Fatal(err)
 				}
 			}
 			h := newHarness(t, []step{s})
-			ask(t, h, `{"question":"Show data."}`, h.tokens[0], 503)
+			status := 503
+			if s.untilCancel {
+				status = 504
+			}
+			v := ask(t, h, `{"question":"Show data."}`, h.tokens[0], status)
+			if s.untilCancel && v["message"] != "The answer took too long. Please try again." {
+				t.Fatalf("deadline response: %#v", v)
+			}
 			rows, err := h.app.FindAllRecords("agent_usage")
 			if err != nil || len(rows) != 1 || rows[0].GetInt("reserved_tokens") != 0 {
 				t.Fatalf("charged failure: %v %v", rows, err)
 			}
-			if s.noUsage {
+			if s.noUsage || s.untilCancel {
 				if rows[0].GetInt("estimated_tokens") <= 1024 || rows[0].GetInt("input_tokens") != 0 || rows[0].GetInt("output_tokens") != 0 {
 					t.Fatalf("missing usage charge: %v", rows[0])
 				}
@@ -381,7 +473,7 @@ func TestAgentContract(t *testing.T) {
 			if h.calls.Load() != 1 {
 				t.Fatal("failure retried")
 			}
-			if s.status == 0 {
+			if s.status == 0 && !s.untilCancel {
 				if _, err := fixture.Exec(context.Background(), "ALTER VIEW public.saved_agent_forms RENAME TO uscis_form_quarter"); err != nil {
 					t.Fatal(err)
 				}
@@ -392,7 +484,7 @@ func TestAgentContract(t *testing.T) {
 	t.Run("budget isolation and persistence", func(t *testing.T) {
 		h := newHarness(t, []step{{name: "answer", args: refusal}, {name: "answer", args: refusal}})
 		t.Setenv("AGENT_DAILY_TOKENS", "10000")
-		ask(t, h, `{"question":"Weather?"}`, h.tokens[0], 200)
+		ask(t, h, `{"question":"`+strings.Repeat("案", 2000)+`"}`, h.tokens[0], 200)
 		v := ask(t, h, `{"question":"Weather?"}`, h.tokens[0], 429)
 		data := v["data"].(map[string]any)
 		if data["reason"].(map[string]any)["code"] != "daily_budget_exhausted" || data["remaining"] != float64(9980) || h.calls.Load() != 1 {
@@ -418,6 +510,58 @@ func TestAgentContract(t *testing.T) {
 		for _, r := range rows {
 			if r.GetInt("input_tokens") != 13 || r.GetInt("output_tokens") != 7 || r.GetInt("reserved_tokens") != 0 {
 				t.Fatalf("persisted usage: %v", r)
+			}
+		}
+		tooSmall := newHarness(t, nil)
+		t.Setenv("AGENT_MAX_QUESTION_TOKENS", "1")
+		invalid := ask(t, tooSmall, `{"question":"A valid question."}`, tooSmall.tokens[0], 400)
+		if invalid["message"] != "Invalid question." || tooSmall.calls.Load() != 0 {
+			t.Fatalf("input allocation: %#v", invalid)
+		}
+
+		release := make(chan struct{})
+		released := false
+		defer func() {
+			if !released {
+				close(release)
+			}
+		}()
+		blocked := newHarness(t, []step{
+			{name: "answer", args: refusal, block: release}, {name: "answer", args: refusal, block: release},
+			{name: "answer", args: refusal, block: release}, {name: "answer", args: refusal, block: release},
+		})
+		responses := make(chan *httptest.ResponseRecorder, 4)
+		for i := 0; i < 4; i++ {
+			go func(i int) {
+				req := httptest.NewRequest("POST", "/api/x/agent/ask", strings.NewReader(`{"question":"Weather?"}`))
+				req.Header.Set("Authorization", blocked.tokens[0])
+				req.RemoteAddr = fmt.Sprintf("198.51.100.%d:1234", i+1)
+				res := httptest.NewRecorder()
+				blocked.mux.ServeHTTP(res, req)
+				responses <- res
+			}(i)
+		}
+		until := time.Now().Add(2 * time.Second)
+		for blocked.calls.Load() < 4 && time.Now().Before(until) {
+			time.Sleep(5 * time.Millisecond)
+		}
+		if blocked.calls.Load() != 4 {
+			t.Fatal("four questions were not admitted")
+		}
+		busy := ask(t, blocked, `{"question":"Weather?"}`, blocked.tokens[0], 429)
+		busyData := busy["data"].(map[string]any)
+		if busy["message"] != "Ask gongu is busy. Please try again in a moment." || busyData["reason"].(map[string]any)["code"] != "busy" {
+			t.Fatalf("busy response: %#v", busy)
+		}
+		if _, exists := busyData["remaining"]; exists || blocked.calls.Load() != 4 {
+			t.Fatalf("busy must not spend quota: %#v", busy)
+		}
+		close(release)
+		released = true
+		for i := 0; i < 4; i++ {
+			res := <-responses
+			if res.Code != 200 {
+				t.Fatalf("admitted question: %d %s", res.Code, res.Body.String())
 			}
 		}
 	})

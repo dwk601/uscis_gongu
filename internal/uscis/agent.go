@@ -54,27 +54,33 @@ func loadAgentConfig() (agentConfig, error) {
 	}
 	return c, nil
 }
-func agentError(e *core.RequestEvent, ctx context.Context) error {
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+
+var errAgentQuestion = errors.New("question exceeds token allocation")
+
+func agentError(e *core.RequestEvent, ctx context.Context, cause error) error {
+	if errors.Is(cause, errAgentQuestion) {
+		return e.Error(400, "Invalid question.", nil)
+	}
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(cause, context.DeadlineExceeded) {
 		return e.Error(504, "The answer took too long. Please try again.", nil)
 	}
 	return e.Error(503, agentUnavailable, nil)
 }
-func agentQuotaError(e *core.RequestEvent, b agentBudget, reason string) error {
-	return e.JSON(429, map[string]any{"status": 429, "message": "You have used today's Ask gongu budget.", "data": map[string]any{"reason": map[string]string{"code": reason, "message": map[string]string{"busy": "Ask gongu is busy. Please try again later.", "daily_budget_exhausted": "Your daily token budget cannot cover another question."}[reason]}, "remaining": b.Remaining, "resetsAt": b.ResetsAt}})
+func agentQuotaError(e *core.RequestEvent, b agentBudget) error {
+	return e.JSON(429, map[string]any{"status": 429, "message": "You have used today's Ask gongu budget.", "data": map[string]any{"reason": map[string]string{"code": "daily_budget_exhausted", "message": "Your daily token budget cannot cover another question."}, "remaining": b.Remaining, "resetsAt": b.ResetsAt}})
 }
 
 func (a *api) agentAsk(e *core.RequestEvent) error {
 	ctx, cancel := context.WithTimeout(e.Request.Context(), 30*time.Second)
 	defer cancel()
 	raw, err := io.ReadAll(io.LimitReader(e.Request.Body, 8193))
-	var body map[string]json.RawMessage
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	if err != nil || len(raw) > 8192 || !utf8.Valid(raw) || dec.Decode(&body) != nil || dec.Decode(new(any)) != io.EOF || len(body) != 1 {
+	value, decodeErr := decodeAgentJSON(raw)
+	body, ok := value.(map[string]any)
+	if err != nil || len(raw) > 8192 || !utf8.Valid(raw) || decodeErr != nil || !ok || len(body) != 1 {
 		return e.Error(400, "Invalid question.", nil)
 	}
-	var question string
-	if json.Unmarshal(body["question"], &question) != nil {
+	question, ok := body["question"].(string)
+	if !ok {
 		return e.Error(400, "Invalid question.", nil)
 	}
 	question = strings.TrimSpace(question)
@@ -83,20 +89,21 @@ func (a *api) agentAsk(e *core.RequestEvent) error {
 	}
 	c, err := loadAgentConfig()
 	if err != nil {
-		return agentError(e, ctx)
+		return agentError(e, ctx, err)
 	}
 	select {
 	case agentSlots <- struct{}{}:
 		defer func() { <-agentSlots }()
 	default:
-		return agentQuotaError(e, agentBudget{ResetsAt: time.Now().UTC().Truncate(24 * time.Hour).Add(24 * time.Hour).Format(time.RFC3339)}, "busy")
+		const message = "Ask gongu is busy. Please try again in a moment."
+		return e.JSON(429, map[string]any{"status": 429, "message": message, "data": map[string]any{"reason": map[string]string{"code": "busy", "message": message}}})
 	}
 	meter, err := reserveAgent(ctx, e.App, e.Auth.Id, c)
 	if errors.Is(err, errAgentBudget) {
-		return agentQuotaError(e, meter.budget, "daily_budget_exhausted")
+		return agentQuotaError(e, meter.budget)
 	}
 	if err != nil {
-		return agentError(e, ctx)
+		return agentError(e, ctx, err)
 	}
 	start := time.Now()
 	status := 503
@@ -106,10 +113,13 @@ func (a *api) agentAsk(e *core.RequestEvent) error {
 	response, err := a.runAgent(ctx, e.App, c, meter, question)
 	settled := meter.settle()
 	if err != nil || settled != nil || ctx.Err() != nil {
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
 			status = 504
 		}
-		return agentError(e, ctx)
+		if errors.Is(err, errAgentQuestion) {
+			status = 400
+		}
+		return agentError(e, ctx, errors.Join(err, settled))
 	}
 	response.Budget = meter.budget
 	status = 200
@@ -131,19 +141,13 @@ func (a *api) runAgent(ctx context.Context, app core.App, c agentConfig, m *agen
 		if err != nil {
 			return nil, err
 		}
-		// The fixed English instructions and schemas use three bytes per token
-		// plus framing. Count every byte of variable messages as a token so
-		// Unicode questions and unusual tool strings cannot lower the estimate.
-		variableBytes := 0
-		for _, message := range messages[1:] {
-			data, err := json.Marshal(message)
-			if err != nil {
-				return nil, err
-			}
-			variableBytes += len(data)
-		}
-		inputEstimate := int64((len(encoded)-variableBytes+2)/3 + variableBytes + 128)
+		// Include instructions, schemas, all message text and framing. Three
+		// UTF-8 bytes per token also admits full-length CJK questions.
+		inputEstimate := int64((len(encoded)+2)/3 + 128)
 		if cap < 1 || m.input+m.output+m.estimated+inputEstimate+cap > c.question {
+			if calls == 0 {
+				return nil, errAgentQuestion
+			}
 			return nil, errAgentDraft
 		}
 		callCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -165,11 +169,15 @@ func (a *api) runAgent(ctx context.Context, app core.App, c agentConfig, m *agen
 			res.Body = io.NopCloser(bytes.NewReader(data))
 			return res, nil
 		}))
+		deadlineErr := callCtx.Err()
 		cancel()
 		in, out, estimated, chargedOutput := agentUsage(raw, inputEstimate, cap)
 		outputSpent += chargedOutput
 		if err := m.charge(in, out, estimated); err != nil {
 			return nil, err
+		}
+		if errors.Is(deadlineErr, context.DeadlineExceeded) {
+			return nil, context.DeadlineExceeded
 		}
 		if callErr != nil {
 			return nil, callErr
@@ -187,9 +195,9 @@ func (a *api) runAgent(ctx context.Context, app core.App, c agentConfig, m *agen
 		}
 		if len(tools) == 1 && tools[0].Type == "function" && tools[0].Function.Name == "answer" {
 			response, err := facts.resolve(tools[0].Function.Arguments)
-			if errors.Is(err, errAgentStyle) && !repair && calls < 3 {
+			if (errors.Is(err, errAgentStyle) || errors.Is(err, errAgentDraft)) && !repair && calls < 3 {
 				repair = true
-				messages = append(messages, msg.ToParam(), openai.ToolMessage("The draft failed the mechanical style check. Call answer again using the approved plain paragraph sentences and the same valid references. Do not call data tools.", tools[0].ID))
+				messages = append(messages, msg.ToParam(), openai.ToolMessage("The draft failed style or reference validation. Call answer again with short plain paragraphs and valid result references. Use placeholders for values. Do not call data tools.", tools[0].ID))
 				continue
 			}
 			if err != nil {

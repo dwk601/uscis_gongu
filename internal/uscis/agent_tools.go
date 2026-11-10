@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/url"
 	"sort"
+	"strings"
 	"time"
 
 	"gongu/internal/uscis/db"
@@ -40,7 +41,7 @@ func validateAgentArgs(name, raw string) (map[string]any, error) {
 	}
 	switch name {
 	case "forms":
-		if agentString(v, "form") == "" && len(v) > 0 {
+		if agentString(v, "form") == "" && (v["series"] != nil || v["fiscalYear"] != nil || v["quarter"] != nil) {
 			return nil, errAgentDraft
 		}
 		if _, ok := v["quarter"]; ok && v["fiscalYear"] == nil {
@@ -74,15 +75,40 @@ func (a *api) agentRead(ctx context.Context, f *agentFacts, name string, v map[s
 	if err != nil {
 		return "", err
 	}
+	// Catalogs and series options can be filtered and paged without raising caps.
+	offset := 0
+	if name == "forms" {
+		if n, ok := v["offset"].(float64); ok {
+			offset = min(int(n), len(items))
+			items = items[offset:]
+		}
+	}
 	// Register only the references actually delivered to the provider.
-	envelope := map[string]any{"items": []map[string]any{}, "truncated": false, "omitted": len(items)}
+	envelope := map[string]any{"items": []map[string]any{}, "truncated": false, "omitted": len(items), "nextOffset": nil}
 	views := []map[string]any{}
 	included := 0
 	// Leave room for a repair tool message within the combined byte limit.
 	cap := min(1200, 2800-f.bytes)
 	for i, item := range items {
+		encoded, err := json.Marshal(item.view)
+		if err != nil {
+			return "", err
+		}
+		var view map[string]any
+		if err := json.Unmarshal(encoded, &view); err != nil {
+			return "", err
+		}
+		if err := normalizeAgentValue(view); err != nil {
+			return "", err
+		}
+		item.view = view
 		trial := append(append([]map[string]any{}, views...), item.view)
 		envelope["items"], envelope["omitted"], envelope["truncated"] = trial, len(items)-i-1, i+1 < len(items)
+		if name == "forms" && i+1 < len(items) {
+			envelope["nextOffset"] = offset + i + 1
+		} else {
+			envelope["nextOffset"] = nil
+		}
 		data, err := json.Marshal(envelope)
 		if err != nil {
 			return "", err
@@ -92,11 +118,17 @@ func (a *api) agentRead(ctx context.Context, f *agentFacts, name string, v map[s
 		}
 		views = trial
 		included++
+		f.remember(item.view)
 		for id, ref := range item.refs {
 			f.refs[id] = ref
 		}
 	}
 	envelope["items"], envelope["omitted"], envelope["truncated"] = views, len(items)-included, included < len(items)
+	if name == "forms" && included < len(items) {
+		envelope["nextOffset"] = offset + included
+	} else {
+		envelope["nextOffset"] = nil
+	}
 	data, err := json.Marshal(envelope)
 	if err != nil {
 		return "", err
@@ -114,16 +146,16 @@ func (a *api) agentForms(ctx context.Context, f *agentFacts, name string, v map[
 		return nil, err
 	}
 	form := agentString(v, "form")
+	query := strings.ToLower(agentString(v, "query"))
 	if form == "" {
 		items := []agentItem{}
 		for _, summary := range data.Forms {
-			detail := data.details[summary.Form]
-			for _, s := range detail.Official {
-				row := map[string]any{"form": summary.Form, "name": agentLabel(summary.Name), "series": s.ID, "label": agentLabel(s.Label)}
-				id := f.id("r")
-				view := map[string]any{"rowRef": id, "row": row}
-				items = append(items, agentItem{view, map[string]agentReference{id: {row: row, group: "catalog", source: agentSourceFor("USCIS official statistics", "/trends?form="+url.QueryEscape(summary.Form))}}})
+			if !strings.Contains(strings.ToLower(summary.Form+" "+summary.Name), query) {
+				continue
 			}
+			row := map[string]any{"form": summary.Form, "name": agentLabel(summary.Name), "period": fmt.Sprintf("FY %d quarter %d", *summary.LatestPeriod.FiscalYear, *summary.LatestPeriod.Quarter)}
+			id := f.id("r")
+			items = append(items, agentItem{map[string]any{"rowRef": id, "row": row}, map[string]agentReference{id: {row: row, group: "catalog", source: agentSourceFor("USCIS official statistics", "/trends?form="+url.QueryEscape(summary.Form))}}})
 		}
 		return items, nil
 	}
@@ -133,8 +165,24 @@ func (a *api) agentForms(ctx context.Context, f *agentFacts, name string, v map[
 	}
 	selected := agentString(v, "series")
 	var series *official
-	if selected == "" && len(detail.Official) != 1 {
-		return nil, errAgentAmbiguous
+	if selected == "" && (len(detail.Official) != 1 || query != "") {
+		items := []agentItem{}
+		for _, option := range detail.Official {
+			if !strings.Contains(strings.ToLower(option.Label+" "+option.Description), query) {
+				continue
+			}
+			var latest *point
+			for i := range option.Points {
+				p := &option.Points[i]
+				if latest == nil || *p.FiscalYear > *latest.FiscalYear || (*p.FiscalYear == *latest.FiscalYear && *p.Quarter > *latest.Quarter) {
+					latest = p
+				}
+			}
+			row := map[string]any{"form": form, "series": option.ID, "label": agentLabel(option.Label), "period": agentFiscal(*latest)}
+			id := f.id("r")
+			items = append(items, agentItem{map[string]any{"rowRef": id, "row": row}, map[string]agentReference{id: {row: row, group: "series", source: agentSourceFor("USCIS official statistics", "/trends?form="+url.QueryEscape(form))}}})
+		}
+		return items, nil
 	}
 	for _, s := range detail.Official {
 		if s.ID == selected || selected == "" {

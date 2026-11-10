@@ -98,7 +98,7 @@ func (a *api) caseScreen(r *core.RequestEvent) error {
 			break
 		}
 	}
-	value, err := a.load(ctx, "case:"+form, func(ctx context.Context) (any, error) {
+	value, err := a.load(ctx, "case:"+form+"\x00"+selected.Description, func(ctx context.Context) (any, error) {
 		return a.q.CaseEstimates(ctx, db.CaseEstimatesParams{Form: &form, OfficialDescription: &selected.Description})
 	})
 	if err != nil {
@@ -135,7 +135,8 @@ func (a *api) caseScreen(r *core.RequestEvent) error {
 	if cohort != nil {
 		var refreshed *time.Time
 		if cohort.CommunityRefreshedAt.Valid {
-			refreshed = &cohort.CommunityRefreshedAt.Time
+			utc := cohort.CommunityRefreshedAt.Time.UTC()
+			refreshed = &utc
 		}
 		out.Community = &caseCommunity{cohort.FilingYear, cohort.P25Days, cohort.P50Days, cohort.P75Days, cohort.EligibleCount, cohort.CompletedCount, cohort.CensoredCount, cohort.ExcludedCount, cohort.VisaTypes, date(cohort.CommunityAsOfDate), refreshed, cohort.CommunityReason, cohort.P25Reason, cohort.P75Reason, cohort.CommunitySource, cohort.CommunityMethod, cohort.CommunityPopulation}
 	}

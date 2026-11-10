@@ -280,10 +280,12 @@ function Home() {
                 </strong>
               ) : (
                 <p>
-                  {community?.p25Reason === "unreached" ||
-                  community?.p75Reason === "unreached"
-                    ? "A range has not yet been reached."
-                    : "Range unavailable for this cohort."}
+                  {community?.reason === "insufficient"
+                    ? "Not enough reports for a range."
+                    : community?.p25Reason === "unreached" ||
+                        community?.p75Reason === "unreached"
+                      ? "A range has not yet been reached."
+                      : "Range unavailable for this cohort."}
                 </p>
               )}
               {community?.filingYear != null && (

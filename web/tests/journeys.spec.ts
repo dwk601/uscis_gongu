@@ -594,12 +594,20 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
           asOfDate: "2026-05-01",
         },
         trend: [],
-        community: {
-          filingYear: 2025,
-          p25Days: 130,
-          p75Days: 253,
-          asOfDate: "2026-05-01",
-        },
+        community:
+          new URL(route.request().url()).searchParams.get("form") === "I-130"
+            ? {
+                filingYear: 2025,
+                p25Days: null,
+                p75Days: null,
+                reason: "insufficient",
+              }
+            : {
+                filingYear: 2025,
+                p25Days: 130,
+                p75Days: 253,
+                asOfDate: "2026-05-01",
+              },
         summary: { eligibleReports: 31416, years: [2024, 2025] },
         freshness: [],
       },
@@ -608,6 +616,7 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   await page.goto("/")
   await expect(page.getByText("2025 filers")).toBeVisible()
   await page.getByLabel("Case form").selectOption("I-130")
+  await expect(page.getByText("Not enough reports for a range.")).toBeVisible()
   await page.getByLabel("Case form").selectOption("I-485")
   await page.getByLabel("Filed (optional)").focus()
   await page.keyboard.type("01012025")

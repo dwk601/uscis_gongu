@@ -582,16 +582,21 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   await page.route("**/api/x/uscis/case**", async (route) => {
     requests++
     if (requests === 1) await catalogReady
+    const selectedForm = new URL(route.request().url()).searchParams.get("form")
+    if (selectedForm === "I-404")
+      return route.fulfill({ status: 404, json: { message: "Not found" } })
     await route.fulfill({
       json: {
         forms: [
           { form: "I-485", name: "Green card application", featured: true },
           { form: "I-130", name: "Family petition", featured: true },
+          { form: "I-765", name: "Work permit (EAD)", featured: true },
           { form: "I-999", name: "Other application", featured: false },
           { form: "I-888", name: "Special application", featured: true },
         ],
         form: "I-485",
-        categoryLabel: "Family",
+        categoryLabel:
+          selectedForm === "I-765" ? "Adjustment of status" : "Family",
         official: {
           medianMonths: 12,
           period: "2026-04-01",
@@ -612,7 +617,7 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
             : {
                 filingYear: 2025,
                 p25Days: 130,
-                p75Days: 253,
+                p75Days: selectedForm === "I-765" ? 131 : 253,
                 asOfDate: "2026-05-01",
               },
         summary: { eligibleReports: 31416, years: [2024, 2025] },
@@ -642,6 +647,14 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
     )
   ).toBeVisible()
   await page.getByRole("button", { name: /Change form/ }).click()
+  await page.getByRole("button", { name: /Work permit \(EAD\)/ }).click()
+  await expect(
+    page.getByText(/While a green card is pending · USCIS data/)
+  ).toBeVisible()
+  await expect(
+    page.getByText("People who filed in 2025: about 4.3 months")
+  ).toBeVisible()
+  await page.getByRole("button", { name: /Change form/ }).click()
   await page.getByRole("button", { name: /Family petition/ }).click()
   await expect(page.getByText("Not enough reports for a range.")).toBeVisible()
   await page.getByRole("button", { name: /Change form/ }).click()
@@ -667,9 +680,12 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
     page.getByText("Around Jan 1, 2026", { exact: true })
   ).toBeVisible()
   await expect(
-    page.getByText("People who filed in 2025: May 11 – Sep 11, 2025", {
-      exact: true,
-    })
+    page.getByText(
+      "If your wait is like others who filed in 2025: May 11 – Sep 11, 2025",
+      {
+        exact: true,
+      }
+    )
   ).toBeVisible()
   await expect(
     page.getByRole("link", { name: "Check the visa bulletin" })
@@ -683,9 +699,12 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   const before = requests
   await page.getByLabel("When did you file? (optional)").fill("2025-01-02")
   await expect(
-    page.getByText("People who filed in 2025: May 12 – Sep 12, 2025", {
-      exact: true,
-    })
+    page.getByText(
+      "If your wait is like others who filed in 2025: May 12 – Sep 12, 2025",
+      {
+        exact: true,
+      }
+    )
   ).toBeVisible()
   expect(requests).toBe(before)
   await page.getByText("More data").click()
@@ -697,4 +716,9 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
     .click()
   await page.getByRole("link", { name: "My case", exact: true }).click()
   await expect(page).toHaveURL(/form=I-485/)
+  await page.goto("/?form=I-404")
+  await page.getByRole("button", { name: "Choose a form" }).click()
+  await expect(
+    page.getByRole("link", { name: "My case", exact: true })
+  ).toHaveAttribute("href", /form=I-485/)
 })

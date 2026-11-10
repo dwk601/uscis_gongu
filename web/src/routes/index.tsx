@@ -36,21 +36,26 @@ function validFiled(value: unknown) {
   )
 }
 function dateLabel(date: Date) {
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  })
+  return date
+    .toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    })
+    .replaceAll(" ", "\u00a0")
 }
 function dateRange(start: Date, end: Date) {
+  if (start.getTime() === end.getTime()) return dateLabel(start)
   const first =
     start.getUTCFullYear() === end.getUTCFullYear()
-      ? start.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          timeZone: "UTC",
-        })
+      ? start
+          .toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            timeZone: "UTC",
+          })
+          .replaceAll(" ", "\u00a0")
       : dateLabel(start)
   return `${first} – ${dateLabel(end)}`
 }
@@ -59,16 +64,21 @@ function humanDate(value: string) {
   return Number.isNaN(date.getTime()) ? value : dateLabel(date)
 }
 function categoryLabel(label: string, form: string) {
-  if (label === "Family") return "Family-based"
-  if (label === "Employment") return "Employment-based"
-  if (label === "Adjustment Of Status" && form === "I-765")
+  const normalized = label.toLowerCase()
+  if (normalized === "family") return "Family-based"
+  if (normalized === "employment") return "Employment-based"
+  if (normalized === "adjustment of status" && form === "I-765")
     return "While a green card is pending"
   return label
 }
 function reportedRange(low: number, high: number) {
-  if (low < 2 * 30.44)
+  if (low < 2 * 30.44) {
+    if (low === high) return `${low} days`
     return `${low} days – ${high < 2 * 30.44 ? `${high} days` : `${formatMonths(high / 30.44)} months`}`
-  return `${formatMonths(low / 30.44)}–${formatMonths(high / 30.44)} months`
+  }
+  const first = formatMonths(low / 30.44)
+  const last = formatMonths(high / 30.44)
+  return `${first === last ? first : `${first}–${last}`} months`
 }
 function addDays(filed: string, days: number) {
   return new Date(new Date(`${filed}T00:00:00Z`).getTime() + days * 86400000)
@@ -160,15 +170,21 @@ function periodLabel(period: string | null | undefined) {
 function Home() {
   const search = Route.useSearch()
   const [now] = useState(() => Date.now())
-  useEffect(() => {
-    if (search.form) sessionStorage.setItem("gongu-last-case-form", search.form)
-  }, [search.form])
   const navigate = useNavigate({ from: "/" })
   const year = search.filed ? Number(search.filed.slice(0, 4)) : undefined
   const result = useQuery({
     ...caseQuery(search.form || "I-485", year),
     placeholderData: keepPreviousData,
   })
+  useEffect(() => {
+    if (search.form && result.isSuccess && !result.isPlaceholderData)
+      sessionStorage.setItem("gongu-last-case-form", search.form)
+    else if (
+      (result.error as { status?: number })?.status === 404 &&
+      sessionStorage.getItem("gongu-last-case-form") === search.form
+    )
+      sessionStorage.removeItem("gongu-last-case-form")
+  }, [search.form, result.isSuccess, result.isPlaceholderData, result.error])
   const client = useQueryClient()
   const forms =
     result.data?.forms ??
@@ -312,7 +328,7 @@ function Home() {
               community.p25Days != null &&
               community.p75Days != null ? (
                 <strong className="case-range">
-                  People
+                  {search.filed ? "If your wait is like others" : "People"}
                   {community.filingYear != null
                     ? ` who filed in ${community.filingYear}`
                     : " who filed"}

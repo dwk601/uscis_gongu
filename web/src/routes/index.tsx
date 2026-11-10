@@ -14,12 +14,13 @@ import { FormPicker } from "@/components/form-picker"
 export const Route = createFileRoute("/")({
   validateSearch: (
     s: Record<string, unknown>
-  ): { form: string; filed?: string } => ({
+  ): { form: string; filed?: string; view?: "case" } => ({
     form:
       typeof s.form === "string" && /^[A-Z0-9-]{1,12}$/.test(s.form)
         ? s.form
         : "",
     filed: validFiled(s.filed) ? (s.filed as string) : undefined,
+    view: s.view === "case" ? "case" : undefined,
   }),
   component: Home,
 })
@@ -169,6 +170,46 @@ function periodLabel(period: string | null | undefined) {
 
 function Home() {
   const search = Route.useSearch()
+  if (!search.form && search.view !== "case") return <Landing />
+  return <CasePage />
+}
+
+function Landing() {
+  const form = sessionStorage.getItem("gongu-last-case-form") || ""
+  return (
+    <main className="workspace landing-page">
+      <h1>Find your next step.</h1>
+      <p>Explore case timelines or see the latest visa bulletin.</p>
+      <div className="landing-choices">
+        <Link
+          to="/"
+          search={form ? { form } : { form: "", view: "case" }}
+          aria-label="Check my case timeline"
+          aria-describedby="case-description"
+        >
+          <strong>Check my case timeline</strong>
+          <span id="case-description">
+            See typical waits and timelines from people like you.
+          </span>
+        </Link>
+        <Link
+          to="/bulletin"
+          search={{}}
+          aria-label="Check the visa bulletin"
+          aria-describedby="bulletin-description"
+        >
+          <strong>Check the visa bulletin</strong>
+          <span id="bulletin-description">
+            Explore cutoff dates for your category and country of birth.
+          </span>
+        </Link>
+      </div>
+    </main>
+  )
+}
+
+function CasePage() {
+  const search = Route.useSearch()
   const [now] = useState(() => Date.now())
   const navigate = useNavigate({ from: "/" })
   const year = search.filed ? Number(search.filed.slice(0, 4)) : undefined
@@ -276,7 +317,9 @@ function Home() {
               This form is not in the catalog.{" "}
               <button
                 onClick={() =>
-                  void navigate({ search: { ...search, form: "" } })
+                  void navigate({
+                    search: { ...search, form: "", view: "case" },
+                  })
                 }
               >
                 Choose a form
@@ -394,14 +437,7 @@ function Home() {
               <section className="case-panel">
                 <h2>Next step</h2>
                 {search.form === "I-485" && (
-                  <Link
-                    to="/bulletin"
-                    search={{
-                      category: "F2A",
-                      chart: "final_action",
-                      country: "ALL",
-                    }}
-                  >
+                  <Link to="/bulletin" search={{}}>
                     Check the visa bulletin
                   </Link>
                 )}
@@ -458,14 +494,7 @@ function Home() {
                 Trends for {search.form}
               </Link>
             )}
-            <Link
-              to="/bulletin"
-              search={{
-                category: "EB2",
-                chart: "final_action",
-                country: "ALL",
-              }}
-            >
+            <Link to="/bulletin" search={{}}>
               Visa bulletin
             </Link>
             <Link

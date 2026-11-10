@@ -561,7 +561,9 @@ test("Reddit failures remain local and retryable", async ({ page }) => {
   await expect
     .poll(() => counts["/api/x/uscis/insights/h1b-talk"])
     .toBeGreaterThan(before)
-  await page.goto("/bulletin")
+  await page.goto("/bulletin?category=EB2")
+  await page.getByText("More context").click()
+  await page.getByText("Reddit discussion", { exact: true }).click()
   await expect(page.getByText("Reddit data unavailable.")).toBeVisible({
     timeout: 20000,
   })
@@ -571,6 +573,50 @@ test("Reddit failures remain local and retryable", async ({ page }) => {
   await expect
     .poll(() => counts["/api/x/uscis/bulletin/discussion"])
     .toBeGreaterThan(before)
+})
+
+test("bulletin selection and historical status", async ({ page }) => {
+  let requests = 0
+  await page.route("**/api/x/uscis/bulletin?**", async (route) => {
+    requests++
+    const category = new URL(route.request().url()).searchParams.get("category")
+    const point =
+      category === "EB5-RC"
+        ? { month: "2022-04-01", cutoff: null, status: "current" }
+        : { month: "2025-01-01", cutoff: "2020-01-01", status: "date" }
+    await route.fulfill({
+      json: {
+        categories: [{ code: "F2A" }, { code: "EB2" }, { code: "EB5-RC" }],
+        series: [
+          { country: "ALL", points: [point] },
+          { country: "INDIA", points: [point] },
+        ],
+      },
+    })
+  })
+  await page.goto("/bulletin")
+  await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toHaveCount(
+    0
+  )
+  await page.getByRole("button", { name: "Family", exact: true }).click()
+  await page
+    .getByRole("button", { name: /Spouses and unmarried children/ })
+    .click()
+  await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toBeVisible()
+  const before = requests
+  await page.getByRole("button", { name: "India", exact: true }).click()
+  expect(requests).toBe(before)
+  await page.goto("/bulletin?category=EB5-RC")
+  await expect(
+    page.getByRole("heading", { name: "Current", exact: true })
+  ).toBeVisible()
+  await expect(page.getByText(/Historical · Bulletin Apr 2022/)).toBeVisible()
+  await expect(page.getByText(/no dated cutoff to plot/i)).toBeVisible()
+  await page.goto("/bulletin?category=UNKNOWN")
+  await expect(page.getByRole("alert")).toContainText("not in the catalog")
+  await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toHaveCount(
+    0
+  )
 })
 
 test("my case keeps a same-year filing change local", async ({ page }) => {
@@ -649,6 +695,8 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
     })
   })
   await page.goto("/")
+  expect(requests).toBe(0)
+  await page.getByRole("link", { name: "Check my case timeline" }).click()
   await expect(page.getByText("Loading forms…")).toBeVisible()
   await expect(page.getByText("Forms are unavailable right now.")).toHaveCount(
     0
@@ -784,7 +832,7 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   catalogUnavailable = true
   await page.clock.install()
   const beforeError = requests
-  await page.goto("/")
+  await page.goto("/?view=case")
   for (let attempt = 1; attempt <= 3; attempt++) {
     await expect
       .poll(() => requests)

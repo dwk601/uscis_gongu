@@ -6,26 +6,29 @@ import { useTheme } from "./theme-provider"
 export function SiteHeader() {
   const { theme, setTheme } = useTheme()
   const location = useRouterState({ select: (state) => state.location })
-  const currentForm =
-    location.pathname === "/"
-      ? new URLSearchParams(location.searchStr).get("form")
-      : null
+  const params = new URLSearchParams(location.searchStr)
+  const currentForm = location.pathname === "/" ? params.get("form") : null
+  const caseActive =
+    location.pathname === "/" &&
+    (!!currentForm || params.get("view") === "case")
   const form =
     currentForm || sessionStorage.getItem("gongu-last-case-form") || ""
   return (
     <header className="site-header">
-      <Link to="/" search={{ form }} className="brand">
+      <Link to="/" search={{ form: "" }} className="brand">
         <img src="/gongu.svg" alt="" />
         gongu
       </Link>
       <nav aria-label="Main navigation">
         <Link
           to="/"
-          search={{ form }}
-          activeProps={{ className: "active" }}
-          activeOptions={{ includeSearch: false, exact: true }}
+          search={form ? { form } : { form: "", view: "case" }}
+          className={caseActive ? "active" : undefined}
         >
           My case
+        </Link>
+        <Link to="/bulletin" search={{}} activeProps={{ className: "active" }}>
+          Visa bulletin
         </Link>
         <Link
           to="/community"

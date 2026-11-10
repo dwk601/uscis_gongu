@@ -723,7 +723,14 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   })
   await page.goto("/")
   expect(requests).toBe(0)
-  await page.getByRole("link", { name: "Check my case timeline" }).click()
+  const firstCaseLink = page.getByRole("link", {
+    name: "Check my case timeline",
+    exact: true,
+  })
+  await expect(firstCaseLink).toHaveAccessibleDescription(
+    "See typical waits and timelines from people like you."
+  )
+  await firstCaseLink.click()
   await expect(page.getByText("Loading forms…")).toBeVisible()
   await expect(page.getByText("Forms are unavailable right now.")).toHaveCount(
     0
@@ -852,12 +859,30 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   await page.getByRole("link", { name: "My case", exact: true }).click()
   await expect(page).toHaveURL(/form=I-485/)
   await page.goto("/")
+  const savedCaseLink = page.getByRole("link", {
+    name: "Continue with Green card application",
+    exact: true,
+  })
+  await expect(savedCaseLink).toHaveAttribute("href", "/?form=I-485")
+  await expect(savedCaseLink).toHaveAccessibleDescription(
+    "See typical waits and timelines from people like you."
+  )
+  const chooseDifferent = page.getByRole("link", {
+    name: "Choose a different form",
+  })
+  await expect(chooseDifferent).toHaveAttribute("href", /view=case/)
+  await page.evaluate(() => {
+    ;(globalThis as unknown as { landingMarker: boolean }).landingMarker = true
+  })
+  await chooseDifferent.click()
   await expect(
-    page.getByRole("link", { name: "Continue with Green card application" })
-  ).toHaveAttribute("href", "/?form=I-485")
-  await expect(
-    page.getByRole("link", { name: "Choose a different form" })
-  ).toHaveAttribute("href", "/?view=case")
+    page.getByRole("group", { name: "Choose your case" })
+  ).toBeVisible()
+  expect(
+    await page.evaluate(
+      () => (globalThis as unknown as { landingMarker?: boolean }).landingMarker
+    )
+  ).toBe(true)
   await page.goto("/?form=I-404")
   await expect(page.getByRole("alert")).toContainText("not in the catalog")
   await expect(

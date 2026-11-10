@@ -187,9 +187,10 @@ function Landing() {
             className="landing-choice"
             to="/"
             search={form ? { form } : { form: "", view: "case" }}
+            aria-labelledby="case-heading"
             aria-describedby="case-description"
           >
-            <strong>
+            <strong id="case-heading">
               {form
                 ? `Continue with ${savedName || form}`
                 : "Check my case timeline"}
@@ -199,9 +200,13 @@ function Landing() {
             </span>
           </Link>
           {form && (
-            <a className="landing-alternate" href="/?view=case">
+            <Link
+              className="landing-alternate"
+              to="/"
+              search={{ form: "", view: "case" }}
+            >
               Choose a different form
-            </a>
+            </Link>
           )}
         </div>
         <Link

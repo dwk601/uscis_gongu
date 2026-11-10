@@ -173,7 +173,9 @@ export default function DataChart({
         />
       ) : (
         <p className="muted">
-          {rows.some((row) => row.status === "current")
+          {rows.some(
+            (row) => row.status === "current" || row.status === "unavailable"
+          )
             ? "There is no dated cutoff to plot. See the status history and data below."
             : "No data available."}
         </p>

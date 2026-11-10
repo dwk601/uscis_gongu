@@ -105,6 +105,11 @@ p {
 .site-header nav a:hover {
   color: var(--ink);
 }
+.site-header nav a.active {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
 .header-actions {
   justify-self: end;
 }
@@ -377,8 +382,33 @@ td {
   justify-content: space-between;
   gap: 20px;
 }
+.bulletin-chart-choice {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.bulletin-chart-choice > span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+.bulletin-chart-segments {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--tray);
+}
+.bulletin-chart-segments .chip {
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+}
+.bulletin-chart-segments .chip[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--ground);
+}
 @media (min-width: 701px) {
-  .bulletin-heading .controls {
+  .bulletin-chart-choice {
     margin-bottom: 0;
   }
 }
@@ -713,7 +743,7 @@ td {
   gap: 16px;
   margin-top: 28px;
 }
-.landing-choices a {
+.landing-choices .landing-choice {
   display: flex;
   min-height: 200px;
   flex-direction: column;
@@ -724,8 +754,26 @@ td {
   background: #d3e39a;
   color: #171717;
 }
-.landing-choices a + a {
+.landing-case-choice {
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  background: #d3e39a;
+  color: #171717;
+}
+.landing-case-choice .landing-choice {
+  flex: 1;
+}
+.landing-choices .landing-bulletin-choice {
   background: #c7b6ec;
+}
+.landing-alternate {
+  align-self: flex-start;
+  margin: 0 28px 20px;
+  padding: 10px 0;
+  min-height: 44px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .landing-choices strong {
   font-size: clamp(1.5rem, 3vw, 2.5rem);
@@ -787,14 +835,17 @@ td {
   .landing-choices {
     grid-template-columns: 1fr;
   }
-  .landing-choices a,
+  .landing-choices .landing-choice,
   .bulletin-page .panel,
   .case-page .case-answer,
   .case-page .case-panel {
     padding: 24px;
   }
-  .landing-choices a {
+  .landing-choices .landing-choice {
     min-height: 140px;
+  }
+  .landing-alternate {
+    margin-inline: 24px;
   }
 }
 

@@ -581,9 +581,11 @@ test("bulletin selection and historical status", async ({ page }) => {
     requests++
     const category = new URL(route.request().url()).searchParams.get("category")
     const point =
-      category === "EB5-RC"
-        ? { month: "2022-04-01", cutoff: null, status: "current" }
-        : { month: "2025-01-01", cutoff: "2020-01-01", status: "date" }
+      category === "EB5-NON-RC"
+        ? { month: "2022-04-01", cutoff: null, status: "unavailable" }
+        : category === "EB5-RC"
+          ? { month: "2022-04-01", cutoff: null, status: "current" }
+          : { month: "2025-01-01", cutoff: "2020-01-01", status: "date" }
     await route.fulfill({
       json: {
         categories: [{ code: "F2A" }, { code: "EB2" }, { code: "EB5-RC" }],
@@ -612,10 +614,10 @@ test("bulletin selection and historical status", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toBeVisible()
   const before = requests
   await page.getByRole("button", { name: "India", exact: true }).click()
-  expect(requests).toBe(before)
   await expect(
     page.getByText("Historical · last bulletin Mar 2024")
   ).toBeVisible()
+  expect(requests).toBe(before)
   await page.getByRole("button", { name: "Family", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Jan 1, 2019" })).toBeVisible()
   await page.getByRole("button", { name: "Family", exact: true }).focus()
@@ -629,6 +631,14 @@ test("bulletin selection and historical status", async ({ page }) => {
     page.getByText("Historical · last bulletin Apr 2022")
   ).toBeVisible()
   await expect(page.getByText(/no dated cutoff to plot/i)).toBeVisible()
+  await page.goto("/bulletin?category=EB5-NON-RC")
+  await expect(page.getByRole("heading", { name: "Unavailable" })).toBeVisible()
+  await expect(
+    page.getByText(
+      "There is no dated cutoff to plot. See the status history and data below."
+    )
+  ).toBeVisible()
+  await expect(page.getByText("No data available.")).toHaveCount(0)
   await page.goto("/bulletin?category=UNKNOWN")
   await expect(page.getByRole("alert")).toContainText("not in the catalog")
   await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toHaveCount(
@@ -732,9 +742,11 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   await expect(page).not.toHaveURL(/view=case/)
   await page.getByRole("link", { name: "gongu" }).click()
   await expect(
-    page.getByRole("link", { name: "Check my case timeline" })
+    page.getByRole("link", { name: "Continue with Green card application" })
   ).toHaveAttribute("href", /form=I-485/)
-  await page.getByRole("link", { name: "Check my case timeline" }).click()
+  await page
+    .getByRole("link", { name: "Continue with Green card application" })
+    .click()
   await expect(
     page.getByText("People who filed in 2025: about 4.3–8.3 months")
   ).toBeVisible()
@@ -839,6 +851,13 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
     .click()
   await page.getByRole("link", { name: "My case", exact: true }).click()
   await expect(page).toHaveURL(/form=I-485/)
+  await page.goto("/")
+  await expect(
+    page.getByRole("link", { name: "Continue with Green card application" })
+  ).toHaveAttribute("href", "/?form=I-485")
+  await expect(
+    page.getByRole("link", { name: "Choose a different form" })
+  ).toHaveAttribute("href", "/?view=case")
   await page.goto("/?form=I-404")
   await expect(page.getByRole("alert")).toContainText("not in the catalog")
   await expect(

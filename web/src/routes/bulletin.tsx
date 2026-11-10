@@ -156,21 +156,28 @@ function BulletinPage() {
       <div className="bulletin-heading">
         <h1>Visa bulletin</h1>
         {known && (
-          <div className="controls" role="group" aria-label="Bulletin chart">
-            <button
-              className="chip"
-              aria-pressed={chart === "final_action"}
-              onClick={() => update({ chart: "final_action" })}
+          <div className="bulletin-chart-choice">
+            <span>Which chart?</span>
+            <div
+              className="bulletin-chart-segments"
+              role="group"
+              aria-label="Bulletin chart"
             >
-              Approval cutoff
-            </button>
-            <button
-              className="chip"
-              aria-pressed={chart === "dates_for_filing"}
-              onClick={() => update({ chart: "dates_for_filing" })}
-            >
-              Filing cutoff
-            </button>
+              <button
+                className="chip"
+                aria-pressed={chart === "final_action"}
+                onClick={() => update({ chart: "final_action" })}
+              >
+                Approval cutoff
+              </button>
+              <button
+                className="chip"
+                aria-pressed={chart === "dates_for_filing"}
+                onClick={() => update({ chart: "dates_for_filing" })}
+              >
+                Filing cutoff
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -193,8 +200,8 @@ function BulletinPage() {
       </div>
       {group === groups[0] && (!known || expanded) && (
         <p>
-          Spouse, parent, or unmarried child under 21 of a U.S. citizen? No
-          bulletin wait.{" "}
+          Spouse or unmarried child under 21 of a U.S. citizen, or parent of a
+          U.S. citizen who is 21 or older? There’s no bulletin wait.{" "}
           <Link
             className="bulletin-link"
             to="/"

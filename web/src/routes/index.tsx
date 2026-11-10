@@ -176,23 +176,36 @@ function Home() {
 
 function Landing() {
   const form = sessionStorage.getItem("gongu-last-case-form") || ""
+  const savedName = sessionStorage.getItem("gongu-last-case-name")
   return (
     <main className="workspace landing-page">
       <h1>Find your next step.</h1>
       <p>Explore case timelines or see the latest visa bulletin.</p>
       <div className="landing-choices">
+        <div className="landing-case-choice">
+          <Link
+            className="landing-choice"
+            to="/"
+            search={form ? { form } : { form: "", view: "case" }}
+            aria-describedby="case-description"
+          >
+            <strong>
+              {form
+                ? `Continue with ${savedName || form}`
+                : "Check my case timeline"}
+            </strong>
+            <span id="case-description">
+              See typical waits and timelines from people like you.
+            </span>
+          </Link>
+          {form && (
+            <a className="landing-alternate" href="/?view=case">
+              Choose a different form
+            </a>
+          )}
+        </div>
         <Link
-          to="/"
-          search={form ? { form } : { form: "", view: "case" }}
-          aria-label="Check my case timeline"
-          aria-describedby="case-description"
-        >
-          <strong>Check my case timeline</strong>
-          <span id="case-description">
-            See typical waits and timelines from people like you.
-          </span>
-        </Link>
-        <Link
+          className="landing-choice landing-bulletin-choice"
           to="/bulletin"
           search={{}}
           aria-label="Check the visa bulletin"
@@ -218,14 +231,27 @@ function CasePage() {
     placeholderData: keepPreviousData,
   })
   useEffect(() => {
-    if (search.form && result.isSuccess && !result.isPlaceholderData)
+    if (search.form && result.isSuccess && !result.isPlaceholderData) {
       sessionStorage.setItem("gongu-last-case-form", search.form)
-    else if (
+      sessionStorage.setItem(
+        "gongu-last-case-name",
+        result.data.forms.find((form) => form.form === search.form)?.name ||
+          search.form
+      )
+    } else if (
       (result.error as { status?: number })?.status === 404 &&
       sessionStorage.getItem("gongu-last-case-form") === search.form
-    )
+    ) {
       sessionStorage.removeItem("gongu-last-case-form")
-  }, [search.form, result.isSuccess, result.isPlaceholderData, result.error])
+      sessionStorage.removeItem("gongu-last-case-name")
+    }
+  }, [
+    search.form,
+    result.isSuccess,
+    result.isPlaceholderData,
+    result.error,
+    result.data,
+  ])
   const client = useQueryClient()
   const forms =
     result.data?.forms ??

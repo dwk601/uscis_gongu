@@ -5,7 +5,13 @@ test("filtered community remains readable when its summary fails", async ({
 }) => {
   let fail = false
   let filter = ""
+  let releaseCatalog: (() => void) | undefined
+  let delayCatalog = false
   await page.route("**/api/x/uscis/case**", async (route) => {
+    if (delayCatalog)
+      await new Promise<void>((resolve) => {
+        releaseCatalog = resolve
+      })
     if (fail)
       return route.fulfill({ status: 503, json: { message: "Unavailable" } })
     return route.fulfill({
@@ -56,4 +62,36 @@ test("filtered community remains readable when its summary fails", async ({
   expect(new URL(page.url()).searchParams.get("redirect")).toContain(
     "compose=true"
   )
+  fail = false
+  delayCatalog = true
+  await page.route("**/api/collections/users/auth-refresh", (route) =>
+    route.fulfill({ status: 503 })
+  )
+  await page.route("**/api/collections/votes/records**", (route) =>
+    route.fulfill({ json: { page: 1, perPage: 500, items: [] } })
+  )
+  await page.evaluate(() => {
+    const token = `e30.${btoa(JSON.stringify({ exp: 4102444800 }))}.signature`
+    localStorage.setItem(
+      "pocketbase_auth",
+      JSON.stringify({
+        token,
+        record: {
+          id: "abcdefghijklmno",
+          collectionId: "users",
+          collectionName: "users",
+        },
+      })
+    )
+  })
+  await page.goto("/community?form=I-130&compose=true")
+  const composerForm = page.getByLabel("Form (optional)")
+  await expect(composerForm).toHaveValue("I-130")
+  await expect.poll(() => !!releaseCatalog).toBe(true)
+  releaseCatalog!()
+  await expect(composerForm).toHaveValue("I-130")
+  await expect(page).not.toHaveURL(/compose=/)
+  await page.getByRole("button", { name: "Cancel" }).click()
+  await page.reload()
+  await expect(page.getByLabel("Form (optional)")).toHaveCount(0)
 })

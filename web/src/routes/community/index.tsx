@@ -1,12 +1,13 @@
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
-import { caseQuery } from "@/lib/case"
+import { caseQuery, type CaseResponse } from "@/lib/case"
 import { formLabel } from "@/lib/labels"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import { useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import { useAuth, mutationErrorMessage } from "@/lib/auth"
 import { validForm, listPosts } from "@/lib/community"
 import { pb } from "@/lib/pb"
@@ -26,13 +27,29 @@ function Community() {
   const search = Route.useSearch()
   const navigate = useNavigate({ from: "/community/" })
   const user = useAuth()
-  const formNames = useQuery(caseQuery(search.form || "I-485"))
+  const formNames = useQuery({
+    ...caseQuery(search.form || "I-485"),
+    placeholderData: keepPreviousData,
+  })
   const client = useQueryClient()
+  const forms =
+    formNames.data?.forms ??
+    client
+      .getQueriesData<CaseResponse>({ queryKey: ["uscis", "case"] })
+      .find(([, value]) => value?.forms)?.[1]?.forms
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
   const [composing, setComposing] = useState(!!search.compose)
+  const [composerForm, setComposerForm] = useState(search.form)
+  useEffect(() => {
+    if (user && search.compose)
+      void navigate({
+        search: { ...search, compose: undefined },
+        replace: true,
+      })
+  }, [user, search, navigate])
   const feed = useInfiniteQuery({
-    queryKey: ["post_feed", search],
+    queryKey: ["post_feed", search.sort, search.form],
     queryFn: ({ pageParam }) => listPosts(pageParam, search.sort, search.form),
     initialPageParam: 1,
     getNextPageParam: (page) =>
@@ -69,7 +86,10 @@ function Community() {
           <button
             className="chip"
             aria-expanded={composing}
-            onClick={() => setComposing(!composing)}
+            onClick={() => {
+              if (!composing) setComposerForm(search.form)
+              setComposing(!composing)
+            }}
           >
             {composing ? "Cancel" : "Share my timeline"}
           </button>
@@ -97,11 +117,18 @@ function Community() {
           </label>
           <label>
             Form (optional)
-            <select name="form" defaultValue={search.form}>
+            <select
+              name="form"
+              value={composerForm}
+              onChange={(e) => setComposerForm(e.target.value)}
+            >
               <option value="">No form</option>
-              {formNames.data?.forms.map((f) => (
+              {composerForm && !forms?.some((f) => f.form === composerForm) && (
+                <option value={composerForm}>{composerForm}</option>
+              )}
+              {forms?.map((f) => (
                 <option key={f.form} value={f.form}>
-                  {formLabel(f.form, formNames.data?.forms)}
+                  {formLabel(f.form, forms)}
                 </option>
               ))}
             </select>
@@ -116,14 +143,23 @@ function Community() {
           {error}
         </p>
       )}
-      {search.form && formNames.data && (
-        <p>
-          {formNames.data.summary.eligibleReports.toLocaleString()} VisaJourney
-          timeline reports for {search.form}
-          {formNames.data.summary.years.length > 0 &&
-            ` · ${Math.min(...formNames.data.summary.years)}–${Math.max(...formNames.data.summary.years)}`}
-        </p>
-      )}
+      {search.form &&
+        formNames.data &&
+        !formNames.isPlaceholderData &&
+        (() => {
+          const { eligibleReports: count, years } = formNames.data.summary
+          const first = Math.min(...years),
+            last = Math.max(...years)
+          return (
+            <p className="social-summary">
+              {count === 0
+                ? `No VisaJourney timeline reports for ${search.form}`
+                : `${count.toLocaleString()} VisaJourney timeline ${count === 1 ? "report" : "reports"} for ${search.form}`}
+              {years.length > 0 &&
+                ` · ${first === last ? first : `${first}–${last}`}`}
+            </p>
+          )
+        })()}
       <div
         className="social-filters"
         role="group"
@@ -151,13 +187,12 @@ function Community() {
             }
           >
             <option value="">All forms</option>
-            {search.form &&
-              !formNames.data?.forms.some((f) => f.form === search.form) && (
-                <option value={search.form}>{search.form}</option>
-              )}
-            {formNames.data?.forms.map((f) => (
+            {search.form && !forms?.some((f) => f.form === search.form) && (
+              <option value={search.form}>{search.form}</option>
+            )}
+            {forms?.map((f) => (
               <option key={f.form} value={f.form}>
-                {formLabel(f.form, formNames.data?.forms)}
+                {formLabel(f.form, forms)}
               </option>
             ))}
           </select>

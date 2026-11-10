@@ -12,14 +12,17 @@ import {
 import { pb } from "@/lib/pb"
 
 export const Route = createFileRoute("/community/$postId")({
-  validateSearch: (s: Record<string, unknown>): { form: string } => ({
+  validateSearch: (
+    s: Record<string, unknown>
+  ): { form: string; sort: "new" | "top" } => ({
     form: validForm(s.form) ? s.form : "",
+    sort: s.sort === "top" ? "top" : "new",
   }),
   component: Detail,
 })
 function Detail() {
   const { postId } = Route.useParams()
-  const { form: selectedForm } = Route.useSearch()
+  const { form: selectedForm, sort } = Route.useSearch()
   const user = useAuth()
   const client = useQueryClient()
   const navigate = useNavigate()
@@ -79,7 +82,7 @@ function Detail() {
       if (collection === "posts") {
         await navigate({
           to: "/community",
-          search: { sort: "new", form: selectedForm },
+          search: { sort, form: selectedForm },
         })
       }
       await refresh()
@@ -94,7 +97,7 @@ function Detail() {
       <Link
         className="social-back"
         to="/community"
-        search={{ sort: "new", form: selectedForm }}
+        search={{ sort, form: selectedForm }}
       >
         Back to community
       </Link>

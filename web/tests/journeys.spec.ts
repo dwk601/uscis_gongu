@@ -603,7 +603,9 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   await page.goto("/")
   await page.getByLabel("Case form").selectOption("I-130")
   await page.getByLabel("Case form").selectOption("I-485")
-  await page.getByLabel("Filed (optional)").fill("2025-01-01")
+  await page.getByLabel("Filed (optional)").focus()
+  await page.keyboard.type("01012025")
+  await expect(page.getByLabel("Filed (optional)")).toHaveValue("2025-01-01")
   await expect(page.getByText("Jan 1, 2026", { exact: true })).toBeVisible()
   await expect(
     page.getByText("May 11, 2025 – Sep 11, 2025", { exact: true })

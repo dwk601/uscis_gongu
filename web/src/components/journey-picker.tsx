@@ -12,7 +12,7 @@ export function JourneyPicker({
 }: {
   value: JourneyId
   onChange: (id: JourneyId) => void
-  variant: "cards" | "compact"
+  variant: "compact"
 }) {
   return (
     <div
@@ -30,7 +30,6 @@ export function JourneyPicker({
           onClick={() => onChange(journey.id)}
         >
           <span>{journey.name}</span>
-          {variant === "cards" && <small>{journey.descriptor}</small>}
         </button>
       ))}
       <button
@@ -41,7 +40,6 @@ export function JourneyPicker({
         onClick={() => onChange("all")}
       >
         <span>All forms</span>
-        {variant === "cards" && <small>Explore every available form</small>}
       </button>
     </div>
   )

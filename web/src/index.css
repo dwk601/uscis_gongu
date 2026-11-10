@@ -116,59 +116,6 @@ p {
   border-radius: 50%;
   background: var(--tray);
 }
-.landing {
-  min-height: calc(100svh - 80px);
-  display: flex;
-  flex-direction: column;
-}
-.hero {
-  text-align: center;
-  padding: 70px 20px 56px;
-}
-.hero h1 {
-  font-size: clamp(3rem, 6vw, 6rem);
-  line-height: 1;
-  letter-spacing: -0.035em;
-  font-weight: 600;
-  margin: 0 auto;
-  max-width: 1200px;
-  text-wrap: balance;
-}
-.hero p {
-  color: var(--muted);
-  font-size: 18px;
-  margin: 22px 0 30px;
-}
-.checker {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--panel);
-  padding: 7px;
-  border-radius: 20px;
-  width: 100%;
-  max-width: 900px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin: auto;
-  box-shadow: 0 4px 20px #00000010;
-}
-.landing-date {
-  display: flex;
-  align-items: center;
-  color: var(--muted);
-  font-size: 13px;
-  white-space: nowrap;
-}
-.checker select,
-.checker input {
-  border: 0;
-  background: transparent;
-  padding: 12px 14px;
-}
-.checker select {
-  width: 22rem;
-}
 .primary {
   background: #171717;
   color: #fff;
@@ -191,65 +138,6 @@ button:disabled,
 .primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-.tray {
-  background: var(--tray);
-  border-radius: 28px;
-  margin: 0 auto;
-  max-width: 1320px;
-  width: calc(100% - 10%);
-  min-height: 310px;
-  padding: 54px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 35px;
-}
-.artifact {
-  color: #171717;
-  border-radius: 14px;
-  padding: 26px;
-  width: 270px;
-  min-height: 185px;
-  box-shadow: 0 12px 24px #0000001c;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  transform: rotate(-3deg);
-  transition:
-    transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 250ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.artifact:nth-child(2) {
-  transform: rotate(2deg);
-  width: 320px;
-}
-.artifact:nth-child(3) {
-  transform: rotate(-2deg);
-}
-.artifact:hover,
-.artifact:focus-visible,
-.artifact:nth-child(2):hover,
-.artifact:nth-child(2):focus-visible,
-.artifact:nth-child(3):hover,
-.artifact:nth-child(3):focus-visible {
-  transform: translateY(-6px) rotate(0);
-  box-shadow: 0 18px 30px #00000026;
-}
-.artifact strong {
-  font-size: 36px;
-  letter-spacing: -0.035em;
-  line-height: 1;
-}
-.artifact small {
-  font-size: 13px;
-}
-.source {
-  text-align: center;
-  color: var(--muted);
-  font-size: 13px;
-  margin: auto 0 0;
-  padding: 28px 20px 48px;
 }
 .workspace {
   max-width: 1320px;
@@ -562,57 +450,11 @@ td {
   .brand img {
     width: 24px;
   }
-  .hero {
-    padding: 12px 20px 28px;
-  }
-  .hero h1 {
-    font-size: 2.2rem;
-  }
-  .hero p {
-    font-size: 16px;
-    margin: 6px 0 12px;
-  }
-  .checker {
-    width: 100%;
-    border-radius: 20px;
-    display: grid;
-    text-align: left;
-  }
-  .checker select,
-  .checker input {
-    width: 100%;
-  }
-  .landing-date {
-    padding-left: 14px;
-  }
-  .checker .primary {
-    width: 100%;
-  }
-  .tray {
-    width: calc(100% - 24px);
-    margin: 0 12px;
-    padding: 30px 20px;
-    gap: 14px;
-    flex-direction: column;
-    min-height: 240px;
-  }
-  .artifact,
-  .artifact:nth-child(2) {
-    width: 100%;
-    min-height: 160px;
-    padding: 20px;
-  }
-  .artifact strong {
-    font-size: 30px;
-  }
   .workspace {
     padding: 20px 20px 60px;
   }
   .workspace h1 {
     font-size: clamp(2rem, 9vw, 3rem);
-  }
-  .landing {
-    min-height: calc(100svh - 68px);
   }
   .workspace-grid {
     grid-template-columns: 1fr;
@@ -734,51 +576,9 @@ td {
   }
 }
 
-.landing-journeys {
-  max-width: 900px;
-  margin: 0 auto 18px;
-  text-align: left;
-}
-
-.landing-journeys h2 {
-  font-size: 1.35rem;
-  margin: 0 0 12px;
-}
-
 .journey-picker {
   display: flex;
   gap: 8px;
-}
-
-.journey-picker--cards {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.journey-picker--cards button {
-  text-align: left;
-  border-radius: 12px;
-  padding: 12px 14px;
-  min-height: 72px;
-}
-
-.journey-picker--cards button:last-child {
-  grid-column: 1 / -1;
-  min-height: 44px;
-}
-
-.journey-picker--cards span,
-.journey-picker--cards small {
-  display: block;
-}
-
-.journey-picker--cards span {
-  font-weight: 600;
-}
-
-.journey-picker--cards small {
-  margin-top: 3px;
-  font-size: 12px;
 }
 
 .journey-picker--compact {
@@ -790,55 +590,6 @@ td {
 
 .journey-picker--compact button {
   flex: none;
-}
-
-.landing-form-choices {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-}
-
-.form-code {
-  white-space: nowrap;
-}
-
-.examples-label {
-  text-align: center;
-  color: var(--muted);
-  font-size: 14px;
-  margin: 0 0 12px;
-}
-
-@media (max-width: 700px) {
-  .journey-picker--cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
-  }
-  .landing-journeys {
-    margin-bottom: 10px;
-  }
-  .landing-journeys h2 {
-    font-size: 1.1rem;
-    margin-bottom: 8px;
-  }
-  .journey-picker--cards button {
-    min-height: 44px;
-    padding: 7px 10px;
-  }
-  .journey-picker--cards small {
-    display: none;
-  }
-  .landing-form-choices {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .landing-form-choices .chip {
-    text-align: left;
-    font-size: 13px;
-    line-height: 1.2;
-  }
 }
 
 .insight-panel {
@@ -1015,4 +766,15 @@ td {
   .social-filters select {
     font-size: 16px;
   }
+}
+
+.case-panel a,
+.case-links details a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.social-summary {
+  font-size: 1.125rem;
+  font-weight: 600;
 }

@@ -58,6 +58,11 @@ export function PostCard({
     },
   })
   const location = useRouterState({ select: (s) => s.location.href })
+  const params = new URLSearchParams(location.split("?")[1])
+  const detailSearch = {
+    form: params.get("form") || "",
+    sort: params.get("sort") === "top" ? ("top" as const) : ("new" as const),
+  }
   const voted = optimistic?.voted ?? !!vote
   const count = optimistic?.count ?? post.votes
   return (
@@ -82,10 +87,7 @@ export function PostCard({
           <Link
             to="/community/$postId"
             params={{ postId: post.id }}
-            search={{
-              form:
-                new URLSearchParams(location.split("?")[1]).get("form") || "",
-            }}
+            search={detailSearch}
           >
             {post.title}
           </Link>
@@ -119,10 +121,7 @@ export function PostCard({
         <Link
           to="/community/$postId"
           params={{ postId: post.id }}
-          search={{
-            form:
-              new URLSearchParams(location.split("?")[1]).get("form") || "",
-          }}
+          search={detailSearch}
         >
           {post.comments} {post.comments === 1 ? "comment" : "comments"}
         </Link>

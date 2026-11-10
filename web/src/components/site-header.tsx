@@ -23,6 +23,7 @@ export function SiteHeader() {
             to={item.to}
             search={item.search}
             activeProps={{ className: "active" }}
+            activeOptions={{ includeSearch: false, exact: item.to === "/" }}
           >
             {item.label}
           </Link>

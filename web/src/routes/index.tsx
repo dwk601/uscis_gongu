@@ -1,9 +1,13 @@
-import { useQuery } from "@tanstack/react-query"
-import { useState } from "react"
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
+import { useEffect, useRef, useState } from "react"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import { caseQuery } from "@/lib/case"
+import { caseQuery, type CaseResponse } from "@/lib/case"
 import type { OfficialPoint } from "@/lib/api"
-import { estimateDate, formatMonths } from "@/lib/estimate"
+import { estimateDate, formatMonths, quarterLabel } from "@/lib/estimate"
 import { formHue, formInk } from "@/lib/palette"
 
 export const Route = createFileRoute("/")({
@@ -69,7 +73,7 @@ function MiniTrend({ values }: { values: (number | null)[] }) {
   const valid = values.filter(
     (value): value is number => value != null && Number.isFinite(value)
   )
-  if (valid.length < 2) return <strong>Explore wait trends</strong>
+  if (valid.length < 2) return null
   const min = Math.min(...valid),
     span = Math.max(...valid) - min || 1
   const segments: string[] = []
@@ -86,9 +90,9 @@ function MiniTrend({ values }: { values: (number | null)[] }) {
   if (path) segments.push(path)
   return (
     <svg
-      viewBox="0 0 240 80"
+      viewBox="-4 -4 248 88"
       role="img"
-      aria-label="USCIS median processing time in recent quarters"
+      aria-label={`USCIS median processing time in recent quarters, ranging from ${formatMonths(min)} to ${formatMonths(Math.max(...valid))} months`}
     >
       {values.map((value, index) =>
         value == null ? null : (
@@ -114,13 +118,41 @@ function MiniTrend({ values }: { values: (number | null)[] }) {
   )
 }
 
+function periodLabel(period: string | null | undefined) {
+  if (!period) return "Period unavailable"
+  const date = new Date(`${period}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) return "Period unavailable"
+  const month = date.getUTCMonth()
+  return quarterLabel(
+    date.getUTCFullYear() + (month >= 9 ? 1 : 0),
+    Math.floor(((month + 3) % 12) / 3) + 1
+  )
+}
+
 function Home() {
   const search = Route.useSearch()
   const [now] = useState(() => Date.now())
   const navigate = useNavigate({ from: "/" })
   const year = search.filed ? Number(search.filed.slice(0, 4)) : undefined
-  const result = useQuery(caseQuery(search.form, year))
-  const data = result.data
+  const result = useQuery({
+    ...caseQuery(search.form, year),
+    placeholderData: keepPreviousData,
+  })
+  const client = useQueryClient()
+  const forms =
+    result.data?.forms ??
+    client
+      .getQueriesData<CaseResponse>({ queryKey: ["uscis", "case"] })
+      .find(([, value]) => value?.forms)?.[1]?.forms
+  const data = result.isPlaceholderData ? undefined : result.data
+  const filedInput = useRef<HTMLInputElement>(null)
+  const committed = useRef(search.filed)
+  useEffect(() => {
+    if (committed.current !== search.filed) {
+      if (filedInput.current) filedInput.current.value = search.filed ?? ""
+      committed.current = search.filed
+    }
+  }, [search.filed])
   const official = data?.official
   const community = data?.community
   const estimate =
@@ -149,10 +181,10 @@ function Home() {
               void navigate({ search: { ...search, form: e.target.value } })
             }
           >
-            {!data?.forms.some((f) => f.form === search.form) && (
+            {!forms?.some((f) => f.form === search.form) && (
               <option value={search.form}>{search.form}</option>
             )}
-            {data?.forms.map((f) => (
+            {forms?.map((f) => (
               <option key={f.form} value={f.form}>
                 {f.name} · {f.form}
               </option>
@@ -162,24 +194,51 @@ function Home() {
         <label>
           Filed (optional)
           <input
+            ref={filedInput}
             aria-label="Filed (optional)"
             type="date"
-            value={search.filed ?? ""}
+            defaultValue={search.filed ?? ""}
             onChange={(e) => {
-              const filed = e.target.value
-              if (!filed || validFiled(filed))
-                void navigate({
-                  search: { ...search, filed: filed || undefined },
-                })
+              const filed = e.currentTarget.value
+              if (validFiled(filed)) {
+                committed.current = filed
+                void navigate({ search: { ...search, filed } })
+              }
+            }}
+            onBlur={(e) => {
+              const input = e.currentTarget
+              if (validFiled(input.value)) return
+              if (!input.value && !input.validity.badInput) {
+                committed.current = undefined
+                void navigate({ search: { ...search, filed: undefined } })
+              } else input.value = committed.current ?? ""
             }}
           />
         </label>
       </div>
-      {result.isLoading && <p role="status">Loading case data…</p>}
+      {(result.isLoading || result.isPlaceholderData) && (
+        <p role="status">Loading case data…</p>
+      )}
       {result.isError && (
         <p role="alert">
-          Case data unavailable.{" "}
-          <button onClick={() => void result.refetch()}>Try again</button>
+          {(result.error as { status?: number })?.status === 404 ? (
+            <>
+              This form is not in the catalog. Choose another form or{" "}
+              <button
+                onClick={() =>
+                  void navigate({ search: { ...search, form: "I-485" } })
+                }
+              >
+                return to I-485
+              </button>
+              .
+            </>
+          ) : (
+            <>
+              Case data unavailable.{" "}
+              <button onClick={() => void result.refetch()}>Try again</button>
+            </>
+          )}
         </p>
       )}
       {data && (
@@ -204,10 +263,16 @@ function Home() {
                 <p>This estimate date has passed.</p>
               )}
               <p>
-                {data.categoryLabel} ·{" "}
-                {official?.period ?? "Period unavailable"}
+                {data.categoryLabel} · {periodLabel(official?.period)}
                 {official?.asOfDate && ` · as of ${official.asOfDate}`}
               </p>
+              {official?.medianMonths == null && official?.reason && (
+                <p>
+                  {official.reason === "unavailable"
+                    ? "Official median unavailable for this form."
+                    : official.reason.replaceAll("_", " ")}
+                </p>
+              )}
               <h3>Community-reported range</h3>
               {community &&
               community.p25Days != null &&
@@ -242,7 +307,7 @@ function Home() {
                 official.previousMedianMonths != null &&
                 official.period &&
                 official.previousPeriod
-                  ? `Waits are ${trend}: ${formatMonths(official.previousMedianMonths)} months (${official.previousPeriod}) to ${formatMonths(official.medianMonths)} months (${official.period}).`
+                  ? `Waits are ${trend}: ${formatMonths(official.previousMedianMonths)} months (${periodLabel(official.previousPeriod)}) to ${formatMonths(official.medianMonths)} months (${periodLabel(official.period)}).`
                   : "Not enough data to compare periods."}
               </p>
               <MiniTrend values={recentValues(data.trend)} />

@@ -6,10 +6,14 @@ import (
 	"errors"
 	"io"
 	"math"
+	"sort"
+	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/shared"
+	"gongu/internal/uscis/db"
 )
 
 type agentSchema map[string]any
@@ -27,11 +31,6 @@ func text(values ...string) agentSchema {
 	}
 	return s
 }
-func describedText(description string) agentSchema {
-	s := text()
-	s["description"] = description
-	return s
-}
 func paragraphText() agentSchema {
 	s := text()
 	s["maxLength"] = 400
@@ -47,8 +46,8 @@ func array(items agentSchema, low, high int) agentSchema {
 var agentSchemas = map[string]agentSchema{
 	"forms":               object(map[string]agentSchema{"form": text(), "series": text(), "query": text(), "offset": integer(0, 10000), "fiscalYear": integer(1900, 2200), "quarter": integer(1, 4)}),
 	"estimate_date":       object(map[string]agentSchema{"form": text(), "series": text(), "filingDate": text()}, "form", "series", "filingDate"),
-	"community_timelines": object(map[string]agentSchema{"form": text(), "visaType": describedText("VisaJourney codes: F-1, IR-1/CR-1, K1, K3, Other. Use the exact code."), "filingYear": integer(1900, 2200)}, "form", "visaType", "filingYear"),
-	"bulletin":            object(map[string]agentSchema{"category": describedText("DOS codes: F1, F2A, F2B, F3, F4, EB1, EB2, EB3, EB3-OW, EB4, EB4-RELIGIOUS, EB5-NON-RC, EB5-RC, EB5-SET-ASIDE-HIGH-UNEMPLOYMENT, EB5-SET-ASIDE-INFRASTRUCTURE, EB5-SET-ASIDE-RURAL, EB5-UNRESERVED, EB5-UNRESERVED-RC."), "country": describedText("Country codes: ALL for all other countries, INDIA, CHINA, MEXICO, PHILIPPINES, EL SALVADOR GUATEMALA HONDURAS. Do not use IN or ROW."), "chart": text("final_action", "dates_for_filing"), "month": text()}, "category", "country", "chart"),
+	"community_timelines": object(map[string]agentSchema{"form": text(), "visaType": text(), "filingYear": integer(1900, 2200)}, "form", "visaType", "filingYear"),
+	"bulletin":            object(map[string]agentSchema{"category": text(), "country": text(), "chart": text("final_action", "dates_for_filing"), "month": text()}, "category", "country", "chart"),
 	"answer": object(map[string]agentSchema{
 		"kind": text("answer", "refusal", "clarification", "no_data"),
 		"blocks": array(agentSchema{"oneOf": []agentSchema{
@@ -62,21 +61,101 @@ var agentSchemas = map[string]agentSchema{
 }
 
 var agentToolDescriptions = map[string]string{
-	"forms":               "List forms or read official statistics. Use form directly when known. For a multi-series form without series, returns series options with IDs, labels and latest fiscal periods. Select the option matching the question, or name the options in a clarification. query filters catalog names or series labels; offset and nextOffset page within the byte cap. Optional fiscalYear and quarter select a fiscal period. Official columns: form, series, label, period, received, approved, denied, completed, pending, processingMonths. Catalog columns: form, name, label, series, period.",
-	"estimate_date":       "Estimate a UTC date from an exact filingDate YYYY-MM-DD and series ID. Uses the latest positive reported official median, not a personalized forecast or USCIS commitment.",
-	"community_timelines": "VisaJourney self-reported timelines for an explicit form, visaType and filingYear cohort. Percentiles describe completed reports only. Table columns: form, visaType, filingYear, sampleSize, completed, pending, pendingShare, p10, p50, p90, meaning. Keep nulls. Community tables must include sampleSize and completed columns.",
-	"bulletin":            "DOS visa bulletin for an explicit category, country code and chart. Optional month YYYY-MM; otherwise latest. Current and unavailable are not cutoff dates.",
-	"answer":              "Finish only with this tool. Explain the data in one to three short plain paragraphs, at most four paragraphs of 400 characters each. Use {{factRef}} for a formatted stat, {{estimateRef}} for an estimated date, {{cutoffRef}} for a cutoff or status, or {{rowRef.label}} and {{ref.field}} for scalar fields. The server fills placeholders and structured blocks. Never author counts, dates, labels, URLs or table cells. Digits outside placeholders are allowed only in identifiers such as I-485 or EB2 present in executed results. Use clarification for ambiguity, no_data for empty results, refusal for off-topic questions.",
+	"forms":               "Catalog; form lists series; series reads stats. query filters; offset follows nextOffset.",
+	"estimate_date":       "Latest positive median times 30.44 UTC days; filingDate YYYY-MM-DD.",
+	"community_timelines": "VisaJourney day percentiles. visaType: F-1,IR-1/CR-1,K1,K3,Other.",
+	"bulletin":            "DOS; month YYYY-MM or latest. category: F1,F2A,F2B,F3,F4,EB1,EB2,EB3,EB3-OW,EB4,EB4-RELIGIOUS,EB5-NON-RC,EB5-RC,EB5-SET-ASIDE-HIGH-UNEMPLOYMENT,EB5-SET-ASIDE-INFRASTRUCTURE,EB5-SET-ASIDE-RURAL,EB5-UNRESERVED,EB5-UNRESERVED-RC. country: ALL,INDIA,CHINA,MEXICO,PHILIPPINES,EL SALVADOR GUATEMALA HONDURAS.",
+	"answer":              "Finish with reference blocks and plain paragraphs.",
 }
 
-func agentTools(terminal bool) []openai.ChatCompletionToolUnionParam {
+// Provider hints omit repeated limits; validation retains the full server
+// schema, including closed objects, lengths and discriminated blocks.
+func agentWireSchema(schema agentSchema) agentSchema {
+	out := agentSchema{}
+	for key, value := range schema {
+		switch key {
+		case "minLength", "maxLength", "additionalProperties":
+			continue
+		case "properties":
+			properties := map[string]agentSchema{}
+			for name, child := range value.(map[string]agentSchema) {
+				properties[name] = agentWireSchema(child)
+			}
+			out[key] = properties
+		case "items":
+			out[key] = agentWireSchema(value.(agentSchema))
+		case "oneOf":
+			choices := []agentSchema{}
+			for _, child := range value.([]agentSchema) {
+				choices = append(choices, agentWireSchema(child))
+			}
+			out[key] = choices
+		default:
+			out[key] = value
+		}
+	}
+	return out
+}
+
+// Only inspect populated, unexpired shared caches. Asking about one dataset
+// must not trigger unrelated readers or fail because another view is absent.
+func (a *api) agentCodeHints() map[string]string {
+	a.mu.Lock()
+	community, bulletin := a.cache["community"], a.cache["bulletin"]
+	a.mu.Unlock()
+	codes := func(values map[string]bool) string {
+		out := make([]string, 0, len(values))
+		for value := range values {
+			if value != "" {
+				out = append(out, value)
+			}
+		}
+		sort.Strings(out)
+		return strings.Join(out, ",")
+	}
+	hints := map[string]string{}
+	if rows, ok := community.value.([]db.CommunityRow); ok && time.Now().Before(community.expires) {
+		visas := map[string]bool{}
+		for _, row := range rows {
+			visas[str(row.VisaType)] = true
+		}
+		if values := codes(visas); values != "" {
+			hints["community_timelines"] = "VisaJourney day percentiles. visaType: " + values + "."
+		}
+	}
+	if rows, ok := bulletin.value.([]db.BulletinRow); ok && time.Now().Before(bulletin.expires) {
+		categories, countries := map[string]bool{}, map[string]bool{}
+		for _, row := range rows {
+			categories[str(row.CategoryCode)] = true
+			countries[str(row.CountryCode)] = true
+		}
+		if len(categories) > 0 && len(countries) > 0 {
+			hints["bulletin"] = "DOS; month YYYY-MM or latest. category: " + codes(categories) + ". country: " + codes(countries) + "."
+		}
+	}
+	return hints
+}
+
+func (a *api) agentTools(terminal bool) []openai.ChatCompletionToolUnionParam {
 	names := []string{"forms", "estimate_date", "community_timelines", "bulletin", "answer"}
 	if terminal {
 		names = []string{"answer"}
 	}
+	hints := a.agentCodeHints()
 	out := make([]openai.ChatCompletionToolUnionParam, 0, len(names))
 	for _, name := range names {
-		out = append(out, openai.ChatCompletionToolUnionParam{OfFunction: &openai.ChatCompletionFunctionToolParam{Function: shared.FunctionDefinitionParam{Name: name, Description: openai.String(agentToolDescriptions[name]), Parameters: shared.FunctionParameters(agentSchemas[name])}}})
+		description := agentToolDescriptions[name]
+		if hint := hints[name]; hint != "" {
+			description = hint
+		}
+		out = append(out, openai.ChatCompletionToolUnionParam{OfFunction: &openai.ChatCompletionFunctionToolParam{Function: shared.FunctionDefinitionParam{Name: name, Description: openai.String(description), Parameters: shared.FunctionParameters(agentWireSchema(agentSchemas[name]))}}})
+	}
+	// A larger future vocabulary must not inflate the fixed prompt budget.
+	if encoded, err := json.Marshal(out); err != nil || len(encoded) > 3000 {
+		for _, tool := range out {
+			name := tool.OfFunction.Function.Name
+			tool.OfFunction.Function.Description = openai.String(agentToolDescriptions[name])
+		}
 	}
 	return out
 }
@@ -84,8 +163,8 @@ func agentTools(terminal bool) []openai.ChatCompletionToolUnionParam {
 var errAgentDraft = errors.New("invalid agent selection")
 var errAgentStyle = errors.New("invalid answer style")
 
-// This is the same schema sent to the provider. Validation does not depend on
-// provider support for strict tool calls.
+// Validate the full server schema, not the smaller provider hints. Neither
+// constraint enforcement nor unknown-field rejection depends on strict tools.
 func validateAgentJSON(raw string, schema agentSchema) (map[string]any, error) {
 	value, err := decodeAgentJSON([]byte(raw))
 	if len(raw) > 8192 || err != nil || !schemaAccepts(schema, value) {

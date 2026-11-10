@@ -41,7 +41,7 @@ func loadAgentConfig() (agentConfig, error) {
 		dst      *int64
 		fallback int64
 	}{
-		{"AGENT_MAX_OUTPUT_TOKENS", &c.perCall, 1024}, {"AGENT_MAX_QUESTION_OUTPUT_TOKENS", &c.output, 2048}, {"AGENT_MAX_QUESTION_TOKENS", &c.question, 10000}, {"AGENT_DAILY_TOKENS", &c.daily, 100000},
+		{"AGENT_MAX_OUTPUT_TOKENS", &c.perCall, 1024}, {"AGENT_MAX_QUESTION_OUTPUT_TOKENS", &c.output, 2048}, {"AGENT_MAX_QUESTION_TOKENS", &c.question, 16000}, {"AGENT_DAILY_TOKENS", &c.daily, 100000},
 	} {
 		*v.dst = v.fallback
 		if s := os.Getenv(v.name); s != "" {
@@ -132,20 +132,39 @@ func (a *api) runAgent(ctx context.Context, app core.App, c agentConfig, m *agen
 	facts := &agentFacts{refs: map[string]agentReference{}}
 	dataCalls, rounds := 0, 0
 	repair, clarify := false, false
-	var outputSpent int64
+	tools := a.agentTools(false)
+	terminalTools := tools[len(tools)-1:]
+	var outputSpent, previousPrompt, previousVariableBytes, previousFixed int64
 	for calls := 0; calls < 4; calls++ {
 		terminal := repair || rounds == 2 || dataCalls == 3
 		cap := min(c.perCall, c.output-outputSpent)
-		params := openai.ChatCompletionNewParams{Model: c.model, Messages: messages, Tools: agentTools(terminal), ToolChoice: openai.ChatCompletionToolChoiceOptionUnionParam{OfAuto: openai.String("auto")}, MaxCompletionTokens: openai.Int(cap), ReasoningEffort: shared.ReasoningEffort(c.effort)}
-		encoded, err := json.Marshal(params)
+		callTools := tools
+		if terminal {
+			callTools = terminalTools
+		}
+		params := openai.ChatCompletionNewParams{Model: c.model, Messages: messages, Tools: callTools, ToolChoice: openai.ChatCompletionToolChoiceOptionUnionParam{OfAuto: openai.String("auto")}, MaxCompletionTokens: openai.Int(cap), ReasoningEffort: shared.ReasoningEffort(c.effort)}
+		encodedTools, err := json.Marshal(callTools)
 		if err != nil {
 			return nil, err
 		}
-		// Include instructions, schemas, all message text and framing. Three
-		// UTF-8 bytes per token also admits full-length CJK questions.
-		inputEstimate := int64((len(encoded)+2)/3 + 128)
+		fixed := agentFixedTokens([]byte(agentRole+agentStyle)) + agentFixedTokens(encodedTools) + 128
+		variableBytes := int64(len(question))
+		for _, message := range messages[2:] {
+			encoded, err := json.Marshal(message)
+			if err != nil {
+				return nil, err
+			}
+			variableBytes += int64(len(encoded))
+		}
+		// Missing usage charges all variable bytes, never a prose ratio. Once
+		// usage is reported, preflight from that prompt and only appended bytes.
+		fallbackInput := fixed + variableBytes
+		inputEstimate := fallbackInput
+		if calls > 0 {
+			inputEstimate = previousPrompt + variableBytes - previousVariableBytes + max(0, fixed-previousFixed)
+		}
 		if cap < 1 || m.input+m.output+m.estimated+inputEstimate+cap > c.question {
-			if calls == 0 {
+			if calls == 0 && fixed+cap <= c.question {
 				return nil, errAgentQuestion
 			}
 			return nil, errAgentDraft
@@ -171,13 +190,19 @@ func (a *api) runAgent(ctx context.Context, app core.App, c agentConfig, m *agen
 		}))
 		deadlineErr := callCtx.Err()
 		cancel()
-		in, out, estimated, chargedOutput := agentUsage(raw, inputEstimate, cap)
+		in, out, estimated, chargedOutput := agentUsage(raw, fallbackInput, cap)
 		outputSpent += chargedOutput
-		if err := m.charge(in, out, estimated); err != nil {
-			return nil, err
+		previousPrompt = in
+		if estimated > 0 {
+			previousPrompt = fallbackInput
 		}
+		previousVariableBytes, previousFixed = variableBytes, fixed
+		chargeErr := m.charge(in, out, estimated)
 		if errors.Is(deadlineErr, context.DeadlineExceeded) {
-			return nil, context.DeadlineExceeded
+			return nil, errors.Join(context.DeadlineExceeded, chargeErr)
+		}
+		if chargeErr != nil {
+			return nil, chargeErr
 		}
 		if callErr != nil {
 			return nil, callErr
@@ -240,6 +265,20 @@ func (a *api) runAgent(ctx context.Context, app core.App, c agentConfig, m *agen
 		}
 	}
 	return nil, errAgentDraft
+}
+
+// The fixed English prompt uses roughly four ASCII characters per token.
+// Count its non-ASCII bytes conservatively. Variable messages never use this ratio.
+func agentFixedTokens(content []byte) int64 {
+	var ascii, nonASCII int64
+	for _, b := range content {
+		if b < utf8.RuneSelf {
+			ascii++
+		} else {
+			nonASCII++
+		}
+	}
+	return (ascii+3)/4 + nonASCII
 }
 
 func agentUsage(raw []byte, inputEstimate, cap int64) (input, output, estimated, chargedOutput int64) {

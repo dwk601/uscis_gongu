@@ -175,7 +175,7 @@ func (f *agentFacts) resolve(raw string) (*agentResponse, error) {
 var agentPlaceholder = regexp.MustCompile(`\{\{([a-zA-Z][a-zA-Z0-9]*(?:\.[a-zA-Z][a-zA-Z0-9]*)?)\}\}`)
 var agentToken = regexp.MustCompile(`[\p{L}\p{N}]+(?:[-/][\p{L}\p{N}]+)*(?:\([\p{L}\p{N}]+\))?`)
 
-// Identifiers with digits are allowed only when a delivered tool result contains
+// Identifiers with numerals are allowed only when a delivered tool result contains
 // the whole token. Standalone counts and dates still require placeholders.
 func (f *agentFacts) remember(value any) {
 	switch v := value.(type) {
@@ -203,12 +203,12 @@ func (f *agentFacts) paragraph(text string) (string, []agentSource, error) {
 		return "", nil, errAgentStyle
 	}
 	for _, token := range agentToken.FindAllString(prose, -1) {
-		digit, letter := false, false
+		number, letter := false, false
 		for _, r := range token {
-			digit = digit || unicode.IsDigit(r)
+			number = number || unicode.IsNumber(r)
 			letter = letter || unicode.IsLetter(r)
 		}
-		if digit && (!letter || !f.tokens[token]) {
+		if number && (!letter || !f.tokens[token]) {
 			return "", nil, errAgentDraft
 		}
 	}

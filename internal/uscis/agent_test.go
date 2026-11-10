@@ -27,14 +27,15 @@ func TestAgentContract(t *testing.T) {
 	// The only fake is the remote provider. Requests still cross authentication,
 	// PocketBase transactions, the official SDK, sqlc and read-only PostgreSQL.
 	type step struct {
-		name, args  string
-		status      int
-		check       func(map[string]any)
-		argsFrom    func(map[string]any) string
-		noUsage     bool
-		toolsFrom   func(map[string]any) []any
-		block       <-chan struct{}
-		untilCancel bool
+		name, args                     string
+		status                         int
+		check                          func(map[string]any)
+		argsFrom                       func(map[string]any) string
+		noUsage                        bool
+		toolsFrom                      func(map[string]any) []any
+		block                          <-chan struct{}
+		untilCancel                    bool
+		promptTokens, completionTokens int
 	}
 	type harness struct {
 		app    *tests.TestApp
@@ -77,6 +78,13 @@ func TestAgentContract(t *testing.T) {
 					return
 				}
 			}
+			prompt, completion := s.promptTokens, s.completionTokens
+			if prompt == 0 {
+				prompt = 13
+			}
+			if completion == 0 {
+				completion = 7
+			}
 			w.Header().Set("Content-Type", "application/json")
 			if s.status != 0 {
 				w.WriteHeader(s.status)
@@ -94,14 +102,14 @@ func TestAgentContract(t *testing.T) {
 			if s.toolsFrom != nil {
 				calls = s.toolsFrom(v)
 			}
-			json.NewEncoder(w).Encode(map[string]any{"id": "completion", "object": "chat.completion", "model": "fixture-model", "choices": []any{map[string]any{"index": 0, "finish_reason": "tool_calls", "message": map[string]any{"role": "assistant", "content": "Never render this raw text 9999", "tool_calls": calls}}}, "usage": map[string]int{"prompt_tokens": 13, "completion_tokens": 7}})
+			json.NewEncoder(w).Encode(map[string]any{"id": "completion", "object": "chat.completion", "model": "fixture-model", "choices": []any{map[string]any{"index": 0, "finish_reason": "tool_calls", "message": map[string]any{"role": "assistant", "content": "Never render this raw text 9999", "tool_calls": calls}}}, "usage": map[string]int{"prompt_tokens": prompt, "completion_tokens": completion}})
 		}))
 		t.Cleanup(server.Close)
 		t.Setenv("AGENT_BASE_URL", server.URL+"/v1/")
 		t.Setenv("AGENT_API_KEY", "fixture-key")
 		t.Setenv("AGENT_MODEL", "fixture-model")
 		t.Setenv("AGENT_REASONING_EFFORT", "low")
-		t.Setenv("AGENT_MAX_QUESTION_TOKENS", "10000")
+		t.Setenv("AGENT_MAX_QUESTION_TOKENS", "")
 		t.Setenv("AGENT_MAX_QUESTION_OUTPUT_TOKENS", "2048")
 		t.Setenv("AGENT_MAX_OUTPUT_TOKENS", "1024")
 		t.Setenv("AGENT_DAILY_TOKENS", "100000")
@@ -193,8 +201,8 @@ func TestAgentContract(t *testing.T) {
 
 	t.Run("grounded answer and input boundary", func(t *testing.T) {
 		h := newHarness(t, []step{
-			{name: "forms", args: formsArgs},
-			{toolsFrom: func(v map[string]any) []any {
+			{name: "forms", args: formsArgs, promptTokens: 4000, completionTokens: 128},
+			{promptTokens: 4000, completionTokens: 256, toolsFrom: func(v map[string]any) []any {
 				options := results(v)[0]["items"].([]any)
 				if len(options) != 2 {
 					t.Errorf("series options: %#v", options)
@@ -218,7 +226,7 @@ func TestAgentContract(t *testing.T) {
 				estimate["id"] = "call_2"
 				return []any{tool("forms", fmt.Sprintf(`{"form":"I-765","series":%q}`, selected)), estimate}
 			}},
-			{name: "answer", argsFrom: func(v map[string]any) string {
+			{name: "answer", promptTokens: 4000, completionTokens: 512, argsFrom: func(v map[string]any) string {
 				projections := results(v)
 				r := projections[1]
 				if r["truncated"] != true || r["omitted"].(float64) < 1 || int(r["omitted"].(float64))+len(r["items"].([]any)) != 4 {
@@ -258,7 +266,7 @@ func TestAgentContract(t *testing.T) {
 			t.Fatalf("sources: %#v", sources)
 		}
 		budget := v["budget"].(map[string]any)
-		if budget["remaining"] != float64(99940) || budget["questionLimit"] != float64(10000) || budget["limit"] != float64(100000) {
+		if budget["remaining"] != float64(87104) || budget["questionLimit"] != float64(16000) || budget["limit"] != float64(100000) {
 			t.Fatalf("budget: %#v", budget)
 		}
 		reset, err := time.Parse(time.RFC3339, budget["resetsAt"].(string))
@@ -400,6 +408,10 @@ func TestAgentContract(t *testing.T) {
 		for _, draft := range []struct{ first, second string }{
 			{badStyle, clarify}, {badStyle, badStyle},
 			{`{"kind":"clarification","blocks":[{"type":"paragraph","text":"There are 123 pending cases."}]}`, clarify},
+			{`{"kind":"clarification","blocks":[{"type":"paragraph","text":"There are ½ pending cases."}]}`, clarify},
+			{`{"kind":"clarification","blocks":[{"type":"paragraph","text":"There are ② pending cases."}]}`, clarify},
+			{`{"kind":"clarification","blocks":[{"type":"paragraph","text":"There are Ⅳ pending cases."}]}`, clarify},
+			{`{"kind":"clarification","blocks":[{"type":"paragraph","text":"Email help@example.com or visit https://example.com."}]}`, clarify},
 			{`{"kind":"clarification","blocks":[{"type":"paragraph","text":"Which form--please clarify?"}]}`, clarify},
 			{`{"kind":"clarification","blocks":[{"type":"paragraph","text":"Which form―please clarify?"}]}`, clarify},
 			{`{"kind":"clarification","blocks":[{"type":"paragraph","text":"Which form‒please clarify?"}]}`, clarify},
@@ -408,6 +420,10 @@ func TestAgentContract(t *testing.T) {
 			second := draft.second
 			h := newHarness(t, []step{
 				{name: "answer", args: draft.first, check: func(v map[string]any) {
+					toolsJSON, err := json.Marshal(v["tools"])
+					if err != nil || len(toolsJSON) > 3000 {
+						t.Errorf("tool schema byte cap: %d (%v)", len(toolsJSON), err)
+					}
 					allowed := map[string]bool{"model": true, "messages": true, "tools": true, "tool_choice": true, "max_completion_tokens": true, "reasoning_effort": true}
 					for k := range v {
 						if !allowed[k] {
@@ -455,7 +471,11 @@ func TestAgentContract(t *testing.T) {
 			if s.untilCancel {
 				status = 504
 			}
-			v := ask(t, h, `{"question":"Show data."}`, h.tokens[0], status)
+			question := "Show data."
+			if s.noUsage {
+				question = strings.Repeat("案", 2000)
+			}
+			v := ask(t, h, fmt.Sprintf(`{"question":%q}`, question), h.tokens[0], status)
 			if s.untilCancel && v["message"] != "The answer took too long. Please try again." {
 				t.Fatalf("deadline response: %#v", v)
 			}
@@ -470,6 +490,11 @@ func TestAgentContract(t *testing.T) {
 			} else if rows[0].GetInt("input_tokens") != 13 || rows[0].GetInt("output_tokens") != 7 || rows[0].GetInt("estimated_tokens") != 0 {
 				t.Fatalf("reported usage charge: %v", rows[0])
 			}
+			// The question alone is 6000 UTF-8 bytes. Add the 1024 output cap
+			// and the fixed style/tools estimate, not a ratio over the question.
+			if s.noUsage && (rows[0].GetInt("estimated_tokens") < 8500 || rows[0].GetInt("estimated_tokens") > 10000) {
+				t.Fatalf("variable bytes must be charged without a text ratio: %v", rows[0])
+			}
 			if h.calls.Load() != 1 {
 				t.Fatal("failure retried")
 			}
@@ -483,11 +508,14 @@ func TestAgentContract(t *testing.T) {
 
 	t.Run("budget isolation and persistence", func(t *testing.T) {
 		h := newHarness(t, []step{{name: "answer", args: refusal}, {name: "answer", args: refusal}})
-		t.Setenv("AGENT_DAILY_TOKENS", "10000")
-		ask(t, h, `{"question":"`+strings.Repeat("案", 2000)+`"}`, h.tokens[0], 200)
+		t.Setenv("AGENT_DAILY_TOKENS", "16000")
+		refused := ask(t, h, `{"question":"`+strings.Repeat("案", 2000)+`"}`, h.tokens[0], 200)
+		if refused["kind"] != "refusal" || refused["blocks"].([]any)[0].(map[string]any)["text"] != "I can only answer questions about USCIS case data on gongu." {
+			t.Fatalf("exact refusal: %#v", refused)
+		}
 		v := ask(t, h, `{"question":"Weather?"}`, h.tokens[0], 429)
 		data := v["data"].(map[string]any)
-		if data["reason"].(map[string]any)["code"] != "daily_budget_exhausted" || data["remaining"] != float64(9980) || h.calls.Load() != 1 {
+		if data["reason"].(map[string]any)["code"] != "daily_budget_exhausted" || data["remaining"] != float64(15980) || h.calls.Load() != 1 {
 			t.Fatalf("exhaustion: %#v", v)
 		}
 		ask(t, h, `{"question":"Weather?"}`, h.tokens[1], 200)
@@ -514,7 +542,9 @@ func TestAgentContract(t *testing.T) {
 		}
 		tooSmall := newHarness(t, nil)
 		t.Setenv("AGENT_MAX_QUESTION_TOKENS", "1")
-		invalid := ask(t, tooSmall, `{"question":"A valid question."}`, tooSmall.tokens[0], 400)
+		ask(t, tooSmall, `{"question":"A valid question."}`, tooSmall.tokens[0], 503)
+		t.Setenv("AGENT_MAX_QUESTION_TOKENS", "5000")
+		invalid := ask(t, tooSmall, `{"question":"`+strings.Repeat("案", 2000)+`"}`, tooSmall.tokens[0], 400)
 		if invalid["message"] != "Invalid question." || tooSmall.calls.Load() != 0 {
 			t.Fatalf("input allocation: %#v", invalid)
 		}

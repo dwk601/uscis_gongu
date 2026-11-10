@@ -190,7 +190,9 @@ function Community() {
         .map((post) => (
           <PostCard key={post.id} post={post} />
         ))}
-      {feed.data && !feed.data.pages[0].items.length && <p>No posts yet.</p>}
+      {feed.data && !feed.data.pages[0].items.length && (
+        <p>No posts yet. Be the first to share your timeline.</p>
+      )}
       {feed.hasNextPage && (
         <button
           className="chip"

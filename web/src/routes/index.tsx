@@ -43,6 +43,17 @@ function dateLabel(date: Date) {
     timeZone: "UTC",
   })
 }
+function dateRange(start: Date, end: Date) {
+  const first =
+    start.getUTCFullYear() === end.getUTCFullYear()
+      ? start.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          timeZone: "UTC",
+        })
+      : dateLabel(start)
+  return `${first} – ${dateLabel(end)}`
+}
 function humanDate(value: string) {
   const date = new Date(`${value.slice(0, 10)}T00:00:00Z`)
   return Number.isNaN(date.getTime()) ? value : dateLabel(date)
@@ -269,34 +280,49 @@ function Home() {
                 color: formInk(search.form),
               }}
             >
-              <h2>How long it usually takes</h2>
+              <h2>
+                {search.filed
+                  ? "Your estimated decision"
+                  : "How long it usually takes"}
+              </h2>
               <strong>
                 {official?.medianMonths == null
                   ? "Not available"
                   : estimate
-                    ? `Estimated around ${dateLabel(estimate)}`
+                    ? `Around ${dateLabel(estimate)}`
                     : `About ${formatMonths(official.medianMonths)} months`}
               </strong>
               {estimate && estimate.getTime() < now && (
-                <p>This estimate date has passed.</p>
+                <p>
+                  That date has passed. If you're still waiting, your case is
+                  taking longer than the typical wait.
+                </p>
               )}
               <p>
-                USCIS · {periodLabel(official?.period)} ·{" "}
-                {categoryLabel(data.categoryLabel, search.form)}
+                {categoryLabel(data.categoryLabel, search.form)} · USCIS data,{" "}
+                {periodLabel(official?.period)}
                 {official?.asOfDate &&
-                  ` · as of ${humanDate(official.asOfDate)}`}
+                  ` (as of ${humanDate(official.asOfDate)})`}
               </p>
               {official?.medianMonths == null && official?.reason && (
                 <p>Official median unavailable for this form.</p>
               )}
-              <h3>Community-reported range</h3>
+              <h3>What others reported</h3>
               {community &&
               community.p25Days != null &&
               community.p75Days != null ? (
                 <strong className="case-range">
+                  People
+                  {community.filingYear != null
+                    ? ` who filed in ${community.filingYear}`
+                    : " who filed"}
+                  :{" "}
                   {search.filed
-                    ? `Estimated range ${dateLabel(addDays(search.filed, community.p25Days))} – ${dateLabel(addDays(search.filed, community.p75Days))}`
-                    : `People${community.filingYear != null ? ` who filed in ${community.filingYear}` : ""} reported about ${reportedRange(community.p25Days, community.p75Days)}`}
+                    ? dateRange(
+                        addDays(search.filed, community.p25Days),
+                        addDays(search.filed, community.p75Days)
+                      )
+                    : `about ${reportedRange(community.p25Days, community.p75Days)}`}
                 </strong>
               ) : (
                 <p>
@@ -307,9 +333,6 @@ function Home() {
                       ? "A range has not yet been reached."
                       : "Range unavailable for this cohort."}
                 </p>
-              )}
-              {search.filed && community?.filingYear != null && (
-                <p>{community.filingYear} filers</p>
               )}
               {community && (
                 <p>

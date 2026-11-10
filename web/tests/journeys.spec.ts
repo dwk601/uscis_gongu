@@ -634,10 +634,12 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   ).toBeVisible()
   await page.getByRole("button", { name: /Green card application/ }).click()
   await expect(
-    page.getByText("People who filed in 2025 reported about 4.3–8.3 months")
+    page.getByText("People who filed in 2025: about 4.3–8.3 months")
   ).toBeVisible()
   await expect(
-    page.getByText(/USCIS · Apr–Jun 2026 · Family-based · as of May 1, 2026/)
+    page.getByText(
+      "Family-based · USCIS data, Apr–Jun 2026 (as of May 1, 2026)"
+    )
   ).toBeVisible()
   await page.getByRole("button", { name: /Change form/ }).click()
   await page.getByRole("button", { name: /Family petition/ }).click()
@@ -662,24 +664,26 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
     "2025-01-01"
   )
   await expect(
-    page.getByText("Estimated around Jan 1, 2026", { exact: true })
+    page.getByText("Around Jan 1, 2026", { exact: true })
   ).toBeVisible()
   await expect(
-    page.getByText("Estimated range May 11, 2025 – Sep 11, 2025", {
+    page.getByText("People who filed in 2025: May 11 – Sep 11, 2025", {
       exact: true,
     })
   ).toBeVisible()
   await expect(
     page.getByRole("link", { name: "Check the visa bulletin" })
   ).toBeVisible()
-  await expect(page.getByText("2025 filers")).toBeVisible()
+  await expect(
+    page.getByRole("heading", { name: "Your estimated decision" })
+  ).toBeVisible()
   await expect(
     page.getByText("Estimates, not USCIS commitments.")
   ).toBeVisible()
   const before = requests
   await page.getByLabel("When did you file? (optional)").fill("2025-01-02")
   await expect(
-    page.getByText("Estimated range May 12, 2025 – Sep 12, 2025", {
+    page.getByText("People who filed in 2025: May 12 – Sep 12, 2025", {
       exact: true,
     })
   ).toBeVisible()

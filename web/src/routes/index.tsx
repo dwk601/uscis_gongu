@@ -348,7 +348,9 @@ function Home() {
                     ? "Not enough reports yet to show a range."
                     : community?.p25Reason === "unreached" ||
                         community?.p75Reason === "unreached"
-                      ? "Too many people who filed then are still waiting to show a range."
+                      ? (community?.filingYear ?? year) != null
+                        ? `Too many people who filed in ${community?.filingYear ?? year} are still waiting to show a range.`
+                        : "Too many people are still waiting to show a range."
                       : (data.summary?.eligibleReports ?? 0) > 0
                         ? (community?.filingYear ?? year) != null
                           ? `No community reports yet from people who filed in ${community?.filingYear ?? year}.`

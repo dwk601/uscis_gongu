@@ -117,10 +117,13 @@ function Community() {
           </label>
           <FormPicker
             forms={forms}
+            unavailable={formNames.isError}
+            onRetry={() => void formNames.refetch()}
+            caption="Your post is about (optional)"
             value={composerForm}
             onChange={setComposerForm}
             label="Form for your post"
-            emptyLabel="No form"
+            emptyLabel="No specific form"
           />
           <button className="primary" disabled={busy}>
             {busy ? "Posting…" : "Post"}
@@ -167,6 +170,9 @@ function Community() {
         ))}
         <FormPicker
           forms={forms}
+          unavailable={formNames.isError}
+          onRetry={() => void formNames.refetch()}
+          caption="Show posts for"
           value={search.form}
           label="Filter community by form"
           emptyLabel="All forms"

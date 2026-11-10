@@ -575,12 +575,17 @@ test("Reddit failures remain local and retryable", async ({ page }) => {
 
 test("my case keeps a same-year filing change local", async ({ page }) => {
   let requests = 0
+  let releaseCatalog: () => void = () => {}
+  const catalogReady = new Promise<void>((resolve) => {
+    releaseCatalog = resolve
+  })
   await page.route("**/api/x/uscis/case**", async (route) => {
     requests++
+    if (requests === 1) await catalogReady
     await route.fulfill({
       json: {
         forms: [
-          { form: "I-485", name: "Green card", featured: true },
+          { form: "I-485", name: "Green card application", featured: true },
           { form: "I-130", name: "Family petition", featured: true },
           { form: "I-999", name: "Other application", featured: false },
           { form: "I-888", name: "Special application", featured: true },
@@ -616,6 +621,11 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
     })
   })
   await page.goto("/")
+  await expect(page.getByText("Loading forms…")).toBeVisible()
+  await expect(page.getByText("Forms are unavailable right now.")).toHaveCount(
+    0
+  )
+  releaseCatalog()
   await expect(
     page.getByRole("link", { name: "Community", exact: true }).last()
   ).toBeVisible()
@@ -623,23 +633,34 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
     page.getByRole("button", { name: /Special application/ })
   ).toBeVisible()
   await page.getByRole("button", { name: /Green card application/ }).click()
-  await expect(page.getByText("2025 filers")).toBeVisible()
+  await expect(
+    page.getByText("People who filed in 2025 reported about 4.3–8.3 months")
+  ).toBeVisible()
+  await expect(
+    page.getByText(/USCIS · Apr–Jun 2026 · Family-based · as of May 1, 2026/)
+  ).toBeVisible()
   await page.getByRole("button", { name: /Change form/ }).click()
   await page.getByRole("button", { name: /Family petition/ }).click()
   await expect(page.getByText("Not enough reports for a range.")).toBeVisible()
   await page.getByRole("button", { name: /Change form/ }).click()
-  await page.getByRole("button", { name: /Other forms/ }).click()
+  await page.getByRole("button", { name: /Browse all other forms/ }).click()
+  await page.getByLabel("Search by name or form number").fill("green card")
+  await expect(
+    page.getByRole("button", { name: /Green card application/ }).last()
+  ).toBeVisible()
   await page.getByLabel("Search by name or form number").fill("I-999")
   await page.getByRole("button", { name: /Other application/ }).click()
   await page.getByRole("button", { name: /Change form/ }).click()
   await expect(
-    page.getByRole("button", { name: /Other application.*Selected/ })
+    page.getByRole("button", { name: /Browse all other forms/ })
   ).toBeFocused()
   await page.getByRole("button", { name: /Green card application/ }).click()
   await expect(page.getByRole("button", { name: /Change form/ })).toBeFocused()
-  await page.getByLabel("Filed (optional)").focus()
+  await page.getByLabel("When did you file? (optional)").focus()
   await page.keyboard.type("01012025")
-  await expect(page.getByLabel("Filed (optional)")).toHaveValue("2025-01-01")
+  await expect(page.getByLabel("When did you file? (optional)")).toHaveValue(
+    "2025-01-01"
+  )
   await expect(
     page.getByText("Estimated around Jan 1, 2026", { exact: true })
   ).toBeVisible()
@@ -656,7 +677,7 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
     page.getByText("Estimates, not USCIS commitments.")
   ).toBeVisible()
   const before = requests
-  await page.getByLabel("Filed (optional)").fill("2025-01-02")
+  await page.getByLabel("When did you file? (optional)").fill("2025-01-02")
   await expect(
     page.getByText("Estimated range May 12, 2025 – Sep 12, 2025", {
       exact: true,
@@ -666,4 +687,10 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   await page.getByText("More data").click()
   await page.getByRole("link", { name: "Trends for I-485" }).click()
   await expect(page).toHaveURL(/\/trends/)
+  await page
+    .getByRole("link", { name: "Community", exact: true })
+    .first()
+    .click()
+  await page.getByRole("link", { name: "My case", exact: true }).click()
+  await expect(page).toHaveURL(/form=I-485/)
 })

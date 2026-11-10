@@ -10,13 +10,6 @@ const groups: [string, string[]][] = [
   ["Travel", ["I-131"]],
   ["Other situations", ["I-360", "I-601A"]],
 ]
-const names: Record<string, string> = {
-  "I-485": "Green card application",
-  "I-765": "Work permit",
-  "N-400": "U.S. citizenship",
-  "I-131": "Travel documents",
-}
-
 export function FormPicker({
   forms,
   value,
@@ -24,6 +17,9 @@ export function FormPicker({
   label,
   emptyLabel,
   initiallyOpen = false,
+  caption,
+  unavailable = false,
+  onRetry,
 }: {
   forms?: FormSummary[]
   value: string
@@ -31,6 +27,9 @@ export function FormPicker({
   label: string
   emptyLabel?: string
   initiallyOpen?: boolean
+  caption?: string
+  unavailable?: boolean
+  onRetry?: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [other, setOther] = useState(false)
@@ -52,6 +51,13 @@ export function FormPicker({
     setOther(!!selected && !selected.featured)
     setOpen(true)
     requestAnimationFrame(() => {
+      if (selected && !selected.featured) {
+        root.current?.scrollIntoView({ block: "start" })
+        root.current
+          ?.querySelector<HTMLButtonElement>(".form-other-toggle")
+          ?.focus({ preventScroll: true })
+        return
+      }
       const target =
         root.current?.querySelector<HTMLButtonElement>(
           '[aria-pressed="true"]'
@@ -75,17 +81,15 @@ export function FormPicker({
       onClick={() => choose(f.form)}
       style={{ background: formHue(f.form), color: formInk(f.form) }}
     >
-      <span>{names[f.form] ?? f.name}</span>
+      <span>{f.name}</span>
       <small>
         {f.form}
         {value === f.form ? " · Selected" : ""}
       </small>
     </button>
   )
-  const matches = others.filter((f) =>
-    `${f.form} ${f.name} ${names[f.form] ?? ""}`
-      .toLowerCase()
-      .includes(filter.toLowerCase().trim())
+  const matches = (filter.trim() ? (forms ?? []) : others).filter((f) =>
+    `${f.form} ${f.name}`.toLowerCase().includes(filter.toLowerCase().trim())
   )
   return (
     <div
@@ -100,6 +104,7 @@ export function FormPicker({
         }
       }}
     >
+      {caption && <div className="form-picker-caption">{caption}</div>}
       {!initiallyOpen && (
         <button
           ref={summary}
@@ -109,19 +114,19 @@ export function FormPicker({
           onClick={() => (open ? close() : show())}
         >
           <span>
-            {selected
-              ? (names[value] ?? selected.name)
-              : value || emptyLabel || "Choose a form"}
+            {selected ? selected.name : value || emptyLabel || "Choose a form"}
             {selected && <small>{value}</small>}
           </span>
-          <span>Change form</span>
+          <span>{open ? "Close" : "Change form"}</span>
         </button>
       )}
       {expanded && (
         <div className="form-picker-options">
-          <h2 className="form-picker-heading" tabIndex={-1}>
-            {label}
-          </h2>
+          {!initiallyOpen && (
+            <h2 className="form-picker-heading" tabIndex={-1}>
+              {label}
+            </h2>
+          )}
           {emptyLabel && (
             <button
               type="button"
@@ -133,7 +138,18 @@ export function FormPicker({
               {!value && " · Selected"}
             </button>
           )}
-          {!forms && <p role="status">Forms are unavailable right now.</p>}
+          {!forms && (
+            <p role="status">
+              {unavailable
+                ? "Forms are unavailable right now."
+                : "Loading forms…"}{" "}
+              {unavailable && onRetry && (
+                <button type="button" onClick={onRetry}>
+                  Try again
+                </button>
+              )}
+            </p>
+          )}
           {groups.map(([heading, codes]) => {
             const items = featured.filter(
               (f) =>
@@ -155,7 +171,7 @@ export function FormPicker({
                 aria-expanded={other}
                 onClick={() => setOther(!other)}
               >
-                Other forms ({others.length})
+                Don't see yours? Browse all other forms ({others.length})
               </button>
               {other && (
                 <div>

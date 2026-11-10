@@ -43,6 +43,22 @@ function dateLabel(date: Date) {
     timeZone: "UTC",
   })
 }
+function humanDate(value: string) {
+  const date = new Date(`${value.slice(0, 10)}T00:00:00Z`)
+  return Number.isNaN(date.getTime()) ? value : dateLabel(date)
+}
+function categoryLabel(label: string, form: string) {
+  if (label === "Family") return "Family-based"
+  if (label === "Employment") return "Employment-based"
+  if (label === "Adjustment Of Status" && form === "I-765")
+    return "While a green card is pending"
+  return label
+}
+function reportedRange(low: number, high: number) {
+  if (low < 2 * 30.44)
+    return `${low} days – ${high < 2 * 30.44 ? `${high} days` : `${formatMonths(high / 30.44)} months`}`
+  return `${formatMonths(low / 30.44)}–${formatMonths(high / 30.44)} months`
+}
 function addDays(filed: string, days: number) {
   return new Date(new Date(`${filed}T00:00:00Z`).getTime() + days * 86400000)
 }
@@ -133,6 +149,9 @@ function periodLabel(period: string | null | undefined) {
 function Home() {
   const search = Route.useSearch()
   const [now] = useState(() => Date.now())
+  useEffect(() => {
+    if (search.form) sessionStorage.setItem("gongu-last-case-form", search.form)
+  }, [search.form])
   const navigate = useNavigate({ from: "/" })
   const year = search.filed ? Number(search.filed.slice(0, 4)) : undefined
   const result = useQuery({
@@ -177,6 +196,7 @@ function Home() {
       <div className="case-controls">
         <FormPicker
           forms={forms}
+          unavailable={result.isError}
           value={search.form}
           label="Choose your case"
           initiallyOpen={!search.form}
@@ -184,10 +204,10 @@ function Home() {
         />
         {search.form && (
           <label>
-            Filed (optional)
+            When did you file? (optional)
             <input
               ref={filedInput}
-              aria-label="Filed (optional)"
+              aria-label="When did you file? (optional)"
               type="date"
               defaultValue={search.filed ?? ""}
               onChange={(e) => {
@@ -206,6 +226,11 @@ function Home() {
                 } else input.value = committed.current ?? ""
               }}
             />
+            {!search.filed && (
+              <span className="case-date-hint">
+                Add it to see your estimated date
+              </span>
+            )}
           </label>
         )}
       </div>
@@ -244,20 +269,22 @@ function Home() {
                 color: formInk(search.form),
               }}
             >
-              <h2>Official median</h2>
+              <h2>How long it usually takes</h2>
               <strong>
                 {official?.medianMonths == null
                   ? "Not available"
                   : estimate
                     ? `Estimated around ${dateLabel(estimate)}`
-                    : `${formatMonths(official.medianMonths)} months`}
+                    : `About ${formatMonths(official.medianMonths)} months`}
               </strong>
               {estimate && estimate.getTime() < now && (
                 <p>This estimate date has passed.</p>
               )}
               <p>
-                {data.categoryLabel} · {periodLabel(official?.period)}
-                {official?.asOfDate && ` · as of ${official.asOfDate}`}
+                USCIS · {periodLabel(official?.period)} ·{" "}
+                {categoryLabel(data.categoryLabel, search.form)}
+                {official?.asOfDate &&
+                  ` · as of ${humanDate(official.asOfDate)}`}
               </p>
               {official?.medianMonths == null && official?.reason && (
                 <p>Official median unavailable for this form.</p>
@@ -269,7 +296,7 @@ function Home() {
                 <strong className="case-range">
                   {search.filed
                     ? `Estimated range ${dateLabel(addDays(search.filed, community.p25Days))} – ${dateLabel(addDays(search.filed, community.p75Days))}`
-                    : `${community.p25Days}–${community.p75Days} days`}
+                    : `People${community.filingYear != null ? ` who filed in ${community.filingYear}` : ""} reported about ${reportedRange(community.p25Days, community.p75Days)}`}
                 </strong>
               ) : (
                 <p>
@@ -281,11 +308,15 @@ function Home() {
                       : "Range unavailable for this cohort."}
                 </p>
               )}
-              {community?.filingYear != null && (
+              {search.filed && community?.filingYear != null && (
                 <p>{community.filingYear} filers</p>
               )}
-              {community?.asOfDate && (
-                <p>VisaJourney · as of {community.asOfDate}</p>
+              {community && (
+                <p>
+                  VisaJourney
+                  {community.asOfDate &&
+                    ` · as of ${humanDate(community.asOfDate)}`}
+                </p>
               )}
               {search.filed && <p>Estimates, not USCIS commitments.</p>}
             </section>

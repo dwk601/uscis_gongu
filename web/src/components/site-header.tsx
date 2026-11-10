@@ -1,33 +1,40 @@
-import { Link } from "@tanstack/react-router"
+import { Link, useRouterState } from "@tanstack/react-router"
 import { Moon, Sun } from "lucide-react"
 import { AccountAction } from "./account-action"
 import { useTheme } from "./theme-provider"
 
-const navigation = [
-  { label: "My case", to: "/", search: { form: "" } },
-  { label: "Community", to: "/community", search: { sort: "new", form: "" } },
-] as const
-
 export function SiteHeader() {
   const { theme, setTheme } = useTheme()
+  const location = useRouterState({ select: (state) => state.location })
+  const currentForm =
+    location.pathname === "/"
+      ? new URLSearchParams(location.searchStr).get("form")
+      : null
+  const form =
+    currentForm || sessionStorage.getItem("gongu-last-case-form") || ""
   return (
     <header className="site-header">
-      <Link to="/" search={{ form: "" }} className="brand">
+      <Link to="/" search={{ form }} className="brand">
         <img src="/gongu.svg" alt="" />
         gongu
       </Link>
       <nav aria-label="Main navigation">
-        {navigation.map((item) => (
-          <Link
-            key={item.to}
-            to={item.to}
-            search={item.search}
-            activeProps={{ className: "active" }}
-            activeOptions={{ includeSearch: false, exact: item.to === "/" }}
-          >
-            {item.label}
-          </Link>
-        ))}
+        <Link
+          to="/"
+          search={{ form }}
+          activeProps={{ className: "active" }}
+          activeOptions={{ includeSearch: false, exact: true }}
+        >
+          My case
+        </Link>
+        <Link
+          to="/community"
+          search={{ sort: "new", form: "" }}
+          activeProps={{ className: "active" }}
+          activeOptions={{ includeSearch: false }}
+        >
+          Community
+        </Link>
       </nav>
       <div className="header-actions">
         <button

@@ -63,5 +63,6 @@ func openPool() (*pgxpool.Pool, error) {
 		return nil, err
 	}
 	config.ConnConfig.RuntimeParams["default_transaction_read_only"] = "on"
+	config.ConnConfig.RuntimeParams["jit"] = "off"
 	return pgxpool.NewWithConfig(context.Background(), config)
 }

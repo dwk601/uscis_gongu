@@ -25,7 +25,24 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
         },
       })
     if (path.endsWith("/bulletin"))
-      return route.fulfill({ json: { categories: [], series: [] } })
+      return route.fulfill({
+        json: {
+          categories: [{ code: "EB2" }],
+          series: [
+            "ALL",
+            "CHINA",
+            "EL SALVADOR GUATEMALA HONDURAS",
+            "INDIA",
+            "MEXICO",
+            "PHILIPPINES",
+          ].map((country) => ({
+            country,
+            points: [
+              { month: "2025-01-01", cutoff: "2020-01-01", status: "date" },
+            ],
+          })),
+        },
+      })
     if (path.endsWith("/community"))
       return route.fulfill({ json: { series: [] } })
     return route.fulfill({ json: { name: "Green card", official: [] } })
@@ -150,22 +167,33 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
     )
   })
 
-  await page.goto("/trends?form=I-485")
+  await page.goto("/bulletin?category=EB2")
+  await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toBeVisible()
   const launcher = page.getByRole("button", { name: "Ask gongu", exact: true })
-  await page.evaluate("window.scrollTo(0, 600)")
-  const a = await launcher.boundingBox()
-  for (const element of await page
-    .locator("main button, main a, main p, main h1, main h2")
-    .all()) {
-    const b = await element.boundingBox()
-    if (!a || !b || b.y + b.height <= 0 || b.y >= 844) continue
-    expect(
-      a.x < b.x + b.width &&
-        a.x + a.width > b.x &&
-        a.y < b.y + b.height &&
-        a.y + a.height > b.y
-    ).toBe(false)
-  }
+  // At this fixed position the original floating launcher covered the I-797 line.
+  await page.evaluate("window.scrollTo(0, 400)")
+  expect(await page.evaluate("window.scrollY")).toBe(400)
+  const overlaps = await page.evaluate(`(() => {
+    const launcher = document.querySelector('[aria-label="Ask gongu"][aria-controls]');
+    const a = launcher.getBoundingClientRect();
+    const intersects = b => b.width && b.height && b.bottom > 0 && b.top < innerHeight && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    const main = document.querySelector('main');
+    const hits = [];
+    const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (!node.textContent.trim() || !node.parentElement.checkVisibility()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      if ([...range.getClientRects()].some(intersects)) hits.push(node.textContent.trim());
+    }
+    for (const control of main.querySelectorAll('button, a, input, select, textarea, summary')) {
+      if (control.checkVisibility() && intersects(control.getBoundingClientRect())) hits.push(control.textContent.trim() || control.getAttribute('aria-label') || control.tagName);
+    }
+    return hits;
+  })()`)
+  expect(overlaps).toEqual([])
+  await page.goto("/trends?form=I-485")
   await launcher.click()
   const dialog = page.getByRole("dialog", { name: "Ask gongu", exact: true })
   await expect(dialog).toBeVisible()
@@ -236,8 +264,26 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   expect(await page.evaluate("document.documentElement.scrollWidth")).toBe(390)
   expect((await dialog.boundingBox())!.height).toBeLessThanOrEqual(844 * 0.85)
 
-  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.setViewportSize({ width: 1024, height: 768 })
   await expect(dialog).toHaveCSS("width", "380px")
+  await expect
+    .poll(async () => {
+      const panelBox = await dialog.boundingBox()
+      const launcherBox = await launcher.boundingBox()
+      return (
+        panelBox &&
+        launcherBox &&
+        Math.round(panelBox.y - launcherBox.y - launcherBox.height)
+      )
+    })
+    .toBe(8)
+  await page.evaluate("window.scrollTo(0, 40)")
+  const beforeClose = await page.evaluate("window.scrollY")
+  expect(beforeClose).toBe(40)
+  await dialog.getByRole("button", { name: "Close Ask gongu" }).click()
+  expect(await page.evaluate("window.scrollY")).toBe(beforeClose)
+  await expect(launcher).toBeFocused()
+  await launcher.click()
   await page
     .getByRole("navigation", { name: "Main navigation" })
     .getByText("Bulletin")
@@ -264,7 +310,9 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
     "Ask gongu is busy. Please try again in a moment."
   )
   await expect(question).toHaveValue("What about my next question?")
+  await page.evaluate("window.scrollTo(0, 40)")
   const beforeEscape = await page.evaluate("window.scrollY")
+  expect(beforeEscape).toBe(40)
   await page.keyboard.press("Escape")
   expect(await page.evaluate("window.scrollY")).toBe(beforeEscape)
   await expect(dialog).not.toBeVisible()

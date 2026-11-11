@@ -223,6 +223,14 @@ function AgentSession({
   )
 }
 
+function launcherPanelTop(launcher: HTMLElement) {
+  const launcherBottom = launcher.getBoundingClientRect().bottom
+  const navigationBottom =
+    document.querySelector(".site-header nav")?.getBoundingClientRect()
+      .bottom ?? 0
+  return Math.max(launcherBottom, navigationBottom) + window.scrollY + 8
+}
+
 export function AgentWidget({
   launcherTarget,
 }: {
@@ -268,8 +276,15 @@ export function AgentWidget({
         launcher.current?.focus({ preventScroll: true })
       }
     }
+    function reposition() {
+      if (launcher.current) setPanelTop(launcherPanelTop(launcher.current))
+    }
     document.addEventListener("keydown", escape)
-    return () => document.removeEventListener("keydown", escape)
+    window.addEventListener("resize", reposition)
+    return () => {
+      document.removeEventListener("keydown", escape)
+      window.removeEventListener("resize", reposition)
+    }
   }, [open, sessionEnded])
 
   useEffect(() => {
@@ -339,10 +354,8 @@ export function AgentWidget({
             onClick={() => {
               if (open) close()
               else {
-                setPanelTop(
-                  (document.querySelector(".site-header") as HTMLElement)
-                    .offsetHeight + 8
-                )
+                if (launcher.current)
+                  setPanelTop(launcherPanelTop(launcher.current))
                 setOpen(true)
               }
             }}

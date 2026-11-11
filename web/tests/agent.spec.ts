@@ -166,6 +166,7 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toBeVisible()
   const launcher = page.getByRole("button", { name: "Ask gongu", exact: true })
   // At this fixed position the original floating launcher covered the I-797 line.
+  await page.evaluate("document.fonts.ready")
   await page.evaluate("window.scrollTo(0, 300)")
   expect(await page.evaluate("window.scrollY")).toBe(300)
   const overlaps = await page.evaluate(`(() => {

@@ -144,7 +144,7 @@ export default function DataChart({
               ]) as unknown as ReturnType<typeof scaleLinear>,
               axis: {
                 ticks: {
-                  spacing: 45,
+                  spacing: 64,
                   format: (value: Date | number) =>
                     new Date(value).toLocaleDateString("en-US", {
                       month: "short",

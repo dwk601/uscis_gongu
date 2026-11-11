@@ -97,6 +97,11 @@ test("visa routes remain usable across form history", async ({ page }) => {
   await page.goBack()
   await page.goForward()
   await page.getByRole("button", { name: /Change form/ }).click()
+  expect(
+    await page.evaluate<boolean>(
+      "document.querySelector('.trend-form-controls .form-summary').getBoundingClientRect().bottom <= document.querySelector('.trend-form-controls .form-inline-featured').getBoundingClientRect().top"
+    )
+  ).toBe(true)
   const selectedOther = page.getByRole("button", {
     name: /Other application.*Selected/,
   })

@@ -1159,8 +1159,11 @@ td {
   grid-row: 1;
   margin: 0;
 }
-.trend-form-controls .form-inline-featured {
+.trend-form-controls .form-summary {
   grid-row: 2;
+}
+.trend-form-controls .form-inline-featured {
+  grid-row: 3;
   width: 0;
   min-width: 100%;
   padding: 8px 5px;
@@ -1168,24 +1171,30 @@ td {
 }
 .trend-form-controls .form-other-toggle {
   grid-column: 1;
-  grid-row: 4;
+  grid-row: 5;
 }
 .trend-form-controls .trend-filed > span:first-child {
   grid-column: 2;
-  grid-row: 3;
+  grid-row: 4;
 }
 .trend-form-controls .trend-filed > input {
   grid-column: 2;
-  grid-row: 4;
+  grid-row: 5;
   justify-self: start;
 }
+.trend-form-controls:not(:has(.form-other-toggle))
+  .trend-filed
+  > span:first-child,
+.trend-form-controls:not(:has(.form-other-toggle)) .trend-filed > input {
+  grid-column: 1 / -1;
+}
 .trend-form-controls .form-other-options {
-  grid-row: 5;
+  grid-row: 6;
   width: 0;
   min-width: 100%;
 }
 .trend-form-controls .filed-hint {
-  grid-row: 6;
+  grid-row: 7;
 }
 @media (max-width: 560px) {
   .trend-form-controls {
@@ -1193,21 +1202,21 @@ td {
   }
   .trend-form-controls .form-other-toggle {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 4;
   }
   .trend-form-controls .trend-filed > span:first-child {
     grid-column: 1;
-    grid-row: 4;
+    grid-row: 5;
   }
   .trend-form-controls .trend-filed > input {
     grid-column: 1;
-    grid-row: 5;
+    grid-row: 6;
   }
   .trend-form-controls .form-other-options {
     grid-column: 1;
-    grid-row: 6;
+    grid-row: 7;
   }
   .trend-form-controls .filed-hint {
-    grid-row: 7;
+    grid-row: 8;
   }
 }

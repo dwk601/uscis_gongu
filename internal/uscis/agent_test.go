@@ -194,7 +194,7 @@ func TestAgentContract(t *testing.T) {
 		}
 		return out
 	}
-	const formsArgs = `{"form":"I-765"}`
+	const formsArgs = `{"form":"I-765","series":"","query":""}`
 	const refusal = `{"kind":"refusal","blocks":[{"type":"paragraph","text":"I can only answer questions about USCIS case data on gongu."}]}`
 	const clarify = `{"kind":"clarification","blocks":[{"type":"paragraph","text":"Which form and series do you mean?"}]}`
 	const badStyle = `{"kind":"clarification","blocks":[{"type":"paragraph","text":"Which form—please clarify?"}]}`
@@ -329,7 +329,7 @@ func TestAgentContract(t *testing.T) {
 					t.Errorf("community fixture: %#v", row)
 				}
 			}},
-			{"bulletin", `{"category":"EB2","country":"INDIA","chart":"final_action"}`, `{"kind":"answer","blocks":[{"type":"bulletin_cutoff","cutoffRef":"c1"}]}`, func(item map[string]any) {
+			{"bulletin", `{"category":"EB2","country":"INDIA","chart":"final_action","month":"latest"}`, `{"kind":"answer","blocks":[{"type":"bulletin_cutoff","cutoffRef":"c1"}]}`, func(item map[string]any) {
 				cutoff := item["cutoff"].(map[string]any)
 				if cutoff["status"] != "date" || cutoff["cutoff"] != "2012-10-15" || cutoff["month"] != "2025-02" || cutoff["country"] != "INDIA" {
 					t.Errorf("date cutoff: %#v", cutoff)
@@ -386,6 +386,9 @@ func TestAgentContract(t *testing.T) {
 		for _, s := range []step{
 			{name: "forms", args: `{"form":"I-765","unknown":1}`},
 			{name: "forms", args: `{"quarter":8}`},
+			{name: "forms", args: `{"form":"I-765","unknown":""}`},
+			{name: "estimate_date", args: `{"form":"I-765","series":"","filingDate":"2024-01-01"}`},
+			{name: "bulletin", args: `{"category":"EB2","country":"INDIA","chart":"final_action","month":"2025-13"}`},
 			{name: "estimate_date", args: `{"form":"I-765","series":"x","filingDate":"2024-02-30"}`},
 			{name: "execute_sql", args: `{"sql":"SELECT 9999"}`},
 			{name: "answer", args: `{"kind":"answer","blocks":[{"type":"stat","factRef":"made-up"}]}`},

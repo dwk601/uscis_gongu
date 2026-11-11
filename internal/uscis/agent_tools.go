@@ -39,6 +39,13 @@ func validateAgentArgs(name, raw string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Optional text fields accept an empty string as an omitted filter.
+	// Validate first so required fields and unknown keys still fail closed.
+	for key, value := range v {
+		if value == "" {
+			delete(v, key)
+		}
+	}
 	switch name {
 	case "forms":
 		if agentString(v, "form") == "" && (v["series"] != nil || v["fiscalYear"] != nil || v["quarter"] != nil) {
@@ -52,6 +59,9 @@ func validateAgentArgs(name, raw string) (map[string]any, error) {
 			return nil, errAgentDraft
 		}
 	case "bulletin":
+		if agentString(v, "month") == "latest" {
+			delete(v, "month")
+		}
 		if m := agentString(v, "month"); m != "" && !agentDate(m, "2006-01") {
 			return nil, errAgentDraft
 		}

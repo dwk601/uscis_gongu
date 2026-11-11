@@ -32,6 +32,11 @@ func text(values ...string) agentSchema {
 	}
 	return s
 }
+func optionalText() agentSchema {
+	s := text()
+	s["minLength"] = 0
+	return s
+}
 func paragraphText() agentSchema {
 	s := text()
 	s["maxLength"] = 400
@@ -45,10 +50,10 @@ func array(items agentSchema, low, high int) agentSchema {
 }
 
 var agentSchemas = map[string]agentSchema{
-	"forms":               object(map[string]agentSchema{"form": text(), "series": text(), "query": text(), "offset": integer(0, 10000), "fiscalYear": integer(1900, 2200), "quarter": integer(1, 4)}),
+	"forms":               object(map[string]agentSchema{"form": optionalText(), "series": optionalText(), "query": optionalText(), "offset": integer(0, 10000), "fiscalYear": integer(1900, 2200), "quarter": integer(1, 4)}),
 	"estimate_date":       object(map[string]agentSchema{"form": text(), "series": text(), "filingDate": text()}, "form", "series", "filingDate"),
 	"community_timelines": object(map[string]agentSchema{"form": text(), "visaType": text(), "filingYear": integer(1900, 2200)}, "form", "visaType", "filingYear"),
-	"bulletin":            object(map[string]agentSchema{"category": text(), "country": text(), "chart": text("final_action", "dates_for_filing"), "month": text()}, "category", "country", "chart"),
+	"bulletin":            object(map[string]agentSchema{"category": text(), "country": text(), "chart": text("final_action", "dates_for_filing"), "month": optionalText()}, "category", "country", "chart"),
 	"answer": object(map[string]agentSchema{
 		"kind": text("answer", "refusal", "clarification", "no_data"),
 		"blocks": array(agentSchema{"oneOf": []agentSchema{

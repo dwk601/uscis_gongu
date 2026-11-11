@@ -104,6 +104,7 @@ var agentToolProgress = map[string]string{
 	"estimate_date":       "Estimating your date…",
 	"community_timelines": "Reading community timelines…",
 	"bulletin":            "Checking the visa bulletin…",
+	"reddit_timelines":    "Reading Reddit timelines…",
 }
 
 func agentQuotaError(e *core.RequestEvent, b agentBudget) error {

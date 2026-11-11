@@ -344,6 +344,12 @@ func TestAgentContract(t *testing.T) {
 					t.Errorf("community fixture: %#v", row)
 				}
 			}},
+			{"reddit_timelines", `{"form":"I-765","caseType":"opt","processing":"regular"}`, `{"kind":"answer","blocks":[{"type":"paragraph","text":"Reddit reports a median of {{f1}} for {{r1.caseType}} filed {{r1.filedMonth}}."}]}`, func(item map[string]any) {
+				row := item["row"].(map[string]any)
+				if row["processing"] != "Regular" || row["approvedReports"] != float64(58) || row["lowMonths"] != 1.0 || row["highMonths"] != 3.0 {
+					t.Errorf("reddit fixture: %#v", row)
+				}
+			}},
 			{"bulletin", `{"category":"EB2","country":"INDIA","chart":"final_action","month":"latest"}`, `{"kind":"answer","blocks":[{"type":"bulletin_cutoff","cutoffRef":"c1"}]}`, func(item map[string]any) {
 				cutoff := item["cutoff"].(map[string]any)
 				if cutoff["status"] != "date" || cutoff["cutoff"] != "2012-10-15" || cutoff["month"] != "2025-02" || cutoff["country"] != "INDIA" {
@@ -368,6 +374,9 @@ func TestAgentContract(t *testing.T) {
 				item := r["items"].([]any)[0].(map[string]any)
 				tc.check(item)
 				if ref, ok := item["rowRef"].(string); ok {
+					if facts, ok := item["factRefs"].(map[string]any); ok && facts["medianMonths"] != nil {
+						tc.answer = strings.ReplaceAll(tc.answer, "{{f1}}", "{{"+facts["medianMonths"].(string)+"}}")
+					}
 					return strings.ReplaceAll(tc.answer, "r1", ref)
 				}
 				return strings.ReplaceAll(tc.answer, "c1", item["cutoffRef"].(string))
@@ -378,6 +387,12 @@ func TestAgentContract(t *testing.T) {
 			}
 			if tc.args == `{"form":"I-131","query":"NACARA"}` && v["blocks"].([]any)[0].(map[string]any)["text"] != "Do you mean A to B NACARA, urgent, now?" {
 				t.Fatalf("normalized explanation: %#v", v)
+			}
+			if tc.name == "reddit_timelines" {
+				source := v["sources"].([]any)[0].(map[string]any)
+				if v["blocks"].([]any)[0].(map[string]any)["text"] != "Reddit reports a median of 2 months for OPT filed 2025-01." || source["label"] != "Reddit self-reported timelines, I-765, OPT, Regular" || source["period"] != "Filed 2025-01" {
+					t.Fatalf("reddit answer: %#v", v)
+				}
 			}
 			if tc.name == "community_timelines" {
 				source := v["sources"].([]any)[0].(map[string]any)
@@ -440,7 +455,7 @@ func TestAgentContract(t *testing.T) {
 			h := newHarness(t, []step{
 				{name: "answer", args: draft.first, check: func(v map[string]any) {
 					toolsJSON, err := json.Marshal(v["tools"])
-					if err != nil || len(toolsJSON) > 3000 {
+					if err != nil || len(toolsJSON) > 3500 {
 						t.Errorf("tool schema byte cap: %d (%v)", len(toolsJSON), err)
 					}
 					if warmCodes && (strings.Contains(string(toolsJSON), "INJECT_HINT") || !strings.Contains(string(toolsJSON), "PHILIPPINES") || !strings.Contains(string(toolsJSON), "IR-1/CR-1")) {

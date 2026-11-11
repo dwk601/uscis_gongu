@@ -54,6 +54,7 @@ var agentSchemas = map[string]agentSchema{
 	"estimate_date":       object(map[string]agentSchema{"form": text(), "series": text(), "filingDate": text()}, "form", "series", "filingDate"),
 	"community_timelines": object(map[string]agentSchema{"form": text(), "visaType": text(), "filingYear": integer(1900, 2200)}, "form", "visaType", "filingYear"),
 	"bulletin":            object(map[string]agentSchema{"category": text(), "country": text(), "chart": text("final_action", "dates_for_filing"), "month": optionalText()}, "category", "country", "chart"),
+	"reddit_timelines":    object(map[string]agentSchema{"form": text("I-765", "I-129", "I-140"), "caseType": text(), "processing": text("premium", "regular")}, "form"),
 	"answer": object(map[string]agentSchema{
 		"kind": text("answer", "refusal", "clarification", "no_data"),
 		"blocks": array(agentSchema{"oneOf": []agentSchema{
@@ -71,6 +72,7 @@ var agentToolDescriptions = map[string]string{
 	"estimate_date":       "Latest positive median times 30.44 UTC days; filingDate YYYY-MM-DD.",
 	"community_timelines": "VisaJourney day percentiles. visaType: F-1,IR-1/CR-1,K1,K3,Other.",
 	"bulletin":            "DOS; month YYYY-MM or latest. category: F1,F2A,F2B,F3,F4,EB1,EB2,EB3,EB3-OW,EB4,EB4-RELIGIOUS,EB5-NON-RC,EB5-RC,EB5-SET-ASIDE-HIGH-UNEMPLOYMENT,EB5-SET-ASIDE-INFRASTRUCTURE,EB5-SET-ASIDE-RURAL,EB5-UNRESERVED,EB5-UNRESERVED-RC. country: ALL,INDIA,CHINA,MEXICO,PHILIPPINES,EL SALVADOR GUATEMALA HONDURAS.",
+	"reddit_timelines":    "Reddit self-reported days, not USCIS. caseType: opt,stem_opt,h1b,h1b_transfer,h1b_extension,h1b_change_of_status,i140.",
 	"answer":              "Finish with reference blocks and plain paragraphs.",
 }
 
@@ -148,7 +150,7 @@ func (a *api) agentCodeHints() map[string]string {
 }
 
 func (a *api) agentTools() []openai.ChatCompletionToolUnionParam {
-	names := []string{"forms", "estimate_date", "community_timelines", "bulletin", "answer"}
+	names := []string{"forms", "estimate_date", "community_timelines", "bulletin", "reddit_timelines", "answer"}
 	hints := a.agentCodeHints()
 	out := make([]openai.ChatCompletionToolUnionParam, 0, len(names))
 	for _, name := range names {
@@ -159,7 +161,7 @@ func (a *api) agentTools() []openai.ChatCompletionToolUnionParam {
 		out = append(out, openai.ChatCompletionToolUnionParam{OfFunction: &openai.ChatCompletionFunctionToolParam{Function: shared.FunctionDefinitionParam{Name: name, Description: openai.String(description), Parameters: shared.FunctionParameters(agentWireSchema(agentSchemas[name]))}}})
 	}
 	// A larger future vocabulary must not inflate the fixed prompt budget.
-	if encoded, err := json.Marshal(out); err != nil || len(encoded) > 3000 {
+	if encoded, err := json.Marshal(out); err != nil || len(encoded) > 3500 {
 		for _, tool := range out {
 			name := tool.OfFunction.Function.Name
 			tool.OfFunction.Function.Description = openai.String(agentToolDescriptions[name])

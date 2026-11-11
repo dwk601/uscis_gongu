@@ -29,6 +29,10 @@ type redditSeries struct {
 	Points   []redditPoint `json:"points"`
 }
 
+func (a *api) redditRows(ctx context.Context) (any, error) {
+	return a.load(ctx, "reddit-timelines", func(ctx context.Context) (any, error) { return a.q.RedditTimelines(ctx) })
+}
+
 func (a *api) redditTimeline(r *core.RequestEvent) error {
 	if !validInsightQuery(r) {
 		return r.Error(http.StatusBadRequest, "Invalid query parameters.", nil)
@@ -44,7 +48,7 @@ func (a *api) redditTimeline(r *core.RequestEvent) error {
 	description, mapped := redditDescriptions[form]
 	series := []redditSeries{}
 	if mapped {
-		value, err := a.load(r.Request.Context(), "reddit-timelines", func(ctx context.Context) (any, error) { return a.q.RedditTimelines(ctx) })
+		value, err := a.redditRows(r.Request.Context())
 		if err != nil {
 			return unavailable(r)
 		}

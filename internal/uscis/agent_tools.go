@@ -58,6 +58,10 @@ func validateAgentArgs(name, raw string) (map[string]any, error) {
 		if !agentDate(agentString(v, "filingDate"), "2006-01-02") {
 			return nil, errAgentDraft
 		}
+	case "reddit_timelines":
+		if c, ok := v["caseType"]; ok && redditCaseLabels[c.(string)] == "" {
+			return nil, errAgentDraft
+		}
 	case "bulletin":
 		if agentString(v, "month") == "latest" {
 			delete(v, "month")
@@ -79,6 +83,8 @@ func (a *api) agentRead(ctx context.Context, f *agentFacts, name string, v map[s
 		items, err = a.agentCommunity(ctx, f, v)
 	case "bulletin":
 		items, err = a.agentBulletin(ctx, f, v)
+	case "reddit_timelines":
+		items, err = a.agentReddit(ctx, f, v)
 	default:
 		return "", errAgentDraft
 	}
@@ -291,6 +297,74 @@ func (a *api) agentCommunity(ctx context.Context, f *agentFacts, v map[string]an
 		source.Period = &cohort
 		source.ID = slug(source.Href + "visajourney" + str(r.VisaType) + cohort)
 		items = append(items, agentItem{map[string]any{"rowRef": id, "row": row}, map[string]agentReference{id: {row: row, group: "community", source: source}}})
+	}
+	return items, nil
+}
+
+var redditCaseLabels = map[string]string{"opt": "OPT", "stem_opt": "STEM OPT", "h1b": "H-1B", "h1b_change_of_status": "H-1B change of status", "h1b_transfer": "H-1B transfer", "h1b_extension": "H-1B extension", "i140": "I-140"}
+
+var redditProcessingLabels = map[string]string{"all": "All", "premium": "Premium", "regular": "Regular"}
+
+// Days to months as the trends page shows them, at one decimal.
+func redditMonths(days *float64) *float64 {
+	if days == nil {
+		return nil
+	}
+	months := math.Round(*days/30.44*10) / 10
+	return &months
+}
+
+func redditProcessing(premium *bool) string {
+	if premium == nil {
+		return "all"
+	}
+	if *premium {
+		return "premium"
+	}
+	return "regular"
+}
+
+// One row per case type and processing: the newest cohort matched to a USCIS
+// quarter, else the newest cohort, as the trends page headline shows.
+func (a *api) agentReddit(ctx context.Context, f *agentFacts, v map[string]any) ([]agentItem, error) {
+	value, err := a.redditRows(ctx)
+	if err != nil {
+		return nil, err
+	}
+	form, caseType, processing := agentString(v, "form"), agentString(v, "caseType"), agentString(v, "processing")
+	latest, order := map[string]db.RedditTimelinesRow{}, []string{}
+	for _, r := range value.([]db.RedditTimelinesRow) {
+		if str(r.Form) != form || r.P50Days == nil || !r.FiledMonth.Valid || (caseType != "" && str(r.CaseType) != caseType) || (processing != "" && redditProcessing(r.Premium) != processing) {
+			continue
+		}
+		key := str(r.CaseType) + "|" + redditProcessing(r.Premium)
+		best, seen := latest[key]
+		if !seen {
+			order = append(order, key)
+		}
+		matched, bestMatched := r.QuarterStart.Valid && r.ProcessingMonths != nil, best.QuarterStart.Valid && best.ProcessingMonths != nil
+		if !seen || (matched && !bestMatched) || (matched == bestMatched && r.FiledMonth.Time.After(best.FiledMonth.Time)) {
+			latest[key] = r
+		}
+	}
+	items := []agentItem{}
+	for _, key := range order {
+		r := latest[key]
+		caseLabel := redditCaseLabels[str(r.CaseType)]
+		if caseLabel == "" {
+			caseLabel = "Not stated"
+		}
+		processingLabel := redditProcessingLabels[redditProcessing(r.Premium)]
+		filed := r.FiledMonth.Time.Format("2006-01")
+		row := map[string]any{"form": form, "caseType": caseLabel, "processing": processingLabel, "filedMonth": filed, "approvedReports": r.ApprovedReports, "lowMonths": redditMonths(r.P10Days), "medianMonths": redditMonths(r.P50Days), "highMonths": redditMonths(r.P90Days), "meaning": "Reddit self-reported months, filed to approved. Low and high are the 10th and 90th percentiles of approved reports only; recent months skew short."}
+		label := "Reddit, " + caseLabel + ", " + processingLabel
+		source := agentSourceFor("Reddit self-reported timelines, "+form+", "+caseLabel+", "+processingLabel, "/trends?form="+url.QueryEscape(form))
+		period := "Filed " + filed
+		source.Period = &period
+		source.ID = slug(source.Href + "reddit" + key + filed)
+		rowID, factID := f.id("r"), f.id("f")
+		median := map[string]any{"type": "stat", "label": label + ", Reported median", "value": redditMonths(r.P50Days), "unit": "months", "period": period, "sourceId": source.ID}
+		items = append(items, agentItem{map[string]any{"rowRef": rowID, "row": row, "factRefs": map[string]string{"medianMonths": factID}}, map[string]agentReference{rowID: {row: row, group: "reddit", source: source}, factID: {block: median, source: source}}})
 	}
 	return items, nil
 }

@@ -42,6 +42,8 @@ var agentColumnLabels = map[string]string{
 	"form": "Form", "series": "Series", "name": "Name", "label": "Series label", "period": "Fiscal period",
 	"received": "Received cases", "approved": "Approved cases", "denied": "Denied cases", "completed": "Completed", "pending": "Pending", "processingMonths": "Reported median in months",
 	"visaType": "Visa type", "filingYear": "Filing year", "sampleSize": "Included reports", "pendingShare": "Pending share", "p10": "Completed reports lower percentile in days", "p50": "Completed reports median in days", "p90": "Completed reports upper percentile in days", "meaning": "Timeline meaning",
+	"caseType": "Case type", "processing": "Processing", "filedMonth": "Filed month", "approvedReports": "Approved reports",
+	"lowMonths": "Approved reports lower percentile in months", "medianMonths": "Approved reports median in months", "highMonths": "Approved reports upper percentile in months",
 }
 
 func (f *agentFacts) resolve(raw string) (*agentResponse, error) {
@@ -131,7 +133,7 @@ func (f *agentFacts) resolve(raw string) (*agentResponse, error) {
 					return nil, errAgentDraft
 				}
 				group, source = ref.group, ref.source.ID
-				if group == "community" && (!keys["sampleSize"] || !keys["completed"]) {
+				if (group == "community" && (!keys["sampleSize"] || !keys["completed"])) || (group == "reddit" && !keys["approvedReports"]) {
 					return nil, errAgentDraft
 				}
 				row := map[string]any{}

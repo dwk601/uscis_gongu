@@ -71,6 +71,21 @@ export default function DataChart({
   pending?: string
 }) {
   const x = (row: ChartRow) => (calendar ? new Date(row.x) : row.x)
+  let minDate = Infinity
+  let maxDate = -Infinity
+  if (dateValues) {
+    for (const row of rows) {
+      if (row.value != null && Number.isFinite(row.value)) {
+        minDate = Math.min(minDate, row.value)
+        maxDate = Math.max(maxDate, row.value)
+      }
+    }
+  }
+  const day = 86400000
+  const padding = Math.min(
+    366 * day,
+    Math.max(31 * day, (maxDate - minDate) * 0.1)
+  )
   const definition = defineChart({
     marks: [
       ...(band
@@ -120,22 +135,33 @@ export default function DataChart({
               },
             },
           }
-        : { scale: scaleLinear },
+        : dateValues && Number.isFinite(minDate)
+          ? {
+              // The UTC scale accepts numeric timestamps, although its domain getter returns Dates.
+              scale: scaleUtc().domain([
+                minDate - padding,
+                maxDate + padding,
+              ]) as unknown as ReturnType<typeof scaleLinear>,
+              axis: {
+                ticks: {
+                  spacing: 45,
+                  format: (value: Date | number) =>
+                    new Date(value).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      timeZone: "UTC",
+                    }),
+                },
+                tickLabels: { thin: { minGap: 8 } },
+              },
+            }
+          : { scale: scaleLinear },
     },
-    ...(dateValues ? { margin: { left: 72, right: 12 } } : {}),
+    ...(dateValues ? { margin: { left: 100, right: 12 } } : {}),
   })
   const display = (value: number | null) =>
-    value == null
-      ? "—"
-      : dateValues
-        ? new Date(
-            Date.UTC(Math.floor(value), Math.round((value % 1) * 12), 1)
-          ).toLocaleDateString("en-US", {
-            month: "short",
-            year: "numeric",
-            timeZone: "UTC",
-          })
-        : Math.round(value * 10) / 10
+    value == null ? "—" : Math.round(value * 10) / 10
   const [lightStroke, darkStroke] = chartHue(hue)
   return (
     <section

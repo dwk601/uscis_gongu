@@ -268,8 +268,7 @@ function BulletinPage() {
     exact: p.cutoff ? cutoffDate(p.cutoff) : undefined,
     value:
       p.status === "date" && p.cutoff
-        ? new Date(`${p.cutoff}T00:00:00Z`).getUTCFullYear() +
-          new Date(`${p.cutoff}T00:00:00Z`).getUTCMonth() / 12
+        ? Date.parse(`${p.cutoff}T00:00:00Z`)
         : null,
   }))
   const savedForm = getSessionItem("gongu-last-case-form") || ""

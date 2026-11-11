@@ -760,6 +760,13 @@ test("bulletin selection and historical status", async ({ page }) => {
     .getByRole("button", { name: /Spouses and unmarried children/ })
     .click()
   await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toBeVisible()
+  const labels = page.locator('text[data-ts-key^="y-tick-label:"]')
+  await expect.poll(() => labels.count()).toBeGreaterThan(0)
+  for (const label of await labels.allTextContents()) {
+    const date = Date.parse(`${label} UTC`)
+    expect(date).toBeGreaterThanOrEqual(Date.parse("2019-12-01T00:00:00Z"))
+    expect(date).toBeLessThanOrEqual(Date.parse("2020-02-01T00:00:00Z"))
+  }
   const before = requests
   const priority = page.getByLabel("Your priority date (optional)")
   await expect(

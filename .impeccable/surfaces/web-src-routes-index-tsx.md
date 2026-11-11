@@ -13,19 +13,18 @@ Build path: code-led (no image generation available).
 
 ## Direction contract
 
-THESIS: An open canvas of cases. Every USCIS form is a colored card on a calm off-white canvas (pinned reference: grida.co); choosing a form tints the workspace in that form's color. Refuses the category default: government-blue form wizards, dense tables, walls of disclaimers.
+THESIS: An open canvas of cases. Form-colored choices and results sit on a calm off-white canvas (pinned reference: grida.co), with a subtle form tint on Trends. Refuses government-blue form wizards and dense walls of copy.
 
-OWN-WORLD: Ground #F7F7F4, ink #171717, hairline #E7E6E1; dark ground #111110, ink #EDEDE8. Form hues: tangerine #F2703D, lilac #C7B6EC, lime #D3E39A, forest #2E4B36, sky #9EC5F0, rose #F2A5B7, butter #F3D35B. Geist Variable, display 600 at -0.035em; black pill primary buttons; pill chips for choices; canvas panels 28px radius on a slightly darker tray; artifact cards 14px radius, soft offset shadow, slightly rotated on the landing only. Charts: 2px lines in the form hue, p10–p90 as a translucent band, tabular numerals.
+OWN-WORLD: Ground #F7F7F4, ink #171717, hairline #E7E6E1, tray #EBEBE7; dark ground #111110, ink #EDEDE8, tray #20201E. Form hues: tangerine #F2703D, lilac #C7B6EC, lime #D3E39A, forest #2E4B36, sky #9EC5F0, rose #F2A5B7, butter #F3D35B. Geist Variable; black pill primary buttons; colored 14px-radius form choices; flat 20px workspace panels and 28px My case panels. The tray color remains in theme controls, errors and skeletons. Charts use form-related strokes, a translucent range band, and tabular numerals.
 
-STORY: Visitor reads one line, picks a form and filing date, sees "likely by <month>" and the trend; reads the community; signs in only to post, comment, or upvote.
+STORY: A visitor chooses My case or Visa bulletin, then selects a form or category. A returning visitor can continue the saved case or choose a different form. Results lead to Trends and Community; reading is open, and signing in is needed for participation.
 
-FIRST VIEWPORT: Landing: slim nav (logo left; Trends, Bulletin, Community centered; theme toggle and Sign in right). Centered display headline, one short subline, then the working checker as a single pill row: form select, filed date, black "See my estimate" pill. Below, a rounded canvas tray holding three live data cards (official median wait, trend mini chart, bulletin cutoff), lightly rotated. Trends: form chip rail top, filed-date field beside it; a large hue-filled estimate card left, official wait-trend chart right; community percentiles and volume below.
+FIRST VIEWPORT: Landing: logo, My case, Visa bulletin and Community navigation, theme and account actions; a headline and two colored choice cards, side by side on desktop and stacked on mobile. My case starts with grouped featured forms; selection collapses to a Change form summary beside an optional filed date, with an answer and trend below. Trends has a horizontal journey rail, then All forms featured choices visible inline, a searchable other-forms disclosure and Filed control; journey-specific forms and case categories retain their respective chip rails. Bulletin offers group and category choices, a Change summary, country chips and Approval cutoff / Filing cutoff segments once a category is selected. Community presents a feed, sort choices and the shared form filter. Screen changes focus the destination heading or main without scrolling; initial load and in-screen changes do not move route focus.
 
 FORM: brief-pinned grida.co canvas world, 1 of 1 (pinned, no roll). seed: none (brief-pinned, no roll)
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
-
 ## Finish verdict
 
-Disposition: ship (independent verifier, 4ef683e). First independent finish review returned fix; its items were resolved in 557aa34 and 4ef683e and confirmed by the verifier. Geist is brief-pinned. No raster assets ship; provenance is N/A. The quality-bar card was not supplied.
+Not independently re-reviewed since 4ef683e. At ae39353, landing, expanded and selected My case, Trends, bulletin and Community were viewed at 390px and 1280px in light and dark themes against the read-only service.

@@ -1,12 +1,14 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-04T00:00:00Z",
+  "generatedAt": "2026-11-11T01:33:56Z",
   "title": "Design System: gongu",
   "extensions": {
     "colorMeta": {
       "ground": { "role": "neutral", "displayName": "Canvas", "canonical": "#f7f7f4" },
       "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#171717" },
       "focus": { "role": "accent", "displayName": "Focus", "canonical": "#7c55ca" },
+      "tray": { "role": "neutral", "displayName": "Tray", "canonical": "#ebebe7" },
+      "dark-tray": { "role": "neutral", "displayName": "Dark tray", "canonical": "#20201e" },
       "tangerine": { "role": "primary", "displayName": "Tangerine", "canonical": "#f2703d" },
       "lilac": { "role": "secondary", "displayName": "Lilac", "canonical": "#c7b6ec" },
       "lime": { "role": "secondary", "displayName": "Lime", "canonical": "#d3e39a" },
@@ -17,26 +19,27 @@
     },
     "typographyMeta": { "display": { "displayName": "Display", "purpose": "Landing headlines." } },
     "shadows": [
-      { "name": "checker", "value": "0 4px 20px #00000010", "purpose": "Landing checker lift." },
-      { "name": "artifact", "value": "0 12px 24px #0000001c", "purpose": "Landing artifact lift." },
+      { "name": "selection", "value": "0 0 0 2px var(--panel), 0 0 0 5px var(--ink)", "purpose": "Selected form choice ring, not elevation." },
       { "name": "menu", "value": "0 8px 24px #0003", "purpose": "Account menu." }
     ],
-    "motion": [{ "name": "surface", "value": "background 0.45s ease-out", "purpose": "Theme and form-color changes." }, { "name": "artifact", "value": "transform 250ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 250ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Straighten and lift on hover or focus; reduced motion disables transitions." }],
-    "breakpoints": [{ "name": "workspace", "value": "700px" }, { "name": "social", "value": "600px" }]
+    "motion": [{ "name": "surface", "value": "background 0.45s ease-out", "purpose": "Shell and estimate background changes; reduced motion suppresses transitions." }],
+    "breakpoints": [{ "name": "workspace", "value": "700px" }, { "name": "trends-controls", "value": "560px" }, { "name": "bulletin-grid", "value": "900px" }]
   },
   "components": [
-    { "name": "Primary button", "kind": "button", "refersTo": "button-primary", "description": "The main action.", "html": "<button class=\"ds-primary\">Continue</button>", "css": ".ds-primary{background:#171717;color:#fff;border:0;border-radius:99px;padding:14px 24px;font:600 1rem 'Geist Variable',sans-serif}.ds-primary:hover{background:#383833}.dark .ds-primary{background:var(--ink);color:var(--ground)}.dark .ds-primary:hover{background:#c6c6bd}.ds-primary:disabled{opacity:.5;cursor:not-allowed}.ds-primary:focus-visible{outline:3px solid #7c55ca;outline-offset:3px}" },
-    { "name": "Chip", "kind": "chip", "refersTo": "chip", "description": "A compact choice.", "html": "<button class=\"ds-chip\">N-400</button>", "css": ".ds-chip{border:1px solid var(--hairline,#e7e6e1);background:var(--panel,#fff);color:var(--ink,#171717);border-radius:99px;padding:9px 15px;font:14px 'Geist Variable',sans-serif}.ds-chip:hover{border-color:var(--ink,#171717)}.ds-chip:focus-visible{outline:3px solid var(--focus,#7c55ca);outline-offset:3px}" },
+    { "name": "Primary button", "kind": "button", "refersTo": "button-primary", "description": "The main action.", "html": "<button class=\"ds-primary\">Continue</button>", "css": ".ds-primary{background:#171717;color:#fff;border:0;border-radius:99px;padding:14px 24px;font:600 1rem 'Geist Variable',sans-serif}.ds-primary:hover{background:#383833}:host-context(.dark) .ds-primary{background:var(--ink,#edede8);color:var(--ground,#111110)}:host-context(.dark) .ds-primary:hover{background:#c6c6bd}.ds-primary:disabled{opacity:.5;cursor:not-allowed}.ds-primary:focus-visible{outline:3px solid var(--focus,#7c55ca);outline-offset:3px}" },
+    { "name": "Chip", "kind": "chip", "refersTo": "chip", "description": "A compact choice.", "html": "<button class=\"ds-chip\">N-400</button>", "css": ".ds-chip{border:1px solid var(--hairline,#e7e6e1);background:var(--panel,#fff);color:var(--ink,#171717);border-radius:99px;padding:9px 15px;font:14px 'Geist Variable',sans-serif}.ds-chip:hover{border-color:var(--ink,#171717)}.ds-chip[aria-pressed=true]{background:var(--ink,#171717);color:var(--ground,#f7f7f4);border-color:var(--ink,#171717)}.ds-chip:focus-visible{outline:3px solid var(--focus,#7c55ca);outline-offset:3px}" },
     { "name": "Field", "kind": "input", "description": "A social form field.", "html": "<input class=\"ds-field\" placeholder=\"Display name\" aria-label=\"Display name\">", "css": ".ds-field{padding:12px 14px;border:1px solid var(--hairline,#e7e6e1);border-radius:12px;background:var(--ground,#f7f7f4);color:var(--ink,#171717);font:14px 'Geist Variable',sans-serif}.ds-field:focus-visible{outline:3px solid var(--focus,#7c55ca);outline-offset:3px}" },
     { "name": "Social card", "kind": "card", "description": "A community content container.", "html": "<article class=\"ds-card\"><h2>A community conversation</h2><p>Share your experience.</p></article>", "css": ".ds-card{background:var(--panel,#fff);color:var(--ink,#171717);border:1px solid var(--hairline,#e7e6e1);border-radius:14px;padding:22px;font-family:'Geist Variable',sans-serif}.ds-card h2{margin:0 0 12px}.ds-card p{line-height:1.5}" },
-    { "name": "Navigation", "kind": "nav", "description": "Quiet primary navigation.", "html": "<nav class=\"ds-nav\"><a href=\"#\">Trends</a><a href=\"#\">Bulletin</a><a href=\"#\">Community</a></nav>", "css": ".ds-nav{display:flex;gap:32px;font:14px 'Geist Variable',sans-serif}.ds-nav a{color:var(--muted,#62625e);text-decoration:none}.ds-nav a:hover{color:var(--ink,#171717)}.ds-nav a:focus-visible{outline:3px solid var(--focus,#7c55ca);outline-offset:3px}" }
+    { "name": "Navigation", "kind": "nav", "description": "Quiet primary navigation; moves to a second row on small screens.", "html": "<nav class=\"ds-nav\"><a href=\"#\">My case</a><a href=\"#\">Visa bulletin</a><a href=\"#\">Community</a></nav>", "css": ".ds-nav{display:flex;gap:32px;font:14px 'Geist Variable',sans-serif}.ds-nav a{color:var(--muted,#62625e);text-decoration:none}.ds-nav a:hover{color:var(--ink,#171717)}.ds-nav a:focus-visible{outline:3px solid var(--focus,#7c55ca);outline-offset:3px}" },
+    { "name": "Form choice", "kind": "button", "description": "A form-colored choice with a pressed selection ring.", "html": "<button class=\"ds-form-choice\" aria-pressed=\"true\">Green card application<small>I-485 · Selected</small></button>", "css": ".ds-form-choice{min-height:48px;max-width:100%;padding:9px 14px;border:2px solid transparent;border-radius:14px;text-align:left;overflow-wrap:anywhere;cursor:pointer;font:600 1rem 'Geist Variable',sans-serif;background:#f2703d;color:#171717}.ds-form-choice small{display:block;font-size:12px}.ds-form-choice[aria-pressed=true]{box-shadow:0 0 0 2px var(--panel,#fff),0 0 0 5px var(--ink,#171717)}.ds-form-choice:focus-visible{outline:3px solid var(--focus,#7c55ca);outline-offset:7px}" },
+    { "name": "Bulletin chart choice", "kind": "custom", "description": "Segmented choice between approval and filing cutoffs.", "html": "<div class=\"ds-segments\" role=\"group\" aria-label=\"Bulletin chart\"><button aria-pressed=\"true\">Approval cutoff</button><button aria-pressed=\"false\">Filing cutoff</button></div>", "css": ".ds-segments{display:inline-flex;padding:4px;border-radius:14px;background:var(--tray,#ebebe7)}.ds-segments button{border:0;border-radius:10px;background:transparent;color:var(--ink,#171717);padding:9px 15px;font:14px 'Geist Variable',sans-serif;cursor:pointer}.ds-segments button[aria-pressed=true]{background:var(--ink,#171717);color:var(--ground,#f7f7f4)}.ds-segments button:focus-visible{outline:3px solid var(--focus,#7c55ca);outline-offset:3px}" }
   ],
   "narrative": {
     "northStar": "An open canvas of cases",
     "overview": "A quiet, off-white canvas carries bright form colors and confident black actions. Data and community surfaces keep the same friendly world while giving reading and interaction room to breathe.",
-    "keyCharacteristics": ["Color identifies a form rather than decorating every surface.", "Soft trays and lightly lifted artifacts contrast with flat workspace panels.", "Pill controls and tight, balanced headlines keep the interface approachable."],
+    "keyCharacteristics": ["Color identifies a form rather than decorating every surface.", "Flat, color-filled choices and neutral panels separate actions from results.", "Pill controls and compact, balanced headlines keep the interface approachable."],
     "rules": [],
-    "dos": ["Do keep form colors associated with their data and use legible ink on each.", "Do preserve clear focus indicators and responsive chip rails."],
+    "dos": ["Do keep form colors associated with their data and use legible ink on each.", "Do preserve clear focus indicators and the intended wrapping and scrolling behavior of choice controls."],
     "donts": ["Don't make analytical or community surfaces depend on a sign-in for reading.", "Don't substitute fabricated figures for missing data."]
   }
 }

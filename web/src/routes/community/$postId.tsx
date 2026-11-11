@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useState, type FormEvent } from "react"
 import { PostCard, SignIn } from "@/components/social-post"
-import { useAuth, mutationErrorMessage } from "@/lib/auth"
+import { isAdmin, useAuth, mutationErrorMessage } from "@/lib/auth"
 import {
   relativeTime,
   validForm,
@@ -71,7 +71,9 @@ function Detail() {
   async function remove(collection: "posts" | "comments", id: string) {
     if (
       !window.confirm(
-        `Delete this ${collection === "posts" ? "post" : "comment"}?`
+        collection === "posts"
+          ? "Delete this post? Its comments and votes will also be deleted."
+          : "Delete this comment?"
       )
     )
       return
@@ -107,7 +109,7 @@ function Detail() {
       {post.data && (
         <>
           <PostCard post={post.data} detail />
-          {user?.id === post.data.author && (
+          {(user?.id === post.data.author || isAdmin(user)) && (
             <button
               className="chip danger"
               disabled={busy}
@@ -126,7 +128,7 @@ function Detail() {
                 <span>{relativeTime(c.created)}</span>
               </div>
               <p className="social-body">{c.body}</p>
-              {user?.id === c.author && (
+              {(user?.id === c.author || isAdmin(user)) && (
                 <button
                   className="chip danger"
                   disabled={busy}

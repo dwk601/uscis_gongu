@@ -7,6 +7,7 @@ import (
 	"ganigeorgiev.com/pocketbase/pocketbase/plugins/migratecmd"
 	"ganigeorgiev.com/pocketbase/pocketbase/tools/osutils"
 
+	"gongu/internal/accounts"
 	"gongu/internal/spa"
 	"gongu/internal/uscis"
 	_ "gongu/migrations"
@@ -18,6 +19,7 @@ func main() {
 	migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
 		Automigrate: osutils.IsProbablyGoRun(),
 	})
+	accounts.Register(app)
 	uscis.Register(app)
 	spa.Register(app)
 

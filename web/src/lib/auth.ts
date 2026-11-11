@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react"
+import type { RecordModel } from "pocketbase"
 import { pb } from "./pb"
 
 let currentUser = pb.authStore.isValid ? pb.authStore.record : null
@@ -36,6 +37,11 @@ export function useAuth() {
     () => currentUser,
     () => null
   )
+}
+
+export function isAdmin(user: RecordModel | null | undefined) {
+  const role: unknown = user?.role
+  return role === "admin"
 }
 
 export function errorMessage(error: unknown) {

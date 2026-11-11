@@ -30,6 +30,7 @@ func Register(app core.App) {
 		})
 
 		handlers := &api{q: db.New(pool), cache: make(map[string]entry)}
+		e.Router.GET("/api/x/uscis/case", handlers.caseScreen)
 		auth := apis.RequireAuth("users")
 		auth.Priority = apis.DefaultRateLimitMiddlewarePriority - 1
 		e.Router.POST("/api/x/agent/ask", handlers.agentAsk).Bind(&hook.Handler[*core.RequestEvent]{
@@ -73,5 +74,6 @@ func openPool() (*pgxpool.Pool, error) {
 		return nil, err
 	}
 	config.ConnConfig.RuntimeParams["default_transaction_read_only"] = "on"
+	config.ConnConfig.RuntimeParams["jit"] = "off"
 	return pgxpool.NewWithConfig(context.Background(), config)
 }

@@ -4,7 +4,7 @@ import {
   Outlet,
   useRouterState,
 } from "@tanstack/react-router"
-import { lazy, Suspense, type CSSProperties } from "react"
+import { lazy, Suspense, useEffect, useRef, type CSSProperties } from "react"
 import { formHue, formInk } from "@/lib/palette"
 import { cn } from "@/lib/utils"
 import { SiteHeader } from "@/components/site-header"
@@ -30,7 +30,32 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 )
 
 function RootLayout() {
-  const location = useRouterState({ select: (state) => state.location })
+  const { location, matches } = useRouterState({
+    select: (state) => ({ location: state.location, matches: state.matches }),
+  })
+  const leafSearch = matches.at(-1)?.search as
+    { form?: string; view?: string } | undefined
+  const pathname = matches.at(-1)?.pathname ?? location.pathname
+  const screen =
+    pathname === "/"
+      ? leafSearch?.form || leafSearch?.view === "case"
+        ? "/case"
+        : "/landing"
+      : pathname
+  const previousScreen = useRef(screen)
+  useEffect(() => {
+    if (previousScreen.current === screen) return
+    previousScreen.current = screen
+    const frame = requestAnimationFrame(() => {
+      const main = document.querySelector<HTMLElement>("main")
+      const target = main?.querySelector<HTMLElement>("h1") ?? main
+      if (target) {
+        target.tabIndex = -1
+        target.focus({ preventScroll: true })
+      }
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [screen])
   const form =
     typeof location.search.form === "string" ? location.search.form : "I-485"
   const showAgent = location.pathname !== "/login"

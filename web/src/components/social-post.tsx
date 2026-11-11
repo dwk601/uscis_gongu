@@ -6,7 +6,7 @@ import { useAuth, mutationErrorMessage } from "@/lib/auth"
 import { listVotes, relativeTime, type Post } from "@/lib/community"
 import { formHue, formInk } from "@/lib/palette"
 import { pb } from "@/lib/pb"
-import { formsQuery } from "@/lib/api"
+import { caseQuery, type CaseResponse } from "@/lib/case"
 import { formLabel } from "@/lib/labels"
 
 export function SignIn({ action }: { action: string }) {
@@ -25,8 +25,15 @@ export function PostCard({
   detail?: boolean
 }) {
   const user = useAuth()
-  const forms = useQuery(formsQuery())
   const client = useQueryClient()
+  const location = useRouterState({ select: (s) => s.location.href })
+  const params = new URLSearchParams(location.split("?")[1])
+  const catalog = useQuery(caseQuery(params.get("form") || "I-485"))
+  const forms =
+    catalog.data?.forms ??
+    client
+      .getQueriesData<CaseResponse>({ queryKey: ["uscis", "case"] })
+      .find(([, value]) => value?.forms)?.[1]?.forms
   const [error, setError] = useState("")
   const [optimistic, setOptimistic] = useState<{
     voted: boolean
@@ -60,7 +67,10 @@ export function PostCard({
       setOptimistic(null)
     },
   })
-  const location = useRouterState({ select: (s) => s.location.href })
+  const detailSearch = {
+    form: params.get("form") || "",
+    sort: params.get("sort") === "top" ? ("top" as const) : ("new" as const),
+  }
   const voted = optimistic?.voted ?? !!vote
   const count = optimistic?.count ?? post.votes
   return (
@@ -74,7 +84,7 @@ export function PostCard({
               color: formInk(post.form),
             }}
           >
-            {formLabel(post.form, forms.data?.forms)}
+            {formLabel(post.form, forms)}
           </span>
         )}
         <span>{post.author_name || "member"}</span>
@@ -82,7 +92,11 @@ export function PostCard({
       </div>
       {!detail && (
         <h2>
-          <Link to="/community/$postId" params={{ postId: post.id }}>
+          <Link
+            to="/community/$postId"
+            params={{ postId: post.id }}
+            search={detailSearch}
+          >
             {post.title}
           </Link>
         </h2>
@@ -112,7 +126,11 @@ export function PostCard({
             <ArrowUp aria-hidden="true" size={16} /> {post.votes}
           </Link>
         )}
-        <Link to="/community/$postId" params={{ postId: post.id }}>
+        <Link
+          to="/community/$postId"
+          params={{ postId: post.id }}
+          search={detailSearch}
+        >
           {post.comments} {post.comments === 1 ? "comment" : "comments"}
         </Link>
       </div>

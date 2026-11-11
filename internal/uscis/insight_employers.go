@@ -64,7 +64,7 @@ func (a *api) employers(r *core.RequestEvent) error {
 	}
 	out := employersResponse{Years: years, Employers: []employer{}}
 	if !found {
-		return insightSuccess(r, out)
+		return insightSuccess(r, out, 200*1024)
 	}
 	out.Year = &year
 	value, err = a.load(ctx, "employers-"+strconv.Itoa(int(year)), func(ctx context.Context) (any, error) { return a.q.Employers(ctx, &year) })
@@ -74,5 +74,5 @@ func (a *api) employers(r *core.RequestEvent) error {
 	for _, row := range value.([]db.EmployersRow) {
 		out.Employers = append(out.Employers, employer{str(row.EmployerName), row.InitialApprovals, row.InitialDenials, row.ContinuingApprovals})
 	}
-	return insightSuccess(r, out)
+	return insightSuccess(r, out, 200*1024)
 }

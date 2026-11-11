@@ -1,8 +1,21 @@
 import { expect, test } from "@playwright/test"
 
 test("visa routes remain usable across form history", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
   const forms = [
     { form: "N-400", name: "Citizenship", featured: true, defaultSeries: "" },
+    ...Array.from({ length: 12 }, (_, i) => ({
+      form: `I-${100 + i}`,
+      name: `Featured application ${i}`,
+      featured: true,
+      defaultSeries: "",
+    })),
+    {
+      form: "I-999",
+      name: "Other application",
+      featured: false,
+      defaultSeries: "",
+    },
     {
       form: "I-485",
       name: "Green card application",
@@ -23,7 +36,11 @@ test("visa routes remain usable across form history", async ({ page }) => {
   await page.route("**/api/x/uscis/**", async (route) => {
     const path = new URL(route.request().url()).pathname
     if (path.endsWith("/forms")) return route.fulfill({ json: { forms } })
-    const form = path.includes("N-400") ? "N-400" : "I-485"
+    const form = path.includes("N-400")
+      ? "N-400"
+      : path.includes("I-999")
+        ? "I-999"
+        : "I-485"
     if (path.endsWith("/community")) {
       const values =
         form === "N-400"
@@ -61,8 +78,38 @@ test("visa routes remain usable across form history", async ({ page }) => {
   await expect(page.getByRole("button", { name: /IR-1\/CR-1/ })).toBeVisible()
   await expect(page.getByRole("button", { name: /K1|K-1/ })).toBeVisible()
   await page.getByRole("button", { name: "All forms" }).click()
+  await expect(page.getByRole("button", { name: /I-485/ })).toBeVisible()
+  await page.getByRole("button", { name: /Browse all other forms/ }).click()
+  await page.keyboard.press("Tab")
+  await expect(page.getByLabel("Search by name or form number")).toBeFocused()
+  await page.keyboard.press("Escape")
+  await expect(page.getByLabel("Search by name or form number")).toBeVisible()
+  await page.getByLabel("Search by name or form number").fill("I-999")
+  await page.evaluate("window.scrollTo(0, 150)")
+  expect(await page.evaluate<number>("window.scrollY")).toBeGreaterThan(0)
+  await page.getByRole("button", { name: /Other application/ }).click()
+  await expect(page).toHaveURL(/form=I-999/)
+  await expect(page.getByRole("heading", { level: 1 })).toBeInViewport()
+  await expect
+    .poll(() => page.evaluate<number>("window.scrollY"))
+    .toBeGreaterThan(0)
+  await expect(page.getByRole("button", { name: /Change form/ })).toBeFocused()
+  await page.goBack()
+  await page.goForward()
+  await page.getByRole("button", { name: /Change form/ }).click()
+  expect(
+    await page.evaluate<boolean>(
+      "document.querySelector('.trend-form-controls .form-summary').getBoundingClientRect().bottom <= document.querySelector('.trend-form-controls .form-inline-featured').getBoundingClientRect().top"
+    )
+  ).toBe(true)
+  const selectedOther = page.getByRole("button", {
+    name: /Other application.*Selected/,
+  })
+  await expect(selectedOther).toBeVisible()
+  await expect(selectedOther).toBeFocused()
   await page.getByRole("button", { name: /I-485/ }).click()
   await page.getByRole("button", { name: /K3|K-3/ }).click()
+  await page.goBack()
   await page.goBack()
   await expect(page.getByRole("button", { name: /IR-1\/CR-1/ })).toBeVisible()
   const routes = page.getByRole("group", { name: "Visa route" })

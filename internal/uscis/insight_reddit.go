@@ -77,7 +77,7 @@ func (a *api) redditTimeline(r *core.RequestEvent) error {
 	return insightSuccess(r, struct {
 		OfficialDescription *string        `json:"officialDescription"`
 		Series              []redditSeries `json:"series"`
-	}{official, series})
+	}{official, series}, 200*1024)
 }
 
 type discussionPoint struct {
@@ -114,7 +114,7 @@ func (a *api) redditDiscussion(r *core.RequestEvent) error {
 	if err != nil {
 		return unavailable(r)
 	}
-	return insightSuccess(r, value)
+	return insightSuccess(r, value, 200*1024)
 }
 
 type talkPoint struct {
@@ -154,5 +154,5 @@ func (a *api) redditH1bTalk(r *core.RequestEvent) error {
 	if err != nil {
 		return unavailable(r)
 	}
-	return insightSuccess(r, value)
+	return insightSuccess(r, value, 200*1024)
 }

@@ -8,6 +8,57 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type CaseCommunityStat struct {
+	Form            *string
+	Category        *string
+	FilingYear      *int32
+	EligibleCount   *int64
+	CompletedCount  *int64
+	CensoredCount   *int64
+	ExcludedCount   *int64
+	VisaTypes       []string
+	ObservationDate pgtype.Date
+	P25Days         *int32
+	P50Days         *int32
+	P75Days         *int32
+	SampleStatus    *string
+	RefreshedAt     pgtype.Timestamptz
+}
+
+type CaseEstimateCurrent struct {
+	Form                         *string
+	Category                     *string
+	FilingYear                   *int32
+	IsDefaultCohort              *bool
+	OfficialDescription          *string
+	OfficialMedianMonths         *float64
+	OfficialPeriod               pgtype.Date
+	OfficialPreviousMedianMonths *float64
+	OfficialPreviousPeriod       pgtype.Date
+	LatestReportingPeriod        pgtype.Date
+	OfficialTrend                *string
+	AsOfDate                     pgtype.Date
+	OfficialReason               *string
+	OfficialSource               *string
+	OfficialPopulation           *string
+	P25Days                      *int32
+	P50Days                      *int32
+	P75Days                      *int32
+	EligibleCount                *int64
+	CompletedCount               *int64
+	CensoredCount                *int64
+	ExcludedCount                *int64
+	VisaTypes                    []string
+	CommunityAsOfDate            pgtype.Date
+	CommunityRefreshedAt         pgtype.Timestamptz
+	CommunityReason              *string
+	P25Reason                    *string
+	P75Reason                    *string
+	CommunitySource              *string
+	CommunityMethod              *string
+	CommunityPopulation          *string
+}
+
 type DolLcaPayStat struct {
 	FiscalYear    *int32
 	TitleKey      *string
@@ -93,6 +144,18 @@ type RedditTimelineVsUscisQuarter struct {
 	Denied           *float64
 	Pending          *float64
 	ProcessingMonths *float64
+}
+
+type SourceRefreshStatus struct {
+	Source                        *string
+	LatestRunID                   *int64
+	LatestRunStatus               *string
+	LatestRunStartedAt            pgtype.Timestamptz
+	LatestRunFinishedAt           pgtype.Timestamptz
+	LastSuccessfulRunFinishedAt   pgtype.Timestamptz
+	LastRecordedDataRunID         *int64
+	LastRecordedDataRunStatus     *string
+	LastRecordedDataRunFinishedAt pgtype.Timestamptz
 }
 
 type StudentPostWeek struct {

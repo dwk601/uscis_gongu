@@ -24,17 +24,17 @@ colors:
 typography:
   display:
     fontFamily: "Geist Variable, sans-serif"
-    fontSize: "clamp(3rem, 6vw, 6rem)"
-    fontWeight: 600
-    lineHeight: 1
+    fontSize: "clamp(2.3rem, 4vw, 4rem)"
+    fontWeight: 700
+    lineHeight: 1.05
     letterSpacing: "-0.035em"
   body:
     fontFamily: "Geist Variable, sans-serif"
     lineHeight: 1.5
 rounded:
-  artifact: "14px"
+  choice: "14px"
   panel: "20px"
-  tray: "28px"
+  case-panel: "28px"
   pill: "99px"
 spacing:
   grid: "16px"
@@ -62,8 +62,8 @@ A quiet, off-white canvas carries bright form colors and confident black actions
 
 **Key Characteristics:**
 - Color identifies a form rather than decorating every surface.
-- Soft trays and lightly lifted artifacts contrast with flat workspace panels.
-- Pill controls and tight, balanced headlines keep the interface approachable.
+- Flat, color-filled choices and neutral panels separate actions from results.
+- Pill controls and compact, balanced headlines keep the interface approachable.
 
 ## Colors
 
@@ -71,33 +71,37 @@ The light and dark neutral grounds support a seven-color form palette. Use the f
 
 ## Typography
 
-Geist Variable is the shared display and body face. The landing display uses the frontmatter's responsive scale and tight tracking; workspace headings range from 2rem on mobile to 4rem on desktop. Body paragraphs use a 1.5 line height, with 14px controls and metadata. At 700px and below, inputs use 16px text and controls have at least 44px targets. Numeric data uses tabular figures where charts need alignment.
+Geist Variable is the shared display and body face. Workspace headings use the frontmatter's desktop scale and tight tracking; at 700px and below they use `clamp(2rem, 9vw, 3rem)`. Body paragraphs use a 1.5 line height, with 14px controls and metadata. At 700px and below or with a coarse pointer, inputs use 16px text and interactive targets have minimum 44px dimensions where specified. Tables use tabular figures.
 
 ## Layout
 
-The header and workspace are capped at 1320px. Workspace horizontal padding scales with the viewport up to 66px. The desktop analytics grid uses 1fr and 1.4fr columns with a 16px gap; it stacks on small screens. Form chips wrap on desktop and scroll horizontally on small screens without widening the page; long visa-route labels wrap. Bulletin categories use a grouped selector with the full selection shown outside it. Community content is narrower (850px, or 520px for focused forms).
+The header and workspace share a 1320px maximum and horizontal padding of `min(5vw, 66px)`; at 700px and below both use 20px side padding, and navigation wraps to a second header row. The landing's two choice cards sit side by side and stack at 700px. Trends result panels use 1fr and 1.4fr columns with a 16px gap, stacking at 700px; My case uses 1.2fr and 1fr before stacking. Bulletin results stack at 900px. Community content is capped at 850px, or 520px for focused forms.
+
+In Trends, the journey rail remains horizontally scrollable; the case-category chip rail also scrolls horizontally. Journey-specific form chips wrap above 700px and use a horizontal rail at 700px and below. The All forms featured choices and expanded other-form choices wrap instead of forming a rail. The disclosure and Filed control align side by side above 560px and stack at or below it; revealed options occupy a full-width row.
 
 ## Elevation & Depth
 
-Most panels rely on tonal separation. The landing checker uses `0 4px 20px #00000010`, and rotated artifacts use `0 12px 24px #0000001c`; account menus use `0 8px 24px #0003`.
+Most surfaces are flat, using tonal separation or a hairline border. The account menu uses `0 8px 24px #0003`; selected form choices use a two-ring box shadow for state rather than elevation. The shell and estimate background transition over 0.45s; reduced-motion preferences suppress transitions.
 
 ## Shapes
 
-Pills identify actions, chips and compact fields. Workspace panels have 20px corners; the landing tray has 28px corners and its smaller artifacts have 14px corners. Social cards use a fine hairline border and 14px corners.
+Pills identify actions, chips and compact fields. Landing choices and workspace panels have 20px corners; My case answer and trend panels use 28px. Form choices and social cards use 14px corners; social cards have a fine hairline border.
 
 ## Components
 
 - **Buttons:** dark pill primary with white text; hover lightens the background. Dark mode inverts the primary to ink on ground; hover uses #c6c6bd. Focus uses a 3px #7c55ca outline in light mode and #c7b6ec in dark mode.
 - **Chips:** bordered panel-colored pills; the selected state inverts to ink and ground.
 - **Fields:** rounded, bordered fields use the current panel or ground; social forms are full width.
-- **Navigation:** slim centered desktop navigation becomes a second row on small screens. The theme toggle and account action stay at the end of the header. Community detail pages use an underlined back link and show the post title once as the page heading.
-- **Artifacts:** form-colored cards rotate only on the landing and pair a key metric with a source. Hover and keyboard focus straighten and lift them over 250ms with an exponential ease-out; reduced motion suppresses the transition.
+- **Navigation:** the logo and My case, Visa bulletin, and Community links share the header with theme and account actions. Navigation moves to a second row on small screens. The active link uses ink and a 2px underline with a 6px offset. A committed screen change focuses the destination `h1` once, or `main` when no heading exists, without scrolling; initial loads and same-screen updates do not move focus. Focused headings retain the 3px focus-visible outline. Community detail pages use an underlined back link and show the post title once as the page heading.
+- **Landing:** two colored choices lead to My case and Visa bulletin. Later in the same browser session, visitors can continue their saved case or choose a different form.
+- **Form choices:** My case and Community use a shared summary and expandable grouped featured forms, with a searchable other-forms disclosure. Trends' All forms view displays featured choices inline under “Choose a form”; “Don't see yours? Browse all other forms (N)” opens the same searchable choices. A selected non-featured form is revealed on entry and history navigation without automatic focus. After a form is picked on Trends, the choices collapse to a selected summary with a Change form action. Selection uses a visible ring and pressed state.
+- **Bulletin:** group and category buttons lead to a selected category summary with a Change action. Country chips and the segmented Approval cutoff / Filing cutoff chart control refine the result; the chart control appears once a category is selected.
 
 ## Do's and Don'ts
 
 ### Do:
 - **Do** keep form colors associated with their data and use legible ink on each.
-- **Do** preserve clear focus indicators and responsive chip rails.
+- **Do** preserve clear focus indicators and the intended wrapping and scrolling behavior of choice controls.
 
 ### Don't:
 - **Don't** make analytical or community surfaces depend on a sign-in for reading.

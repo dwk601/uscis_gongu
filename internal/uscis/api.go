@@ -356,9 +356,9 @@ func validInsightQuery(r *core.RequestEvent, allowed ...string) bool {
 	return true
 }
 
-func insightSuccess(r *core.RequestEvent, response any) error {
+func insightSuccess(r *core.RequestEvent, response any, limit int) error {
 	data, err := json.Marshal(response)
-	if err != nil || len(data) > 200*1024 {
+	if err != nil || len(data) > limit {
 		return unavailable(r)
 	}
 	r.Response.Header().Set("Cache-Control", "public, max-age=3600")

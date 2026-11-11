@@ -178,5 +178,5 @@ func (a *api) visa221g(r *core.RequestEvent) error {
 	if err != nil {
 		return unavailable(r)
 	}
-	return insightSuccess(r, value)
+	return insightSuccess(r, value, 200*1024)
 }

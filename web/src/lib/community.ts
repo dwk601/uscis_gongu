@@ -22,15 +22,8 @@ export interface Vote extends RecordModel {
   post: string
   user: string
 }
-export const forms = [
-  "I-485",
-  "I-130",
-  "I-765",
-  "I-131",
-  "N-400",
-  "I-140",
-  "I-129F",
-]
+export const validForm = (value: unknown): value is string =>
+  typeof value === "string" && /^[A-Z0-9-]{1,12}$/.test(value)
 export function relativeTime(value: string) {
   const seconds = Math.max(
     0,

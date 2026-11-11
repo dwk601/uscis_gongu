@@ -35,10 +35,12 @@ export function BigNumber({ children }: { children: ReactNode }) {
 
 export function BulletinCutoffCard({
   category,
+  eyebrow,
   title,
   children,
 }: {
   category: string
+  eyebrow?: ReactNode
   title: ReactNode
   children: ReactNode
 }) {
@@ -47,6 +49,7 @@ export function BulletinCutoffCard({
       className="panel bulletin-card"
       style={{ background: categoryHue(category) }}
     >
+      {eyebrow}
       <h2>{title}</h2>
       {children}
     </section>

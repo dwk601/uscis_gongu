@@ -3,14 +3,26 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useState, type FormEvent } from "react"
 import { PostCard, SignIn } from "@/components/social-post"
 import { useAuth, mutationErrorMessage } from "@/lib/auth"
-import { relativeTime, type Post, type Comment } from "@/lib/community"
+import {
+  relativeTime,
+  validForm,
+  type Post,
+  type Comment,
+} from "@/lib/community"
 import { pb } from "@/lib/pb"
 
 export const Route = createFileRoute("/community/$postId")({
+  validateSearch: (
+    s: Record<string, unknown>
+  ): { form: string; sort: "new" | "top" } => ({
+    form: validForm(s.form) ? s.form : "",
+    sort: s.sort === "top" ? "top" : "new",
+  }),
   component: Detail,
 })
 function Detail() {
   const { postId } = Route.useParams()
+  const { form: selectedForm, sort } = Route.useSearch()
   const user = useAuth()
   const client = useQueryClient()
   const navigate = useNavigate()
@@ -68,7 +80,10 @@ function Detail() {
     try {
       await pb.collection(collection).delete(id)
       if (collection === "posts") {
-        await navigate({ to: "/community", search: { sort: "new", form: "" } })
+        await navigate({
+          to: "/community",
+          search: { sort, form: selectedForm },
+        })
       }
       await refresh()
     } catch (err) {
@@ -82,7 +97,7 @@ function Detail() {
       <Link
         className="social-back"
         to="/community"
-        search={{ sort: "new", form: "" }}
+        search={{ sort, form: selectedForm }}
       >
         Back to community
       </Link>

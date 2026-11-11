@@ -220,6 +220,65 @@ func TestInsightsContract(t *testing.T) {
 		check      func(*testing.T, []byte)
 	}
 	cases := []testCase{
+		{name: "case default", path: "/api/x/uscis/case?form=I-485", status: 200, check: func(t *testing.T, b []byte) {
+			var v struct {
+				CategoryLabel string `json:"categoryLabel"`
+				Community     *struct {
+					FilingYear int `json:"filingYear"`
+				} `json:"community"`
+				Summary struct {
+					EligibleReports int   `json:"eligibleReports"`
+					Years           []int `json:"years"`
+				} `json:"summary"`
+				Freshness []struct {
+					LatestAttemptFailed bool `json:"latestAttemptFailed"`
+				} `json:"freshness"`
+			}
+			if err := json.Unmarshal(b, &v); err != nil || v.CategoryLabel != "Family" || v.Community == nil || v.Community.FilingYear != 2025 || v.Summary.EligibleReports != 18 || !reflect.DeepEqual(v.Summary.Years, []int{2024, 2025}) || len(v.Freshness) != 1 || !v.Freshness[0].LatestAttemptFailed {
+				t.Fatalf("case: %s (%v)", b, err)
+			}
+		}},
+		{name: "case exact year", path: "/api/x/uscis/case?form=I-485&filingYear=2024", status: 200, check: func(t *testing.T, b []byte) {
+			var v struct {
+				Community *struct {
+					FilingYear int `json:"filingYear"`
+				} `json:"community"`
+			}
+			if err := json.Unmarshal(b, &v); err != nil || v.Community == nil || v.Community.FilingYear != 2024 {
+				t.Fatalf("case: %s", b)
+			}
+		}},
+		{name: "case future", path: "/api/x/uscis/case?form=I-485&filingYear=2030", status: 200, check: func(t *testing.T, b []byte) {
+			var v struct {
+				Community *json.RawMessage `json:"community"`
+			}
+			if err := json.Unmarshal(b, &v); err != nil || v.Community != nil {
+				t.Fatalf("case: %s", b)
+			}
+		}},
+		{name: "case preferred work permit", path: "/api/x/uscis/case?form=I-765", status: 200, setup: func() {
+			// The shared fixture omits this series so agent option lists stay at their two I-765 choices.
+			execSQL(fixture, "ALTER VIEW public.uscis_form_quarter RENAME TO saved_form_quarter")
+			execSQL(fixture, "CREATE VIEW public.uscis_form_quarter AS SELECT * FROM public.saved_form_quarter UNION ALL SELECT 2025, 1, '2025-01-01'::date, NULL::text, 'I-765', 'Application for Employment Authorization (Adjustment Of Status)', 10, NULL, NULL, NULL, NULL, NULL, 'fixture.csv'")
+			execSQL(fixture, "GRANT SELECT ON public.uscis_form_quarter TO "+roleIdent)
+			mux = newMux()
+		}, check: func(t *testing.T, b []byte) {
+			var v struct {
+				CategoryLabel string `json:"categoryLabel"`
+				Summary       struct {
+					EligibleReports json.RawMessage `json:"eligibleReports"`
+				} `json:"summary"`
+			}
+			if err := json.Unmarshal(b, &v); err != nil || v.CategoryLabel != "Adjustment of status" || string(v.Summary.EligibleReports) != "null" {
+				t.Fatalf("case: %s", b)
+			}
+		}},
+		{name: "case unknown", path: "/api/x/uscis/case?form=ZZZ", status: 404},
+		{name: "case invalid year", path: "/api/x/uscis/case?form=I-485&filingYear=abc", status: 400},
+		{name: "case missing grant", path: "/api/x/uscis/case?form=I-485", status: 503, setup: func() {
+			execSQL(fixture, "REVOKE SELECT ON public.case_community_stats FROM "+roleIdent)
+			mux = newMux()
+		}},
 		{name: "reddit timeline grouping", path: "/api/x/uscis/forms/I-765/reddit", status: 200, check: func(t *testing.T, b []byte) {
 			var v struct {
 				OfficialDescription string         `json:"officialDescription"`
@@ -486,7 +545,7 @@ func insightsFixture(t *testing.T) (*pgx.Conn, string) {
 			t.Fatal(err)
 		}
 		execSQL(fixture, string(sql))
-		execSQL(fixture, "GRANT SELECT ON public.immihelp_timeline, public.dol_lca_pay_stats, public.h1b_employer, public.student_post_week, public.uscis_form_quarter, public.reddit_timeline_vs_uscis_quarter, public.reddit_green_card_month_vs_bulletin, public.reddit_h1b_month_vs_lca, public.reddit_activity_day, public.visajourney_timeline_stats, public.visa_bulletin_series TO "+roleIdent)
+		execSQL(fixture, "GRANT SELECT ON public.immihelp_timeline, public.dol_lca_pay_stats, public.h1b_employer, public.student_post_week, public.uscis_form_quarter, public.case_estimate_current, public.case_community_stats, public.source_refresh_status, public.reddit_timeline_vs_uscis_quarter, public.reddit_green_card_month_vs_bulletin, public.reddit_h1b_month_vs_lca, public.reddit_activity_day, public.visajourney_timeline_stats, public.visa_bulletin_series TO "+roleIdent)
 		appURL := url.URL{Scheme: "postgresql", User: url.UserPassword(role, password), Host: net.JoinHostPort("127.0.0.1", fmt.Sprint(cfg.Port)), Path: "/" + dbname, RawQuery: "sslmode=disable"}
 		// A separate process keeps cleanup in this parent even if a handler goroutine panics.
 		cmd := exec.Command(os.Args[0], "-test.run=^"+t.Name()+"$", "-test.count=1")

@@ -1,5 +1,74 @@
 import { expect, test } from "@playwright/test"
 
+test("route focus follows screen changes, not in-page updates", async ({
+  page,
+}) => {
+  await page.route("https://analytics.gongu.xyz/**", (route) => route.abort())
+  const waitForFocusEffects = () =>
+    page.evaluate(
+      "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+    )
+  await page.route("**/api/**", async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (path === "/api/x/uscis/case")
+      return route.fulfill({
+        json: {
+          forms: [{ form: "I-485", name: "Green card", featured: true }],
+          form: "I-485",
+          categoryLabel: "Family",
+          official: null,
+          community: null,
+          summary: { years: [] },
+          trend: [],
+          freshness: [],
+        },
+      })
+    if (path === "/api/x/uscis/forms")
+      return route.fulfill({
+        json: {
+          forms: [{ form: "I-485", name: "Green card", featured: true }],
+        },
+      })
+    if (path.endsWith("/community"))
+      return route.fulfill({ json: { series: [] } })
+    if (path === "/api/x/uscis/forms/I-485")
+      return route.fulfill({ json: { name: "Green card", official: [] } })
+    if (path === "/api/x/uscis/bulletin")
+      return route.fulfill({ json: { categories: [], series: [] } })
+    return route.abort()
+  })
+  await page.goto("/")
+  await waitForFocusEffects()
+  await expect(
+    page.getByRole("heading", { name: "Find your next step." })
+  ).not.toBeFocused()
+  await page.getByRole("link", { name: "My case", exact: true }).click()
+  await expect(
+    page.getByRole("heading", { name: "My case", exact: true })
+  ).toBeFocused()
+  await page.getByRole("button", { name: /Green card/ }).click()
+  await expect(page).toHaveURL(/form=I-485/)
+  await waitForFocusEffects()
+  await expect(
+    page.getByRole("heading", { name: "My case", exact: true })
+  ).not.toBeFocused()
+  await page
+    .getByRole("link", { name: "Visa bulletin", exact: true })
+    .first()
+    .click()
+  await expect(
+    page.getByRole("heading", { name: "Visa bulletin", exact: true })
+  ).toBeFocused()
+  await page.goBack()
+  await expect(
+    page.getByRole("heading", { name: "My case", exact: true })
+  ).toBeFocused()
+  await page.getByRole("link", { name: "gongu" }).click()
+  await expect(
+    page.getByRole("heading", { name: "Find your next step." })
+  ).toBeFocused()
+})
+
 test("journey navigation preserves an explicit series without refetching the form", async ({
   page,
 }) => {
@@ -40,17 +109,7 @@ test("journey navigation preserves an explicit series without refetching the for
       },
     })
   })
-  await page.goto("/")
-  await page.getByRole("button", { name: /Workers/ }).click()
-  await page
-    .getByRole("group", { name: "Case form" })
-    .getByRole("button", { name: /I-485/ })
-    .click()
-  await page.locator('input[name="filed"]').fill("2024-01-15")
-  await page.getByRole("button", { name: "Check wait time" }).click()
-  await expect(page).toHaveURL(/journey=workers/)
-  await expect(page).toHaveURL(/form=I-485/)
-  await expect(page).toHaveURL(/filed=2024-01-15/)
+  await page.goto("/trends?journey=workers&form=I-485&filed=2024-01-15")
   await page.reload()
   await expect(
     page.getByRole("button", { name: "Employment", exact: true })
@@ -571,7 +630,9 @@ test("Reddit failures remain local and retryable", async ({ page }) => {
   await expect
     .poll(() => counts["/api/x/uscis/insights/h1b-talk"])
     .toBeGreaterThan(before)
-  await page.goto("/bulletin")
+  await page.goto("/bulletin?category=EB2")
+  await page.getByText("More context").click()
+  await page.getByText("Reddit discussion", { exact: true }).click()
   await expect(page.getByText("Reddit data unavailable.")).toBeVisible({
     timeout: 20000,
   })
@@ -581,4 +642,439 @@ test("Reddit failures remain local and retryable", async ({ page }) => {
   await expect
     .poll(() => counts["/api/x/uscis/bulletin/discussion"])
     .toBeGreaterThan(before)
+})
+
+test("bulletin selection and historical status", async ({ page }) => {
+  let requests = 0
+  await page.route("**/api/x/uscis/bulletin?**", async (route) => {
+    requests++
+    const category = new URL(route.request().url()).searchParams.get("category")
+    const point =
+      category === "EB5-NON-RC"
+        ? { month: "2022-04-01", cutoff: null, status: "unavailable" }
+        : category === "EB5-RC"
+          ? { month: "2022-04-01", cutoff: null, status: "current" }
+          : { month: "2025-01-01", cutoff: "2020-01-01", status: "date" }
+    await route.fulfill({
+      json: {
+        categories: [{ code: "F2A" }, { code: "EB2" }, { code: "EB5-RC" }],
+        series: [
+          { country: "ALL", points: [point] },
+          {
+            country: "INDIA",
+            points: [
+              category === "F2A"
+                ? { month: "2024-03-01", cutoff: "2019-01-01", status: "date" }
+                : point,
+            ],
+          },
+        ],
+      },
+    })
+  })
+  await page.goto("/bulletin")
+  await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toHaveCount(
+    0
+  )
+  await page.getByRole("button", { name: "Family", exact: true }).click()
+  await page
+    .getByRole("button", { name: /Spouses and unmarried children/ })
+    .click()
+  await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toBeVisible()
+  const before = requests
+  await page.getByRole("button", { name: "India", exact: true }).click()
+  await expect(
+    page.getByText("Historical · last bulletin Mar 2024")
+  ).toBeVisible()
+  expect(requests).toBe(before)
+  await page.getByRole("button", { name: "Family", exact: true }).click()
+  await expect(page.getByRole("heading", { name: "Jan 1, 2019" })).toBeVisible()
+  await page.getByRole("button", { name: "Family", exact: true }).focus()
+  await page.keyboard.press("Escape")
+  await expect(page.getByRole("button", { name: /Change/ })).toBeFocused()
+  await page.goto("/bulletin?category=EB5-RC")
+  await expect(
+    page.getByRole("heading", { name: "Current", exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Historical · last bulletin Apr 2022")
+  ).toBeVisible()
+  await expect(page.getByText(/no dated cutoff to plot/i)).toBeVisible()
+  await page.goto("/bulletin?category=EB5-NON-RC")
+  await expect(page.getByRole("heading", { name: "Unavailable" })).toBeVisible()
+  await expect(
+    page.getByText(
+      "There is no dated cutoff to plot. See the status history and data below."
+    )
+  ).toBeVisible()
+  await expect(page.getByText("No data available.")).toHaveCount(0)
+  await page.goto("/bulletin?category=UNKNOWN")
+  await expect(page.getByRole("alert")).toContainText("not in the catalog")
+  await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toHaveCount(
+    0
+  )
+})
+
+test("my case keeps a same-year filing change local", async ({ page }) => {
+  await page.route("https://analytics.gongu.xyz/**", (route) => route.abort())
+  const unexpected: string[] = []
+  await page.route("**/api/**", async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (path === "/api/x/uscis/bulletin")
+      return route.fulfill({ json: { categories: [], series: [] } })
+    if (path === "/api/x/uscis/forms")
+      return route.fulfill({
+        json: {
+          forms: [
+            { form: "I-485", name: "Green card application", featured: true },
+          ],
+        },
+      })
+    if (path === "/api/x/uscis/forms/I-485")
+      return route.fulfill({
+        json: { form: "I-485", name: "Green card application", official: [] },
+      })
+    if (path === "/api/x/uscis/forms/I-485/community")
+      return route.fulfill({ json: { form: "I-485", series: [] } })
+    if (path === "/api/collections/post_feed/records")
+      return route.fulfill({
+        json: { page: 1, perPage: 20, totalItems: 0, totalPages: 0, items: [] },
+      })
+    unexpected.push(path)
+    return route.abort()
+  })
+  let requests = 0
+  let catalogUnavailable = false
+  let releaseCatalog: () => void = () => {}
+  const catalogReady = new Promise<void>((resolve) => {
+    releaseCatalog = resolve
+  })
+  await page.route("**/api/x/uscis/case**", async (route) => {
+    requests++
+    if (catalogUnavailable)
+      return route.fulfill({ status: 503, json: { message: "Unavailable" } })
+    if (requests === 1) await catalogReady
+    const selectedForm = new URL(route.request().url()).searchParams.get("form")
+    if (selectedForm === "I-404")
+      return route.fulfill({ status: 404, json: { message: "Not found" } })
+    await route.fulfill({
+      json: {
+        forms: [
+          { form: "I-485", name: "Green card application", featured: true },
+          { form: "I-130", name: "Family petition", featured: true },
+          { form: "I-765", name: "Work permit (EAD)", featured: true },
+          { form: "I-999", name: "Other application", featured: false },
+          { form: "I-888", name: "Special application", featured: true },
+          { form: "I-777", name: "Unknown timeline", featured: true },
+        ],
+        form: "I-485",
+        categoryLabel:
+          selectedForm === "I-765" ? "Adjustment of status" : "Family",
+        official:
+          selectedForm === "I-999"
+            ? {
+                medianMonths: null,
+                period: null,
+                reason: "unavailable",
+              }
+            : {
+                medianMonths: 12,
+                period: "2026-04-01",
+                previousMedianMonths: 10,
+                previousPeriod: "2026-01-01",
+                trend: "up",
+                asOfDate: "2026-05-01",
+              },
+        trend: [],
+        community:
+          selectedForm === "I-999" ||
+          selectedForm === "I-888" ||
+          selectedForm === "I-777"
+            ? { filingYear: 2025, p25Days: null, p75Days: null }
+            : selectedForm === "I-130"
+              ? {
+                  filingYear: 2025,
+                  p25Days: null,
+                  p75Days: null,
+                  reason: "insufficient",
+                }
+              : {
+                  filingYear: 2025,
+                  p25Days: 130,
+                  p75Days: selectedForm === "I-765" ? 131 : 253,
+                  asOfDate: "2026-05-01",
+                },
+        summary: {
+          eligibleReports:
+            selectedForm === "I-999"
+              ? 0
+              : selectedForm === "I-777"
+                ? null
+                : 31416,
+          years: [2024, 2025],
+        },
+        freshness: [],
+      },
+    })
+  })
+  await page.goto("/")
+  expect(requests).toBe(0)
+  const firstCaseLink = page.getByRole("link", {
+    name: "Check my case timeline",
+    exact: true,
+  })
+  await expect(firstCaseLink).toHaveAccessibleDescription(
+    "See typical waits and timelines from people like you."
+  )
+  await firstCaseLink.click()
+  await expect(page.getByText("Loading forms…")).toBeVisible()
+  await expect(page.getByText("Forms are unavailable right now.")).toHaveCount(
+    0
+  )
+  releaseCatalog()
+  await expect(
+    page.getByRole("link", { name: "Community", exact: true }).last()
+  ).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: /Special application/ })
+  ).toBeVisible()
+  await page.getByRole("button", { name: /Green card application/ }).click()
+  await expect(
+    page.getByText("People who filed in 2025: about 4.3–8.3 months")
+  ).toBeVisible()
+  await expect(page).not.toHaveURL(/view=case/)
+  await page.getByRole("link", { name: "gongu" }).click()
+  await expect(
+    page.getByRole("link", { name: "Continue with Green card application" })
+  ).toHaveAttribute("href", /form=I-485/)
+  await page
+    .getByRole("link", { name: "Continue with Green card application" })
+    .click()
+  await expect(
+    page.getByText("People who filed in 2025: about 4.3–8.3 months")
+  ).toBeVisible()
+  await expect(
+    page.getByText(
+      "Family-based · USCIS data, Apr–Jun 2026 (as of May 1, 2026)"
+    )
+  ).toBeVisible()
+  await page.getByRole("button", { name: /Change form/ }).click()
+  await page.getByRole("button", { name: /Work permit \(EAD\)/ }).click()
+  await expect(
+    page.getByText(/While a green card is pending · USCIS data/)
+  ).toBeVisible()
+  await expect(
+    page.getByText("People who filed in 2025: about 4.3 months")
+  ).toBeVisible()
+  await page.getByRole("button", { name: /Change form/ }).click()
+  await page.getByRole("button", { name: /Family petition/ }).click()
+  await expect(
+    page.getByText("Not enough reports yet to show a range.")
+  ).toBeVisible()
+  await expect(page.getByText("VisaJourney", { exact: true })).toHaveCount(0)
+  await page.getByRole("button", { name: /Change form/ }).click()
+  await page.getByRole("button", { name: /Browse all other forms/ }).click()
+  await page.getByLabel("Search by name or form number").fill("green card")
+  await expect(
+    page.getByRole("button", { name: /Green card application/ }).last()
+  ).toBeVisible()
+  await page.getByLabel("Search by name or form number").fill("I-999")
+  await page.getByRole("button", { name: /Other application/ }).click()
+  await expect(
+    page.getByText("No community reports for this form yet.")
+  ).toBeVisible()
+  await expect(
+    page.getByText("USCIS hasn't published a typical wait for this form.")
+  ).toBeVisible()
+  await expect(page.getByText(/Period unavailable/)).toHaveCount(0)
+  await expect(page.getByText("VisaJourney", { exact: true })).toHaveCount(0)
+  await page.getByRole("button", { name: /Change form/ }).click()
+  const selectedOther = page.getByRole("button", {
+    name: /Other application.*Selected/,
+  })
+  await expect(selectedOther).toBeFocused()
+  await expect(selectedOther).toBeInViewport()
+  await page.getByRole("button", { name: /Unknown timeline/ }).click()
+  await expect(
+    page.getByText("Community timelines aren't available for this form yet.")
+  ).toBeVisible()
+  await expect(
+    page.getByText("No community reports for this form yet.")
+  ).toHaveCount(0)
+  await page.getByRole("button", { name: /Change form/ }).click()
+  await page.getByRole("button", { name: /Special application/ }).click()
+  await expect(
+    page.getByText("No community reports yet from people who filed in 2025.")
+  ).toBeVisible()
+  await page.getByRole("button", { name: /Change form/ }).click()
+  await page.getByRole("button", { name: /Green card application/ }).click()
+  await expect(page.getByRole("button", { name: /Change form/ })).toBeFocused()
+  await page.getByLabel("When did you file? (optional)").focus()
+  await page.keyboard.type("01012025")
+  await expect(page.getByLabel("When did you file? (optional)")).toHaveValue(
+    "2025-01-01"
+  )
+  await expect(
+    page.getByText("Around Jan 1, 2026", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByText(
+      "If your wait is like others who filed in 2025: May 11 – Sep 11, 2025",
+      {
+        exact: true,
+      }
+    )
+  ).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: "Check the visa bulletin" })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("heading", { name: "Your estimated decision" })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Estimates, not USCIS commitments.")
+  ).toBeVisible()
+  const before = requests
+  await page.getByLabel("When did you file? (optional)").fill("2025-01-02")
+  await expect(
+    page.getByText(
+      "If your wait is like others who filed in 2025: May 12 – Sep 12, 2025",
+      {
+        exact: true,
+      }
+    )
+  ).toBeVisible()
+  expect(requests).toBe(before)
+  await page.getByText("More data").click()
+  await page.getByRole("link", { name: "Trends for I-485" }).click()
+  await expect(page).toHaveURL(/\/trends/)
+  await page
+    .getByRole("link", { name: "Community", exact: true })
+    .first()
+    .click()
+  await page.getByRole("link", { name: "My case", exact: true }).click()
+  await expect(page).toHaveURL(/form=I-485/)
+  await page.goto("/")
+  const savedCaseLink = page.getByRole("link", {
+    name: "Continue with Green card application",
+    exact: true,
+  })
+  await expect(savedCaseLink).toHaveAttribute("href", "/?form=I-485")
+  await expect(savedCaseLink).toHaveAccessibleDescription(
+    "See typical waits and timelines from people like you."
+  )
+  const chooseDifferent = page.getByRole("link", {
+    name: "Choose a different form",
+  })
+  await expect(chooseDifferent).toHaveAttribute("href", /view=case/)
+  await page.evaluate(() => {
+    ;(globalThis as unknown as { landingMarker: boolean }).landingMarker = true
+  })
+  await chooseDifferent.click()
+  await expect(
+    page.getByRole("group", { name: "Choose your case" })
+  ).toBeVisible()
+  expect(
+    await page.evaluate(
+      () => (globalThis as unknown as { landingMarker?: boolean }).landingMarker
+    )
+  ).toBe(true)
+  await page.goto("/?form=I-404")
+  await expect(page.getByRole("alert")).toContainText("not in the catalog")
+  await expect(
+    page.getByRole("group", { name: "Choose your case" })
+  ).toHaveCount(0)
+  await expect(page.getByText("Loading forms…")).toHaveCount(0)
+  await expect(page.getByText("Forms are unavailable right now.")).toHaveCount(
+    0
+  )
+  await page.getByRole("button", { name: "Choose a form" }).click()
+  await expect(
+    page.getByRole("button", { name: /Green card application/ })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: "My case", exact: true })
+  ).toHaveAttribute("href", /form=I-485/)
+  catalogUnavailable = true
+  await page.clock.install()
+  const beforeError = requests
+  await page.goto("/?view=case")
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await expect
+      .poll(() => requests)
+      .toBeGreaterThanOrEqual(beforeError + attempt)
+    await page.clock.runFor(5000)
+  }
+  await expect(page.getByText("Forms are unavailable right now.")).toBeVisible({
+    timeout: 20000,
+  })
+  await expect(page.getByRole("alert")).toHaveCount(0)
+  catalogUnavailable = false
+  await page.getByRole("button", { name: "Try again" }).click()
+  await expect(
+    page.getByRole("button", { name: /Green card application/ })
+  ).toBeVisible()
+  expect(unexpected).toEqual([])
+})
+
+test("denied session storage keeps landing, case selection, and navigation usable", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(globalThis, "sessionStorage", {
+      get() {
+        throw new DOMException(
+          "Access is denied for this document.",
+          "SecurityError"
+        )
+      },
+    })
+  })
+  await page.route("https://analytics.gongu.xyz/**", (route) => route.abort())
+  await page.route("**/api/**", async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (path === "/api/x/uscis/case")
+      return route.fulfill({
+        json: {
+          forms: [
+            { form: "I-485", name: "Green card application", featured: true },
+          ],
+          form: "I-485",
+          categoryLabel: "Family",
+          official: null,
+          community: null,
+          summary: { eligibleReports: null, years: [] },
+          trend: [],
+          freshness: [],
+        },
+      })
+    if (path === "/api/x/uscis/bulletin")
+      return route.fulfill({ json: { categories: [], series: [] } })
+    return route.abort()
+  })
+  await page.goto("/")
+  await expect(
+    page.getByRole("heading", { name: "Find your next step." })
+  ).toBeVisible()
+  await page
+    .getByRole("link", { name: "Check my case timeline", exact: true })
+    .click()
+  await page.getByRole("button", { name: /Green card application/ }).click()
+  await expect(page).toHaveURL(/form=I-485/)
+  await expect(
+    page.getByRole("heading", { name: "How long it usually takes" })
+  ).toBeVisible()
+  const mainNav = page.getByRole("navigation", { name: "Main navigation" })
+  await mainNav.getByRole("link", { name: "Visa bulletin" }).click()
+  await expect(
+    page.getByRole("heading", { name: "Visa bulletin", exact: true })
+  ).toBeVisible()
+  await mainNav.getByRole("link", { name: "My case" }).click()
+  await expect(
+    page.getByRole("group", { name: "Choose your case" })
+  ).toBeVisible()
+  await page.getByRole("link", { name: "gongu", exact: true }).click()
+  await expect(
+    page.getByRole("link", { name: "Check my case timeline", exact: true })
+  ).toBeVisible()
 })

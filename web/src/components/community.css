@@ -4,8 +4,16 @@
   gap: 10px;
 }
 .account-signin {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   padding: 10px 17px;
   font-size: 14px;
+}
+@media (min-width: 701px) and (pointer: fine) {
+  .account-signin {
+    min-height: 40px;
+  }
 }
 .account-menu {
   position: relative;
@@ -78,8 +86,7 @@
   font-size: 14px;
 }
 .social-form input,
-.social-form textarea,
-.social-form select {
+.social-form textarea {
   width: 100%;
   padding: 12px 14px;
   border: 1px solid var(--hairline);
@@ -136,6 +143,42 @@
 .social-feed-actions {
   margin: 24px 0;
 }
+.social-feed-actions a {
+  display: inline-flex;
+  align-items: center;
+}
+.social-filters {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 12px;
+  margin: 28px 0;
+}
+.social-filters > .chip {
+  grid-row: 2;
+}
+.social-filters > .form-picker {
+  display: contents;
+}
+.social-filters .form-picker-caption {
+  grid-column: 3;
+  grid-row: 1;
+  margin: 0;
+}
+.social-filters .form-summary {
+  grid-column: 3;
+  grid-row: 2;
+  width: max-content;
+  max-width: 100%;
+}
+.social-filters .form-summary > span:last-child {
+  min-width: 7em;
+  text-align: right;
+}
+.social-filters .form-picker-options {
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
 .danger {
   color: #aa2525;
   border-color: #aa2525;
@@ -191,11 +234,26 @@
   .social-card {
     padding: 17px;
   }
+  .social-filters > .chip {
+    grid-row: 1;
+  }
+  .social-filters .form-picker-caption {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-top: 6px;
+  }
+  .social-filters .form-summary {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    width: 100%;
+  }
+  .social-filters .form-picker-options {
+    grid-row: 4;
+  }
 }
 @media (max-width: 700px), (pointer: coarse) {
   .social-form input,
-  .social-form textarea,
-  .social-form select {
+  .social-form textarea {
     font-size: 16px;
   }
 }

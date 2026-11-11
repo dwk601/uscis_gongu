@@ -1,3 +1,22 @@
+-- name: CaseEstimates :many
+SELECT e.form, e.category, e.filing_year, e.is_default_cohort, e.official_description,
+ e.official_median_months, e.official_period, e.official_previous_median_months,
+ e.official_previous_period, e.latest_reporting_period, e.official_trend, e.as_of_date,
+ e.official_reason, e.official_source, e.official_population, e.p25_days, e.p50_days,
+ e.p75_days, e.eligible_count, e.completed_count, e.censored_count, e.excluded_count,
+ e.visa_types, e.community_as_of_date, e.community_refreshed_at, e.community_reason,
+ e.p25_reason, e.p75_reason, e.community_source, e.community_method, e.community_population,
+ CASE WHEN e.is_default_cohort THEN (SELECT json_build_object('eligibleReports', sum(s.eligible_count),
+   'years', coalesce(json_agg(DISTINCT s.filing_year ORDER BY s.filing_year) FILTER (WHERE s.filing_year IS NOT NULL AND s.eligible_count > 0), '[]'::json))
+  FROM public.case_community_stats s WHERE s.form = $1) END::json AS summary,
+ CASE WHEN e.is_default_cohort THEN (SELECT coalesce(json_agg(json_build_object('source', r.source, 'latestStatus', r.latest_run_status,
+   'latestAttemptStartedAt', r.latest_run_started_at, 'latestAttemptFinishedAt', r.latest_run_finished_at,
+   'lastSuccessAt', r.last_successful_run_finished_at, 'lastDataAt', r.last_recorded_data_run_finished_at,
+   'lastDataStatus', r.last_recorded_data_run_status, 'latestAttemptFailed', r.latest_run_status = 'failed') ORDER BY r.source), '[]'::json)
+  FROM public.source_refresh_status r WHERE r.source IN ('uscis_quarterly', 'visajourney')) END::json AS freshness
+FROM public.case_estimate_current e WHERE e.form = $1 AND e.official_description = $2
+ORDER BY e.filing_year;
+
 -- name: Visa221g :many
 SELECT office, start_date, decision_date, first_seen_at, updated_at, pending
 FROM public.immihelp_timeline

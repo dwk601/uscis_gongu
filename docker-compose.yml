@@ -1,4 +1,5 @@
-# Coolify deployment. The external network is the uscis-etl Coolify resource, so `postgres` resolves to its database.
+# Coolify deployment. External networks: the uscis-etl Coolify resource, so `postgres` resolves to its database,
+# and cli-proxy-api's network, so AGENT_BASE_URL=http://cli-proxy-api:8317/v1 (127.0.0.1 is this container).
 services:
   app:
     build: .
@@ -12,14 +13,17 @@ services:
       AGENT_REASONING_EFFORT: ${AGENT_REASONING_EFFORT-low}
       AGENT_MAX_OUTPUT_TOKENS: ${AGENT_MAX_OUTPUT_TOKENS:-1024}
       AGENT_MAX_QUESTION_OUTPUT_TOKENS: ${AGENT_MAX_QUESTION_OUTPUT_TOKENS:-2048}
-      AGENT_MAX_QUESTION_TOKENS: ${AGENT_MAX_QUESTION_TOKENS:-16000}
+      AGENT_MAX_QUESTION_TOKENS: ${AGENT_MAX_QUESTION_TOKENS:-24000}
       AGENT_DAILY_TOKENS: ${AGENT_DAILY_TOKENS:-100000}
     volumes:
       - pb_data:/app/pb_data
-    networks: [uscis_etl]
+    networks: [uscis_etl, cliproxyapi]
 volumes:
   pb_data:
 networks:
   uscis_etl:
     external: true
     name: 49e3h3jscnvtcabjvrcyjtoj
+  cliproxyapi:
+    external: true
+    name: cliproxyapi_default

@@ -1,3 +1,4 @@
+import { ClientResponseError } from "pocketbase"
 import { errorMessage } from "./auth"
 import { pb } from "./pb"
 
@@ -52,13 +53,45 @@ export type AgentResponse = {
   budget: AgentBudget
 }
 
-export function askAgent(question: string, signal: AbortSignal) {
-  return pb.send<AgentResponse>("/api/x/agent/ask", {
+// Admitted questions stream Server-Sent Events: "status" progress messages,
+// then one "answer" or "error". Rejections before admission are plain JSON.
+export async function askAgent(
+  question: string,
+  signal: AbortSignal,
+  onStatus: (message: string) => void
+) {
+  const url = pb.buildURL("/api/x/agent/ask")
+  const fail = (status: number, response: unknown) =>
+    new ClientResponseError({ url, status, response })
+  const res = await fetch(url, {
     method: "POST",
-    body: { question },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: pb.authStore.token,
+    },
+    body: JSON.stringify({ question }),
     signal,
-    requestKey: null,
   })
+  if (!res.ok || !res.body)
+    throw fail(res.status, await res.json().catch(() => ({})))
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
+  let buffer = ""
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) throw fail(0, {})
+    buffer += value
+    let end
+    while ((end = buffer.indexOf("\n\n")) >= 0) {
+      const [, name, data] =
+        /^event: (\w+)\ndata: (.*)$/s.exec(buffer.slice(0, end)) ?? []
+      buffer = buffer.slice(end + 2)
+      if (!name) continue
+      const payload = JSON.parse(data)
+      if (name === "status") onStatus(payload.message)
+      if (name === "answer") return payload as AgentResponse
+      if (name === "error") throw fail(payload.status, payload)
+    }
+  }
 }
 
 export function agentError(error: unknown) {

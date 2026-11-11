@@ -158,11 +158,26 @@ func TestAgentContract(t *testing.T) {
 		req.RemoteAddr = fmt.Sprintf("127.0.0.%d:1234", ip)
 		res := httptest.NewRecorder()
 		h.mux.ServeHTTP(res, req)
-		if res.Code != status || res.Header().Get("Cache-Control") != "no-store" {
-			t.Fatalf("status/cache %d %s: %s", res.Code, res.Header().Get("Cache-Control"), res.Body.String())
+		// Admitted questions stream progress, then one final answer or error event.
+		code, payload := res.Code, res.Body.Bytes()
+		if res.Header().Get("Content-Type") == "text/event-stream" {
+			events := strings.Split(strings.TrimSpace(res.Body.String()), "\n\n")
+			name, data, _ := strings.Cut(strings.TrimPrefix(events[len(events)-1], "event: "), "\ndata: ")
+			if len(events) < 2 || !strings.HasPrefix(events[0], "event: status\n") || (name != "answer" && name != "error") {
+				t.Fatalf("stream events: %s", res.Body.String())
+			}
+			code, payload = 200, []byte(data)
+			if name == "error" {
+				var failure struct{ Status int }
+				json.Unmarshal(payload, &failure)
+				code = failure.Status
+			}
+		}
+		if code != status || res.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("status/cache %d %s: %s", code, res.Header().Get("Cache-Control"), res.Body.String())
 		}
 		var v map[string]any
-		if err := json.Unmarshal(res.Body.Bytes(), &v); err != nil {
+		if err := json.Unmarshal(payload, &v); err != nil {
 			t.Fatal(err)
 		}
 		if status == 503 && !reflect.DeepEqual(v, map[string]any{"status": float64(503), "message": "Ask gongu is unavailable. Please try again later.", "data": map[string]any{}}) {
@@ -266,7 +281,7 @@ func TestAgentContract(t *testing.T) {
 			t.Fatalf("sources: %#v", sources)
 		}
 		budget := v["budget"].(map[string]any)
-		if budget["remaining"] != float64(87104) || budget["questionLimit"] != float64(16000) || budget["limit"] != float64(100000) {
+		if budget["remaining"] != float64(87104) || budget["questionLimit"] != float64(24000) || budget["limit"] != float64(100000) {
 			t.Fatalf("budget: %#v", budget)
 		}
 		reset, err := time.Parse(time.RFC3339, budget["resetsAt"].(string))
@@ -475,6 +490,33 @@ func TestAgentContract(t *testing.T) {
 		}
 	})
 
+	t.Run("over-budget data round answers from results within budget", func(t *testing.T) {
+		h := newHarness(t, []step{
+			{name: "forms", args: formsArgs},
+			{toolsFrom: func(map[string]any) []any {
+				calls := []any{}
+				for i := range 3 {
+					call := tool("forms", formsArgs)
+					call["id"] = fmt.Sprintf("call_%d", i+2)
+					calls = append(calls, call)
+				}
+				return calls
+			}},
+			{name: "answer", args: clarify, check: func(v map[string]any) {
+				tools := v["tools"].([]any)
+				if len(tools) != 1 || tools[0].(map[string]any)["function"].(map[string]any)["name"] != "answer" {
+					t.Error("over-budget round must leave only answer")
+				}
+				if r := results(v); len(r) != 4 || r[2]["error"] != nil || r[3]["error"] == nil {
+					t.Errorf("only calls past the budget skip readers: %#v", r)
+				}
+			}},
+		})
+		if v := ask(t, h, `{"question":"Compare forms."}`, h.tokens[0], 200); v["kind"] != "clarification" {
+			t.Fatalf("answer after over-budget round: %#v", v)
+		}
+	})
+
 	t.Run("reader and provider failures charge usage", func(t *testing.T) {
 		for _, s := range []step{{name: "forms", args: formsArgs}, {status: 400}, {status: 400, noUsage: true}, {untilCancel: true}} {
 			if s.status == 0 && !s.untilCancel {
@@ -524,14 +566,14 @@ func TestAgentContract(t *testing.T) {
 
 	t.Run("budget isolation and persistence", func(t *testing.T) {
 		h := newHarness(t, []step{{name: "answer", args: refusal}, {name: "answer", args: refusal}})
-		t.Setenv("AGENT_DAILY_TOKENS", "16000")
+		t.Setenv("AGENT_DAILY_TOKENS", "24000")
 		refused := ask(t, h, `{"question":"`+strings.Repeat("案", 2000)+`"}`, h.tokens[0], 200)
 		if refused["kind"] != "refusal" || refused["blocks"].([]any)[0].(map[string]any)["text"] != "I can only answer questions about USCIS case data on gongu." {
 			t.Fatalf("exact refusal: %#v", refused)
 		}
 		v := ask(t, h, `{"question":"Weather?"}`, h.tokens[0], 429)
 		data := v["data"].(map[string]any)
-		if data["reason"].(map[string]any)["code"] != "daily_budget_exhausted" || data["remaining"] != float64(15980) || h.calls.Load() != 1 {
+		if data["reason"].(map[string]any)["code"] != "daily_budget_exhausted" || data["remaining"] != float64(23980) || h.calls.Load() != 1 {
 			t.Fatalf("exhaustion: %#v", v)
 		}
 		ask(t, h, `{"question":"Weather?"}`, h.tokens[1], 200)

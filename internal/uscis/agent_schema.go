@@ -67,7 +67,7 @@ var agentSchemas = map[string]agentSchema{
 }
 
 var agentToolDescriptions = map[string]string{
-	"forms":               "Catalog; form lists series; series reads stats. query filters; offset follows nextOffset.",
+	"forms":               "Catalog; form lists its series; form plus series reads stats. query filters; offset follows nextOffset.",
 	"estimate_date":       "Latest positive median times 30.44 UTC days; filingDate YYYY-MM-DD.",
 	"community_timelines": "VisaJourney day percentiles. visaType: F-1,IR-1/CR-1,K1,K3,Other.",
 	"bulletin":            "DOS; month YYYY-MM or latest. category: F1,F2A,F2B,F3,F4,EB1,EB2,EB3,EB3-OW,EB4,EB4-RELIGIOUS,EB5-NON-RC,EB5-RC,EB5-SET-ASIDE-HIGH-UNEMPLOYMENT,EB5-SET-ASIDE-INFRASTRUCTURE,EB5-SET-ASIDE-RURAL,EB5-UNRESERVED,EB5-UNRESERVED-RC. country: ALL,INDIA,CHINA,MEXICO,PHILIPPINES,EL SALVADOR GUATEMALA HONDURAS.",

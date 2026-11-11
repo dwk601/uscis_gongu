@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -41,7 +42,7 @@ func loadAgentConfig() (agentConfig, error) {
 		dst      *int64
 		fallback int64
 	}{
-		{"AGENT_MAX_OUTPUT_TOKENS", &c.perCall, 1024}, {"AGENT_MAX_QUESTION_OUTPUT_TOKENS", &c.output, 2048}, {"AGENT_MAX_QUESTION_TOKENS", &c.question, 16000}, {"AGENT_DAILY_TOKENS", &c.daily, 100000},
+		{"AGENT_MAX_OUTPUT_TOKENS", &c.perCall, 1024}, {"AGENT_MAX_QUESTION_OUTPUT_TOKENS", &c.output, 2048}, {"AGENT_MAX_QUESTION_TOKENS", &c.question, 24000}, {"AGENT_DAILY_TOKENS", &c.daily, 100000},
 	} {
 		*v.dst = v.fallback
 		if s := os.Getenv(v.name); s != "" {
@@ -57,15 +58,54 @@ func loadAgentConfig() (agentConfig, error) {
 
 var errAgentQuestion = errors.New("question exceeds token allocation")
 
-func agentError(e *core.RequestEvent, ctx context.Context, cause error) error {
+func agentFailure(ctx context.Context, cause error) (int, string) {
 	if errors.Is(cause, errAgentQuestion) {
-		return e.Error(400, "Invalid question.", nil)
+		return 400, "Invalid question."
 	}
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(cause, context.DeadlineExceeded) {
-		return e.Error(504, "The answer took too long. Please try again.", nil)
+		return 504, "The answer took too long. Please try again."
 	}
-	return e.Error(503, agentUnavailable, nil)
+	return 503, agentUnavailable
 }
+
+func agentError(e *core.RequestEvent, ctx context.Context, cause error) error {
+	status, message := agentFailure(ctx, cause)
+	return e.Error(status, message, nil)
+}
+
+// agentStream sends Server-Sent Events once a question is admitted: "status"
+// progress messages, then exactly one "answer" or "error" event.
+type agentStream struct{ e *core.RequestEvent }
+
+func startAgentStream(e *core.RequestEvent) agentStream {
+	e.Response.Header().Set("Content-Type", "text/event-stream")
+	e.Response.Header().Set("X-Accel-Buffering", "no")
+	e.Response.WriteHeader(200)
+	return agentStream{e}
+}
+
+// Write errors mean the client left; the handler still settles usage.
+func (s agentStream) send(event string, data any) {
+	encoded, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+	if _, err := fmt.Fprintf(s.e.Response, "event: %s\ndata: %s\n\n", event, encoded); err == nil {
+		s.e.Flush()
+	}
+}
+
+func (s agentStream) status(message string) {
+	s.send("status", map[string]string{"message": message})
+}
+
+var agentToolProgress = map[string]string{
+	"forms":               "Checking USCIS form data…",
+	"estimate_date":       "Estimating your date…",
+	"community_timelines": "Reading community timelines…",
+	"bulletin":            "Checking the visa bulletin…",
+}
+
 func agentQuotaError(e *core.RequestEvent, b agentBudget) error {
 	return e.JSON(429, map[string]any{"status": 429, "message": "You have used today's Ask gongu budget.", "data": map[string]any{"reason": map[string]string{"code": "daily_budget_exhausted", "message": "Your daily token budget cannot cover another question."}, "remaining": b.Remaining, "resetsAt": b.ResetsAt}})
 }
@@ -107,26 +147,28 @@ func (a *api) agentAsk(e *core.RequestEvent) error {
 	}
 	start := time.Now()
 	status := 503
+	var failure error
 	defer func() {
-		e.App.Logger().Info("agent question", "status", status, "duration", time.Since(start), "input_tokens", meter.input, "output_tokens", meter.output, "estimated_tokens", meter.estimated)
+		e.App.Logger().Info("agent question", "status", status, "error", failure, "duration_ms", time.Since(start).Milliseconds(), "input_tokens", meter.input, "output_tokens", meter.output, "estimated_tokens", meter.estimated)
 	}()
-	response, err := a.runAgent(ctx, e.App, c, meter, question)
+	stream := startAgentStream(e)
+	stream.status("Thinking…")
+	response, err := a.runAgent(ctx, e.App, c, meter, question, stream.status)
 	settled := meter.settle()
 	if err != nil || settled != nil || ctx.Err() != nil {
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
-			status = 504
-		}
-		if errors.Is(err, errAgentQuestion) {
-			status = 400
-		}
-		return agentError(e, ctx, errors.Join(err, settled))
+		var message string
+		failure = errors.Join(err, settled, ctx.Err())
+		status, message = agentFailure(ctx, failure)
+		stream.send("error", map[string]any{"status": status, "message": message, "data": map[string]any{}})
+		return nil
 	}
 	response.Budget = meter.budget
 	status = 200
-	return e.JSON(200, response)
+	stream.send("answer", response)
+	return nil
 }
 
-func (a *api) runAgent(ctx context.Context, app core.App, c agentConfig, m *agentMeter, question string) (*agentResponse, error) {
+func (a *api) runAgent(ctx context.Context, app core.App, c agentConfig, m *agentMeter, question string, progress func(string)) (*agentResponse, error) {
 	client := openai.NewClient(option.WithBaseURL(c.base), option.WithAPIKey(c.key), option.WithMaxRetries(0))
 	messages := []openai.ChatCompletionMessageParamUnion{openai.SystemMessage(agentRole + agentStyle), openai.UserMessage(question)}
 	facts := &agentFacts{refs: map[string]agentReference{}}
@@ -222,7 +264,7 @@ func (a *api) runAgent(ctx context.Context, app core.App, c agentConfig, m *agen
 			response, err := facts.resolve(tools[0].Function.Arguments)
 			if (errors.Is(err, errAgentStyle) || errors.Is(err, errAgentDraft)) && !repair && calls < 3 {
 				repair = true
-				messages = append(messages, msg.ToParam(), openai.ToolMessage("The draft failed style or reference validation. Call answer again with short plain paragraphs and valid result references. Use placeholders for values. Do not call data tools.", tools[0].ID))
+				messages = append(messages, msg.ToParam(), openai.ToolMessage("The draft failed style or reference validation. Call answer again with short plain paragraphs and valid result references. Use placeholders for every number, year, quarter, period and date. Do not call data tools.", tools[0].ID))
 				continue
 			}
 			if err != nil {
@@ -233,7 +275,7 @@ func (a *api) runAgent(ctx context.Context, app core.App, c agentConfig, m *agen
 			}
 			return response, nil
 		}
-		if terminal || len(tools) > 3-dataCalls {
+		if terminal {
 			return nil, errAgentDraft
 		}
 		// Validate the entire round before dispatching any reader.
@@ -252,8 +294,14 @@ func (a *api) runAgent(ctx context.Context, app core.App, c agentConfig, m *agen
 		messages = append(messages, msg.ToParam())
 		rounds++
 		for i, tool := range tools {
+			// Calls past the data budget run no reader; the next call can only answer.
+			if dataCalls == 3 {
+				messages = append(messages, openai.ToolMessage(`{"error":"Data call limit reached. Answer using only the results above."}`, tool.ID))
+				continue
+			}
 			dataCalls++
 			app.Logger().Info("agent tool", "tool", tool.Function.Name)
+			progress(agentToolProgress[tool.Function.Name])
 			result, err := a.agentRead(ctx, facts, tool.Function.Name, args[i])
 			if errors.Is(err, errAgentAmbiguous) {
 				clarify = true

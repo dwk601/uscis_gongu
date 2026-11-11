@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router"
+import { useEffect, useState } from "react"
 import type { AgentBlock, AgentResponse } from "@/lib/agent"
 import { formatMonths } from "@/lib/estimate"
 import { categoryLabel, countryLabel } from "@/lib/labels"
@@ -114,7 +115,46 @@ function AnswerBlock({
   }
 }
 
+const revealSize = (block: AgentBlock) =>
+  block.type === "paragraph" ? block.text.length : 1
+
+// The first `shown` units of the answer, with a partly typed paragraph.
+function revealed(blocks: AgentBlock[], shown: number) {
+  const visible: AgentBlock[] = []
+  for (const [index, block] of blocks.entries()) {
+    const start = blocks.slice(0, index).reduce((n, b) => n + revealSize(b), 0)
+    if (start >= shown) break
+    visible.push(
+      block.type === "paragraph"
+        ? { ...block, text: block.text.slice(0, Math.ceil(shown - start)) }
+        : block
+    )
+  }
+  return visible
+}
+
+// The server validates the whole answer before sending it, so the text is
+// typed out here: paragraphs count their characters, other blocks count one.
+function useReveal(blocks: AgentBlock[]) {
+  const total = blocks.reduce((n, block) => n + revealSize(block), 0)
+  const [shown, setShown] = useState(() =>
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches ? total : 0
+  )
+  useEffect(() => {
+    const perSecond = Math.max(240, total / 1.5)
+    const start = performance.now()
+    let frame = requestAnimationFrame(function tick(now) {
+      const next = Math.min(total, ((now - start) / 1000) * perSecond)
+      setShown((current) => Math.max(current, next))
+      if (next < total) frame = requestAnimationFrame(tick)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [total])
+  return { visible: revealed(blocks, shown), done: shown >= total }
+}
+
 export function AgentAnswer({ answer }: { answer: AgentResponse }) {
+  const { visible, done } = useReveal(answer.blocks)
   const sources = answer.sources.filter(
     (source) =>
       source.href.startsWith("/") &&
@@ -122,11 +162,11 @@ export function AgentAnswer({ answer }: { answer: AgentResponse }) {
       !/[\\\s]/.test(source.href)
   )
   return (
-    <div className="agent-answer">
-      {answer.blocks.map((block, index) => (
+    <div className="agent-answer" aria-busy={!done}>
+      {visible.map((block, index) => (
         <AnswerBlock key={index} block={block} sources={answer.sources} />
       ))}
-      {sources.length > 0 && (
+      {done && sources.length > 0 && (
         <nav className="agent-sources" aria-label="Answer sources">
           <h3>Sources</h3>
           {sources.map((source) => (

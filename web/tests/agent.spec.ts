@@ -98,6 +98,10 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
       resetsAt: "2026-07-03T00:00:00Z",
     },
   }
+  const stream = (body: unknown) => ({
+    contentType: "text/event-stream",
+    body: `event: status\ndata: {"message":"Thinking…"}\n\nevent: answer\ndata: ${JSON.stringify(body)}\n\n`,
+  })
   let requests = 0
   let release: (() => void) | undefined
   await page.route("**/api/x/agent/ask", async (route) => {
@@ -108,7 +112,7 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
       expect(route.request().postDataJSON()).toEqual({
         question: "What does the latest data say?",
       })
-      return route.fulfill({ json: answer })
+      return route.fulfill(stream(answer))
     }
     if (requests === 2)
       return route.fulfill({
@@ -138,9 +142,12 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
     await new Promise<void>((resolve) => {
       release = resolve
     })
-    return route.fulfill({
-      json: { ...answer, blocks: [{ type: "paragraph", text: "Late answer" }] },
-    })
+    return route.fulfill(
+      stream({
+        ...answer,
+        blocks: [{ type: "paragraph", text: "Late answer" }],
+      })
+    )
   })
 
   await page.goto("/trends?form=I-485")
@@ -174,10 +181,12 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await question.fill("  What does the latest data say?  ")
   await dialog.getByRole("button", { name: "Ask", exact: true }).focus()
   await page.keyboard.press("Enter")
-  await expect(dialog.getByRole("status")).toHaveText("Answer ready.")
+  await expect(question).toHaveValue("")
   await expect(
-    dialog.getByRole("button", { name: "Ask", exact: true })
-  ).toBeFocused()
+    dialog.getByText("What does the latest data say?", { exact: true })
+  ).toBeVisible()
+  await expect(dialog.getByRole("status")).toHaveText("Answer ready.")
+  await expect(question).toBeFocused()
   await expect(
     dialog.getByRole("heading", { name: "Completed cases" })
   ).toBeVisible()
@@ -257,6 +266,8 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await page.keyboard.down("Enter")
   await page.keyboard.up("Enter")
   await expect(dialog.getByRole("status")).toHaveText("Asking gongu…")
+  await expect(question).toHaveValue("")
+  await expect(dialog.locator(".agent-thinking")).toHaveText("Asking gongu…")
   await dialog.getByRole("button", { name: "Cancel" }).click()
   release!()
   await expect(dialog.getByRole("status")).toHaveText("Question canceled.")

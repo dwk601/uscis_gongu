@@ -29,6 +29,8 @@ function SignIn({
   )
 }
 
+type Exchange = { question: string; answer: AgentResponse | null }
+
 type Budget = { remaining: number; resetsAt: string; limit?: number }
 
 function BudgetStatus({ budget }: { budget: Budget | null }) {
@@ -67,19 +69,27 @@ function AgentSession({
   onSessionEnded: (error: unknown) => Promise<void>
 }) {
   const [question, setQuestion] = useState("")
-  const [answer, setAnswer] = useState<AgentResponse | null>(null)
+  const [exchange, setExchange] = useState<Exchange | null>(null)
   const [budget, setBudget] = useState<Budget | null>(null)
   const [error, setError] = useState("")
   const [status, setStatus] = useState("")
   const [pending, setPending] = useState(false)
   const request = useRef<AbortController | null>(null)
   const content = useRef<HTMLDivElement>(null)
+  const input = useRef<HTMLTextAreaElement>(null)
   const inputId = useId()
   const hintId = useId()
   const length = [...question.trim()].length
   const tooLong = length > 2000
 
   useEffect(() => () => request.current?.abort(), [])
+
+  // A failed or canceled question returns to the textarea for a retry and the
+  // previous exchange stays on screen.
+  function restore(asked: string, previous: Exchange | null) {
+    setQuestion((current) => current || asked)
+    setExchange(previous)
+  }
 
   function cancel() {
     request.current?.abort()
@@ -92,21 +102,31 @@ function AgentSession({
     event.preventDefault()
     if (!length || tooLong || request.current) return
     const controller = new AbortController()
+    const asked = question.trim()
+    const previous = exchange
     request.current = controller
+    controller.signal.addEventListener("abort", () => restore(asked, previous))
     setPending(true)
     setError("")
     setStatus("Asking gongu…")
+    setQuestion("")
+    setExchange({ question: asked, answer: null })
+    content.current?.scrollTo({ top: 0 })
     const isCurrent = () =>
       !controller.signal.aborted &&
       request.current === controller &&
       pb.authStore.record?.id === userId
     try {
-      const response = await askAgent(question.trim(), controller.signal)
+      const response = await askAgent(asked, controller.signal, (message) => {
+        if (isCurrent()) setStatus(message)
+      })
       if (!isCurrent()) return
-      setAnswer(response)
+      setExchange({ question: asked, answer: response })
       setBudget(response.budget)
       setStatus("Answer ready.")
       content.current?.scrollTo({ top: 0 })
+      // Ask is disabled with an empty textarea; keep focus ready for a follow-up.
+      input.current?.focus()
     } catch (err) {
       if (!isCurrent()) return
       const failure = agentError(err)
@@ -114,6 +134,7 @@ function AgentSession({
         await onSessionEnded(err)
         return
       }
+      restore(asked, previous)
       setError(failure.message)
       if (failure.budget) setBudget(failure.budget)
       setStatus("")
@@ -128,8 +149,18 @@ function AgentSession({
   return (
     <>
       <div className="agent-content" ref={content} aria-busy={pending}>
-        {answer ? (
-          <AgentAnswer answer={answer} />
+        {exchange ? (
+          <>
+            <p className="agent-question">{exchange.question}</p>
+            {exchange.answer ? (
+              <AgentAnswer answer={exchange.answer} />
+            ) : (
+              <p className="agent-thinking" aria-hidden="true">
+                <span className="agent-dots" />
+                {status}
+              </p>
+            )}
+          </>
         ) : (
           <p className="agent-intro">
             What would you like to know about case waits, trends, or the visa
@@ -138,7 +169,11 @@ function AgentSession({
         )}
       </div>
       <form className="agent-form" onSubmit={submit}>
-        <p className="agent-status" role="status" aria-live="polite">
+        <p
+          className={pending ? "sr-only" : "agent-status"}
+          role="status"
+          aria-live="polite"
+        >
           {status}
         </p>
         {error && (
@@ -148,6 +183,7 @@ function AgentSession({
         )}
         <label htmlFor={inputId}>Your question</label>
         <textarea
+          ref={input}
           id={inputId}
           value={question}
           onChange={(event) => setQuestion(event.target.value)}

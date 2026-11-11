@@ -7,7 +7,8 @@ import {
 import { useQueryClient } from "@tanstack/react-query"
 import { useState, type FormEvent } from "react"
 import { useTheme } from "@/components/theme-provider"
-import { authReady, useAuth, mutationErrorMessage } from "@/lib/auth"
+import { AdminCommunity } from "@/components/admin-community"
+import { authReady, isAdmin, useAuth, mutationErrorMessage } from "@/lib/auth"
 import { pb } from "@/lib/pb"
 
 export const Route = createFileRoute("/settings")({
@@ -164,6 +165,7 @@ function Settings() {
           </button>
         </form>
       </section>
+      {isAdmin(user) && <AdminCommunity key={user.id} userId={user.id} />}
       <section className="social-section">
         <button
           className="chip"

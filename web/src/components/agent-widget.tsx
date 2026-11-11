@@ -1,6 +1,13 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { MessageCircle, X } from "lucide-react"
-import { useEffect, useId, useRef, useState, type FormEvent } from "react"
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+} from "react"
 import { createPortal } from "react-dom"
 import { mutationErrorMessage, useAuth } from "@/lib/auth"
 import { agentError, askAgent, type AgentResponse } from "@/lib/agent"
@@ -310,10 +317,7 @@ export function AgentWidget({
         ref={panel}
         id={panelId}
         className="agent-panel"
-        style={{
-          top: panelTop,
-          maxHeight: `min(600px, calc(100dvh - ${panelTop + 8}px))`,
-        }}
+        style={{ "--agent-panel-top": `${panelTop}px` } as CSSProperties}
         data-open={open}
         role="dialog"
         aria-modal="false"
@@ -354,8 +358,7 @@ export function AgentWidget({
             onClick={() => {
               if (open) close()
               else {
-                if (launcher.current)
-                  setPanelTop(launcherPanelTop(launcher.current))
+                setPanelTop(launcherPanelTop(launcher.current!))
                 setOpen(true)
               }
             }}

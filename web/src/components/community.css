@@ -3,6 +3,9 @@
   align-items: center;
   gap: 10px;
 }
+.header-actions > span:empty {
+  display: none;
+}
 .account-signin {
   display: inline-flex;
   align-items: center;

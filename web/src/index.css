@@ -80,6 +80,7 @@ p {
   padding: 0 min(5vw, 66px);
   display: grid;
   grid-template-columns: 1fr auto 1fr;
+  column-gap: 16px;
   align-items: center;
 }
 .brand {

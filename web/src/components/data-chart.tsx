@@ -86,7 +86,7 @@ export default function DataChart({
     366 * day,
     Math.max(31 * day, (maxDate - minDate) * 0.1)
   )
-  const definition = defineChart({
+  const definition = defineChart(({ width }) => ({
     marks: [
       ...(band
         ? [
@@ -158,8 +158,10 @@ export default function DataChart({
             }
           : { scale: scaleLinear },
     },
-    ...(dateValues ? { margin: { left: 100, right: 12 } } : {}),
-  })
+    ...(dateValues
+      ? { margin: { left: width <= 620 ? 80 : 100, right: 12 } }
+      : {}),
+  }))
   const display = (value: number | null) =>
     value == null ? "—" : Math.round(value * 10) / 10
   const [lightStroke, darkStroke] = chartHue(hue)

@@ -29,18 +29,13 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
         json: {
           categories: [{ code: "EB2" }],
           series: [
-            "ALL",
-            "CHINA",
-            "EL SALVADOR GUATEMALA HONDURAS",
-            "INDIA",
-            "MEXICO",
-            "PHILIPPINES",
-          ].map((country) => ({
-            country,
-            points: [
-              { month: "2025-01-01", cutoff: "2020-01-01", status: "date" },
-            ],
-          })),
+            {
+              country: "ALL",
+              points: [
+                { month: "2025-01-01", cutoff: "2020-01-01", status: "date" },
+              ],
+            },
+          ],
         },
       })
     if (path.endsWith("/community"))
@@ -171,8 +166,8 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toBeVisible()
   const launcher = page.getByRole("button", { name: "Ask gongu", exact: true })
   // At this fixed position the original floating launcher covered the I-797 line.
-  await page.evaluate("window.scrollTo(0, 400)")
-  expect(await page.evaluate("window.scrollY")).toBe(400)
+  await page.evaluate("window.scrollTo(0, 300)")
+  expect(await page.evaluate("window.scrollY")).toBe(300)
   const overlaps = await page.evaluate(`(() => {
     const launcher = document.querySelector('[aria-label="Ask gongu"][aria-controls]');
     const a = launcher.getBoundingClientRect();
@@ -197,6 +192,28 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await launcher.click()
   const dialog = page.getByRole("dialog", { name: "Ask gongu", exact: true })
   await expect(dialog).toBeVisible()
+  await page.setViewportSize({ width: 701, height: 844 })
+  const community = page.getByRole("link", { name: "Community", exact: true })
+  const theme = page.getByRole("button", { name: "Switch to dark theme" })
+  const communityBox = await community.boundingBox()
+  const themeBox = await theme.boundingBox()
+  expect(
+    themeBox!.x - (communityBox!.x + communityBox!.width)
+  ).toBeGreaterThanOrEqual(8)
+  await expect
+    .poll(async () => {
+      const panelBox = await dialog.boundingBox()
+      const launcherBox = await launcher.boundingBox()
+      return (
+        panelBox &&
+        launcherBox &&
+        Math.round(
+          panelBox.x + panelBox.width - launcherBox.x - launcherBox.width
+        )
+      )
+    })
+    .toBe(0)
+  await page.setViewportSize({ width: 390, height: 844 })
   await expect(dialog.getByRole("textbox")).toHaveCount(0)
   const signIn = dialog.getByRole("link", { name: "Sign in" })
   const href = await signIn.getAttribute("href")
@@ -205,6 +222,14 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   )
   await signIn.click()
   await expect(launcher).toHaveCount(0)
+  const headerSignIn = await page
+    .getByRole("banner")
+    .getByRole("link", { name: "Sign in" })
+    .boundingBox()
+  const card = await page.locator("main .social-card").boundingBox()
+  expect(Math.round(headerSignIn!.x + headerSignIn!.width)).toBe(
+    Math.round(card!.x + card!.width)
+  )
   await page.getByLabel("Email").fill("member@example.com")
   await page.getByLabel("Password").fill("password123")
   await page

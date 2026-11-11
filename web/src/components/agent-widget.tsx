@@ -247,6 +247,7 @@ export function AgentWidget({
   const location = useRouterState({ select: (state) => state.location })
   const redirect = location.pathname + location.searchStr
   const [open, setOpen] = useState(false)
+  const [tooltipDismissed, setTooltipDismissed] = useState(false)
   const [panelTop, setPanelTop] = useState(88)
   const [sessionEnded, setSessionEnded] = useState(false)
   const launcher = useRef<HTMLButtonElement>(null)
@@ -274,11 +275,27 @@ export function AgentWidget({
   )
 
   useEffect(() => {
+    function dismissTooltip(event: KeyboardEvent) {
+      const button = launcher.current
+      if (
+        event.key === "Escape" &&
+        (button?.matches(":focus-visible") ||
+          (window.matchMedia("(hover: hover)").matches &&
+            button?.parentElement?.matches(":hover")))
+      )
+        setTooltipDismissed(true)
+    }
+    document.addEventListener("keydown", dismissTooltip)
+    return () => document.removeEventListener("keydown", dismissTooltip)
+  }, [])
+
+  useEffect(() => {
     if (!open) return
     panel.current?.querySelector<HTMLElement>("textarea, a")?.focus()
     function escape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault()
+        setTooltipDismissed(true)
         setOpen(false)
         launcher.current?.focus({ preventScroll: true })
       }
@@ -355,6 +372,9 @@ export function AgentWidget({
             aria-label="Ask gongu"
             aria-expanded={open}
             aria-controls={panelId}
+            data-tooltip-dismissed={tooltipDismissed}
+            onBlur={() => setTooltipDismissed(false)}
+            onMouseEnter={() => setTooltipDismissed(false)}
             onClick={() => {
               if (open) close()
               else {

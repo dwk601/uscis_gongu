@@ -189,6 +189,18 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   })()`)
   expect(overlaps).toEqual([])
   await page.goto("/trends?form=I-485")
+  await page.keyboard.press("Escape")
+  await launcher.focus()
+  const tooltipVisibility = () =>
+    page.evaluate(
+      "getComputedStyle(document.querySelector('.agent-launcher').parentElement, '::after').visibility"
+    )
+  expect(await tooltipVisibility()).toBe("visible")
+  await page.keyboard.press("Escape")
+  expect(await tooltipVisibility()).toBe("hidden")
+  await page.getByRole("button", { name: "Switch to dark theme" }).focus()
+  await launcher.focus()
+  expect(await tooltipVisibility()).toBe("visible")
   await launcher.click()
   const dialog = page.getByRole("dialog", { name: "Ask gongu", exact: true })
   await expect(dialog).toBeVisible()

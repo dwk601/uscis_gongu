@@ -4,21 +4,42 @@
 .header-actions > span:has(.agent-launcher) {
   position: relative;
 }
-.header-actions
-  > span:is(:hover, :has(.agent-launcher:focus-visible)):has(
-    .agent-launcher
-  ):not(:has([aria-expanded="true"]))::after {
-  content: "Ask gongu";
+.header-actions > span:has(.agent-launcher)::after {
+  content: "Ask gongu" / "";
   position: absolute;
-  z-index: 25;
+  z-index: 4;
   top: 100%;
   right: 0;
-  padding: 6px 10px;
+  padding: 6px 8px;
   border-radius: 8px;
   background: var(--ink);
   color: var(--ground);
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
+  visibility: hidden;
+}
+.header-actions
+  > span:has(
+    .agent-launcher:focus-visible:not([data-tooltip-dismissed="true"]):not(
+        [aria-expanded="true"]
+      )
+  )::after {
+  visibility: visible;
+}
+@media (hover: hover) {
+  .header-actions
+    > span:hover:has(
+      .agent-launcher:not([data-tooltip-dismissed="true"]):not(
+          [aria-expanded="true"]
+        )
+    )::after {
+    visibility: visible;
+  }
+}
+.site-header:has(.account-menu[open])
+  .header-actions
+  > span:has(.agent-launcher)::after {
+  visibility: hidden;
 }
 .agent-launcher {
   display: grid;

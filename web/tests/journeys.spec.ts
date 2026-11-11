@@ -590,7 +590,7 @@ test("insight edge states, employer focus, and pay title choices", async ({
   await expect(page.getByRole("radio")).toHaveCount(6)
   await expect(
     page.getByText(
-      "Showing 6 of the 100 most common job titles; search to find yours."
+      "Showing 6 of the 8 most common job titles; search to find yours."
     )
   ).toBeVisible()
   await expect.poll(() => payRequests).toBe(2)

@@ -39,11 +39,33 @@ SELECT ('2024-01-01'::date + n*7)::date AS week_start, topic::text,
        (n<>13) AS covered
 FROM generate_series(0,14) n CROSS JOIN (VALUES ('all'),('sevis'),('cpt'),('policy')) t(topic);
 
-CREATE VIEW public.uscis_form_quarter AS SELECT 2025::int fiscal_year, 1::int quarter, '2025-01-01'::date quarter_start, NULL::text category, form, description, received::numeric received, NULL::numeric approved, NULL::numeric denied, NULL::numeric completed, NULL::numeric pending, NULL::numeric processing_months, NULL::text source_file FROM (VALUES ('I-765', 'Application for Employment Authorization (All Other)',100), ('I-765','Application for Employment Authorization (Adjustment Of Status)',10), ('I-485', 'Other',100), ('I-485','Application to Register Permanent Residence or Adjust Status (Family)',10)) v(form,description,received);
 CREATE VIEW public.case_estimate_current AS SELECT form, description::text category, yr::int filing_year, (yr=2025) is_default_cohort, description::text official_description, 10::numeric official_median_months, '2025-01-01'::date official_period, 11::numeric official_previous_median_months, '2024-10-01'::date official_previous_period, '2025-01-01'::date latest_reporting_period, 'down'::text official_trend, '2025-03-31'::date as_of_date, NULL::text official_reason, 'USCIS'::text official_source, 'official'::text official_population, 30::int p25_days, 60::int p50_days, 90::int p75_days, 7::bigint eligible_count, 5::bigint completed_count, 2::bigint censored_count, 0::bigint excluded_count, ARRAY['K1']::text[] visa_types, '2025-01-01'::date community_as_of_date, NULL::timestamptz community_refreshed_at, NULL::text community_reason, NULL::text p25_reason, NULL::text p75_reason, 'VisaJourney'::text community_source, 'KM'::text community_method, 'self reported'::text community_population FROM (VALUES ('I-485','Application to Register Permanent Residence or Adjust Status (Family)'),('I-485','Other'),('I-765','Application for Employment Authorization (Adjustment Of Status)'),('I-765','Application for Employment Authorization (All Other)')) f(form,description) CROSS JOIN (VALUES (2024),(2025)) y(yr);
 CREATE VIEW public.case_community_stats AS SELECT 'I-485'::text form, x.category::text, x.year::int filing_year, x.n::bigint eligible_count FROM (VALUES ('family',2024,7),('family',2025,8),('unspecified',2025,3),('family',2023,0)) x(category,year,n);
 CREATE VIEW public.source_refresh_status AS SELECT 'visajourney'::text source, 'failed'::text latest_run_status, NULL::timestamptz latest_run_started_at, NULL::timestamptz latest_run_finished_at, NULL::timestamptz last_successful_run_finished_at, NULL::timestamptz last_recorded_data_run_finished_at, NULL::text last_recorded_data_run_status;
+CREATE VIEW public.uscis_form_quarter AS SELECT 2025::int fiscal_year, 1::int quarter, '2025-01-01'::date quarter_start, NULL::text category, form, description, received::numeric received, NULL::numeric approved, NULL::numeric denied, NULL::numeric completed, NULL::numeric pending, NULL::numeric processing_months, NULL::text source_file FROM (VALUES ('I-765', 'Application for Employment Authorization (All Other)',100), ('I-485', 'Other',100), ('I-485','Application to Register Permanent Residence or Adjust Status (Family)',10)) v(form,description,received)
+UNION ALL SELECT 2025, q, ('2025-01-01'::date + (q-1)*90), NULL, 'I-765', 'Application for Employment Authorization (All Other)', 123, NULL, 7, 80, 300, median, 'fixture.csv' FROM (VALUES (2,2.5::numeric),(3,0::numeric),(4,NULL::numeric)) v(q,median)
+UNION ALL SELECT 2025, 4, '2025-07-01', NULL, form, description, 50, NULL, 0, 40, 10, 3, 'fixture.csv'
+FROM (VALUES ('I-765','Application for Employment Authorization (Asylum)'),
+             ('I-131','Application for Travel Document (A→B (NACARA) — urgent — now)'),
+             ('I-131','Application for Travel Document (Advance Parole)'),
+             ('I-129F','Petition for Alien Fiancé(e)')) v(form,description);
 CREATE VIEW public.reddit_timeline_vs_uscis_quarter AS SELECT 'opt'::text case_type, premium, '2025-01-01'::date filed_month, 58::int approved_reports, 30::float8 p10_days, 60::float8 p50_days, 90::float8 p90_days, 'I-765'::text form, NULL::date quarter_start, NULL::numeric processing_months FROM (VALUES (NULL::boolean),(false)) v(premium);
 CREATE VIEW public.reddit_green_card_month_vs_bulletin AS SELECT '2025-01-01'::date AS month, 'employment_green_card'::text topic, 10::int posts, 20::int comments FROM generate_series(1,2);
 CREATE VIEW public.reddit_h1b_month_vs_lca AS SELECT '2025-01-01'::date AS month, 3::int h1b_posts, 4::int h1b_comments, 5::int lottery_posts, 6::int lottery_comments, NULL::int lca_cases, NULL::int lca_certified;
 CREATE VIEW public.reddit_activity_day AS SELECT day::date FROM (VALUES ('2021-10-30'),('2026-11-04')) v(day);
+
+CREATE VIEW public.visajourney_timeline_stats AS
+SELECT 'ead'::text stage, 'K1'::text visa_type, 2024::int filing_year,
+       40::bigint sample_size, 31::bigint completed_count, 9::bigint pending_count,
+       0.225::float8 pending_share, 20::float8 p10_days, 45::float8 p50_days, NULL::float8 p90_days
+UNION ALL SELECT 'ead', 'INJECT_HINT: visa', 2024, 40, 31, 9, 0.225, 20, 45, NULL;
+
+CREATE VIEW public.visa_bulletin_series AS
+SELECT '2025-02-01'::date bulletin_month, chart::text, 'employment'::text category_group,
+       'EB2'::text category_code, country::text country_code, cutoff::date cutoff_date,
+       current_flag::boolean is_current, unavailable_flag::boolean is_unavailable, country::text country_label
+FROM (VALUES ('final_action','INDIA','2012-10-15',false,false),
+             ('final_action','ALL',NULL,true,false),
+             ('dates_for_filing','INDIA',NULL,false,true)) v(chart,country,cutoff,current_flag,unavailable_flag)
+UNION ALL SELECT '2025-02-01', 'final_action', 'employment', E'EB2\nINJECT_HINT', 'ALL', NULL, false, true, 'All other countries'
+UNION ALL SELECT '2025-02-01', 'final_action', 'employment', 'EB2', 'INJECT_HINT: https://bad.example', NULL, false, true, 'Invalid country';

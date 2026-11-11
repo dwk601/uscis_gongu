@@ -43,6 +43,11 @@ func TestCommunityRules(t *testing.T) {
 		{"undo vote", "DELETE", "votes/records/" + vote, "", a, 204, nil, false},
 		{"users private", "GET", "users/records", "", "", 200, []string{`"totalItems":0`}, false},
 		{"votes private", "GET", "votes/records", "", "", 200, []string{`"totalItems":0`}, false},
+		{"agent usage list locked", "GET", "agent_usage/records", "", a, 403, []string{"message"}, false},
+		{"agent usage view locked", "GET", "agent_usage/records/uuuuuuuuuuuuuuu", "", a, 403, []string{"message"}, false},
+		{"agent usage create locked", "POST", "agent_usage/records", `{"user":"` + a + `","day":"2025-01-01"}`, a, 403, []string{"message"}, false},
+		{"agent usage update locked", "PATCH", "agent_usage/records/uuuuuuuuuuuuuuu", `{"input_tokens":0}`, a, 403, []string{"message"}, false},
+		{"agent usage delete locked", "DELETE", "agent_usage/records/uuuuuuuuuuuuuuu", "", a, 403, []string{"message"}, false},
 		{"cascade user", "DELETE", "users/records/" + a, "", a, 204, nil, true},
 	}
 	for _, tc := range cases {
@@ -71,6 +76,7 @@ func TestCommunityRules(t *testing.T) {
 					}
 					ua := makeRecord("users", a, map[string]any{"email": "alice@example.com", "password": "password123", "name": "Alice"})
 					ub := makeRecord("users", b, map[string]any{"email": "bob@example.com", "password": "password123", "name": "Bob"})
+					makeRecord("agent_usage", "uuuuuuuuuuuuuuu", map[string]any{"user": a, "day": "2025-01-01", "input_tokens": 100})
 					makeRecord("posts", post, map[string]any{"title": "First", "author": a})
 					makeRecord("posts", other, map[string]any{"title": "Other", "author": b})
 					makeRecord("votes", vote, map[string]any{"post": post, "user": a})
@@ -131,7 +137,7 @@ func TestCommunityRules(t *testing.T) {
 					for _, item := range []struct {
 						collection, id string
 						exists         bool
-					}{{"posts", post, false}, {"posts", other, true}, {"comments", "ccccccccccccccc", false}, {"votes", "xxxxxxxxxxxxxxx", false}, {"votes", "wwwwwwwwwwwwwww", false}} {
+					}{{"agent_usage", "uuuuuuuuuuuuuuu", false}, {"posts", post, false}, {"posts", other, true}, {"comments", "ccccccccccccccc", false}, {"votes", "xxxxxxxxxxxxxxx", false}, {"votes", "wwwwwwwwwwwwwww", false}} {
 						_, err := app.FindRecordById(item.collection, item.id)
 						if (err == nil) != item.exists {
 							tb.Errorf("%s %s exists=%v, err=%v", item.collection, item.id, item.exists, err)
@@ -142,4 +148,37 @@ func TestCommunityRules(t *testing.T) {
 			scenario.Test(t)
 		})
 	}
+	t.Run("agent rate rule", func(t *testing.T) {
+		scenario := tests.ApiScenario{
+			Method: "POST", URL: "/api/x/agent/ask", ExpectedStatus: 429,
+			ExpectedContent: []string{`"message":"Too Many Requests."`},
+			TestAppFactory: func(tb testing.TB) *tests.TestApp {
+				app, err := tests.NewTestApp(tb.TempDir())
+				if err != nil {
+					tb.Fatal(err)
+				}
+				return app
+			},
+			BeforeTestFunc: func(tb testing.TB, app *tests.TestApp, e *core.ServeEvent) {
+				// Put the exact endpoint rule ahead of any broader first-match rule.
+				rule, ok := app.Settings().RateLimits.FindRateLimitRule([]string{"POST /api/x/agent/ask", "/api/"})
+				if !ok || rule.Label != "POST /api/x/agent/ask" || len(app.Settings().TrustedProxy.Headers) != 1 || app.Settings().TrustedProxy.Headers[0] != "CF-Connecting-IP" {
+					tb.Fatal("agent rule or trusted proxy settings")
+				}
+				e.Router.POST("/api/x/agent/ask", func(r *core.RequestEvent) error { return r.JSON(200, map[string]string{"ok": "yes"}) })
+				mux, err := e.Router.BuildMux()
+				if err != nil {
+					tb.Fatal(err)
+				}
+				for i := 0; i < 3; i++ {
+					res := httptest.NewRecorder()
+					mux.ServeHTTP(res, httptest.NewRequest("POST", "/api/x/agent/ask", nil))
+					if res.Code != 200 {
+						tb.Fatalf("agent request %d: %d %s", i, res.Code, res.Body.String())
+					}
+				}
+			},
+		}
+		scenario.Test(t)
+	})
 }

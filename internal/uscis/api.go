@@ -323,6 +323,14 @@ func (a *api) forms(ctx context.Context) (formsData, error) {
 	return value.(formsData), nil
 }
 
+func (a *api) communityRows(ctx context.Context) (any, error) {
+	return a.load(ctx, "community", func(ctx context.Context) (any, error) { return a.q.Community(ctx) })
+}
+
+func (a *api) bulletinRows(ctx context.Context) (any, error) {
+	return a.load(ctx, "bulletin", func(ctx context.Context) (any, error) { return a.q.Bulletin(ctx) })
+}
+
 func unavailable(r *core.RequestEvent) error {
 	return r.Error(http.StatusServiceUnavailable, "USCIS database unavailable.", nil)
 }
@@ -398,7 +406,7 @@ func (a *api) community(r *core.RequestEvent) error {
 	series := []communitySeries{}
 	stage, mapped := stages[form]
 	if mapped {
-		value, err := a.load(ctx, "community", func(ctx context.Context) (any, error) { return a.q.Community(ctx) })
+		value, err := a.communityRows(ctx)
 		if err != nil {
 			return unavailable(r)
 		}
@@ -437,7 +445,7 @@ func (a *api) bulletin(r *core.RequestEvent) error {
 	if chart != "final_action" && chart != "dates_for_filing" {
 		return r.Error(http.StatusBadRequest, "Invalid chart.", nil)
 	}
-	value, err := a.load(ctx, "bulletin", func(ctx context.Context) (any, error) { return a.q.Bulletin(ctx) })
+	value, err := a.bulletinRows(ctx)
 	if err != nil {
 		return unavailable(r)
 	}

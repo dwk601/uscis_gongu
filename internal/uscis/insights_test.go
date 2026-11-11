@@ -170,99 +170,17 @@ func TestInsightsContract(t *testing.T) {
 		requireKeys(t, raw, reflect.TypeOf(out).Elem())
 		return nil
 	}
+	fixture, roleIdent := insightsFixture(t)
+	if fixture == nil {
+		return
+	}
 	ctx := context.Background()
-	adminURL := os.Getenv("GONGU_TEST_ADMIN_DATABASE_URL")
-	if adminURL == "" {
-		t.Fatal("GONGU_TEST_ADMIN_DATABASE_URL must point to a local PostgreSQL admin database (e.g. postgresql:///postgres)")
-	}
-	cfg, err := pgx.ParseConfig(adminURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	local := func(host string) bool {
-		if host == "localhost" || strings.HasPrefix(host, "/") {
-			return true
-		}
-		ip := net.ParseIP(host)
-		return ip != nil && ip.IsLoopback()
-	}
-	if !local(cfg.Host) {
-		t.Fatal("GONGU_TEST_ADMIN_DATABASE_URL must use a local host or Unix socket")
-	}
-	for _, fallback := range cfg.Fallbacks {
-		if !local(fallback.Host) {
-			t.Fatal("GONGU_TEST_ADMIN_DATABASE_URL must use only local hosts")
-		}
-	}
 	execSQL := func(conn *pgx.Conn, sql string) {
 		t.Helper()
 		if _, err := conn.Exec(ctx, sql); err != nil {
 			t.Fatalf("database setup: %v", err)
 		}
 	}
-	dbname := os.Getenv("GONGU_INSIGHTS_CHILD_DB")
-	role := os.Getenv("GONGU_INSIGHTS_CHILD_ROLE")
-	if dbname == "" {
-		admin, err := pgx.ConnectConfig(ctx, cfg)
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() { admin.Close(ctx) })
-		var random [8]byte
-		if _, err := rand.Read(random[:]); err != nil {
-			t.Fatal(err)
-		}
-		suffix := hex.EncodeToString(random[:])
-		dbname = "gongu_insights_" + suffix
-		role = "gongu_reader_" + suffix
-		password := suffix
-		dbIdent := pgx.Identifier{dbname}.Sanitize()
-		roleIdent := pgx.Identifier{role}.Sanitize()
-		execSQL(admin, "CREATE ROLE "+roleIdent+" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD '"+password+"'")
-		t.Cleanup(func() {
-			if _, err := admin.Exec(ctx, "DROP ROLE "+roleIdent); err != nil {
-				t.Errorf("drop role: %v", err)
-			}
-		})
-		execSQL(admin, "ALTER ROLE "+roleIdent+" SET default_transaction_read_only = on")
-		execSQL(admin, "CREATE DATABASE "+dbIdent)
-		t.Cleanup(func() {
-			if _, err := admin.Exec(ctx, "DROP DATABASE "+dbIdent+" WITH (FORCE)"); err != nil {
-				t.Errorf("drop database: %v", err)
-			}
-		})
-		execSQL(admin, "REVOKE TEMPORARY ON DATABASE "+dbIdent+" FROM PUBLIC")
-		fixtureCfg := cfg.Copy()
-		fixtureCfg.Database = dbname
-		fixture, err := pgx.ConnectConfig(ctx, fixtureCfg)
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() { fixture.Close(ctx) })
-		sql, err := os.ReadFile(filepath.Join("testdata", "insights.sql"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		execSQL(fixture, string(sql))
-		execSQL(fixture, "GRANT SELECT ON public.immihelp_timeline, public.dol_lca_pay_stats, public.h1b_employer, public.student_post_week, public.uscis_form_quarter, public.case_estimate_current, public.case_community_stats, public.source_refresh_status, public.reddit_timeline_vs_uscis_quarter, public.reddit_green_card_month_vs_bulletin, public.reddit_h1b_month_vs_lca, public.reddit_activity_day TO "+roleIdent)
-		appURL := url.URL{Scheme: "postgresql", User: url.UserPassword(role, password), Host: net.JoinHostPort("127.0.0.1", fmt.Sprint(cfg.Port)), Path: "/" + dbname, RawQuery: "sslmode=disable"}
-		// A separate process keeps cleanup in this parent even if a handler goroutine panics.
-		cmd := exec.Command(os.Args[0], "-test.run=^TestInsightsContract$", "-test.count=1")
-		cmd.Env = append(os.Environ(), "GONGU_INSIGHTS_CHILD_DB="+dbname, "GONGU_INSIGHTS_CHILD_ROLE="+role, databaseURLEnv+"="+appURL.String())
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Fatalf("HTTP contract subprocess: %v\n%s", err, output)
-		}
-		return
-	}
-	fixtureCfg := cfg.Copy()
-	fixtureCfg.Database = dbname
-	fixture, err := pgx.ConnectConfig(ctx, fixtureCfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { fixture.Close(ctx) })
-	roleIdent := pgx.Identifier{role}.Sanitize()
 	newMux := func() http.Handler {
 		t.Helper()
 		app, err := tests.NewTestApp(t.TempDir())
@@ -338,7 +256,13 @@ func TestInsightsContract(t *testing.T) {
 				t.Fatalf("case: %s", b)
 			}
 		}},
-		{name: "case preferred work permit", path: "/api/x/uscis/case?form=I-765", status: 200, check: func(t *testing.T, b []byte) {
+		{name: "case preferred work permit", path: "/api/x/uscis/case?form=I-765", status: 200, setup: func() {
+			// The shared fixture omits this series so agent option lists stay at their two I-765 choices.
+			execSQL(fixture, "ALTER VIEW public.uscis_form_quarter RENAME TO saved_form_quarter")
+			execSQL(fixture, "CREATE VIEW public.uscis_form_quarter AS SELECT * FROM public.saved_form_quarter UNION ALL SELECT 2025, 1, '2025-01-01'::date, NULL::text, 'I-765', 'Application for Employment Authorization (Adjustment Of Status)', 10, NULL, NULL, NULL, NULL, NULL, 'fixture.csv'")
+			execSQL(fixture, "GRANT SELECT ON public.uscis_form_quarter TO "+roleIdent)
+			mux = newMux()
+		}, check: func(t *testing.T, b []byte) {
 			var v struct {
 				CategoryLabel string `json:"categoryLabel"`
 				Summary       struct {
@@ -543,4 +467,101 @@ func TestInsightsContract(t *testing.T) {
 			}
 		})
 	}
+}
+
+func insightsFixture(t *testing.T) (*pgx.Conn, string) {
+	t.Helper()
+	ctx := context.Background()
+	adminURL := os.Getenv("GONGU_TEST_ADMIN_DATABASE_URL")
+	if adminURL == "" {
+		t.Fatal("GONGU_TEST_ADMIN_DATABASE_URL must point to a local PostgreSQL admin database (e.g. postgresql:///postgres)")
+	}
+	cfg, err := pgx.ParseConfig(adminURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	local := func(host string) bool {
+		if host == "localhost" || strings.HasPrefix(host, "/") {
+			return true
+		}
+		ip := net.ParseIP(host)
+		return ip != nil && ip.IsLoopback()
+	}
+	if !local(cfg.Host) {
+		t.Fatal("GONGU_TEST_ADMIN_DATABASE_URL must use a local host or Unix socket")
+	}
+	for _, fallback := range cfg.Fallbacks {
+		if !local(fallback.Host) {
+			t.Fatal("GONGU_TEST_ADMIN_DATABASE_URL must use only local hosts")
+		}
+	}
+	execSQL := func(conn *pgx.Conn, sql string) {
+		t.Helper()
+		if _, err := conn.Exec(ctx, sql); err != nil {
+			t.Fatalf("database setup: %v", err)
+		}
+	}
+	dbname := os.Getenv("GONGU_INSIGHTS_CHILD_DB")
+	role := os.Getenv("GONGU_INSIGHTS_CHILD_ROLE")
+	if dbname == "" {
+		admin, err := pgx.ConnectConfig(ctx, cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { admin.Close(ctx) })
+		var random [8]byte
+		if _, err := rand.Read(random[:]); err != nil {
+			t.Fatal(err)
+		}
+		suffix := hex.EncodeToString(random[:])
+		dbname = "gongu_insights_" + suffix
+		role = "gongu_reader_" + suffix
+		password := suffix
+		dbIdent := pgx.Identifier{dbname}.Sanitize()
+		roleIdent := pgx.Identifier{role}.Sanitize()
+		execSQL(admin, "CREATE ROLE "+roleIdent+" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD '"+password+"'")
+		t.Cleanup(func() {
+			if _, err := admin.Exec(ctx, "DROP ROLE "+roleIdent); err != nil {
+				t.Errorf("drop role: %v", err)
+			}
+		})
+		execSQL(admin, "ALTER ROLE "+roleIdent+" SET default_transaction_read_only = on")
+		execSQL(admin, "CREATE DATABASE "+dbIdent)
+		t.Cleanup(func() {
+			if _, err := admin.Exec(ctx, "DROP DATABASE "+dbIdent+" WITH (FORCE)"); err != nil {
+				t.Errorf("drop database: %v", err)
+			}
+		})
+		execSQL(admin, "REVOKE TEMPORARY ON DATABASE "+dbIdent+" FROM PUBLIC")
+		fixtureCfg := cfg.Copy()
+		fixtureCfg.Database = dbname
+		fixture, err := pgx.ConnectConfig(ctx, fixtureCfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { fixture.Close(ctx) })
+		sql, err := os.ReadFile(filepath.Join("testdata", "insights.sql"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		execSQL(fixture, string(sql))
+		execSQL(fixture, "GRANT SELECT ON public.immihelp_timeline, public.dol_lca_pay_stats, public.h1b_employer, public.student_post_week, public.uscis_form_quarter, public.case_estimate_current, public.case_community_stats, public.source_refresh_status, public.reddit_timeline_vs_uscis_quarter, public.reddit_green_card_month_vs_bulletin, public.reddit_h1b_month_vs_lca, public.reddit_activity_day, public.visajourney_timeline_stats, public.visa_bulletin_series TO "+roleIdent)
+		appURL := url.URL{Scheme: "postgresql", User: url.UserPassword(role, password), Host: net.JoinHostPort("127.0.0.1", fmt.Sprint(cfg.Port)), Path: "/" + dbname, RawQuery: "sslmode=disable"}
+		// A separate process keeps cleanup in this parent even if a handler goroutine panics.
+		cmd := exec.Command(os.Args[0], "-test.run=^"+t.Name()+"$", "-test.count=1")
+		cmd.Env = append(os.Environ(), "GONGU_INSIGHTS_CHILD_DB="+dbname, "GONGU_INSIGHTS_CHILD_ROLE="+role, databaseURLEnv+"="+appURL.String())
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("HTTP contract subprocess: %v\n%s", err, output)
+		}
+		return nil, ""
+	}
+	fixtureCfg := cfg.Copy()
+	fixtureCfg.Database = dbname
+	fixture, err := pgx.ConnectConfig(ctx, fixtureCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { fixture.Close(ctx) })
+	return fixture, pgx.Identifier{role}.Sanitize()
 }

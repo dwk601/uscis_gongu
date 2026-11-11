@@ -5,8 +5,10 @@ import {
   useRouterState,
 } from "@tanstack/react-router"
 import { lazy, Suspense, useEffect, useRef, type CSSProperties } from "react"
-import { formHue } from "@/lib/palette"
+import { formHue, formInk } from "@/lib/palette"
+import { cn } from "@/lib/utils"
 import { SiteHeader } from "@/components/site-header"
+import { AgentWidget } from "@/components/agent-widget"
 
 const RouterDevtools = import.meta.env.DEV
   ? lazy(() =>
@@ -56,18 +58,27 @@ function RootLayout() {
   }, [screen])
   const form =
     typeof location.search.form === "string" ? location.search.form : "I-485"
+  const showAgent = location.pathname !== "/login"
   return (
     <div
-      className={
-        location.pathname === "/trends" ? "app-shell trend-shell" : "app-shell"
+      className={cn(
+        "app-shell",
+        location.pathname === "/trends" && "trend-shell",
+        showAgent && "has-agent"
+      )}
+      style={
+        {
+          "--page-hue": formHue(form),
+          "--page-ink": formInk(form),
+        } as CSSProperties
       }
-      style={{ "--page-hue": formHue(form) } as CSSProperties}
     >
       <SiteHeader />
       <Outlet />
+      {showAgent && <AgentWidget />}
       {import.meta.env.DEV && (
         <Suspense fallback={null}>
-          <RouterDevtools position="bottom-right" />
+          <RouterDevtools position="top-right" />
           <QueryDevtools buttonPosition="bottom-left" />
         </Suspense>
       )}

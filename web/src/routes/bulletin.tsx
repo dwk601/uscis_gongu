@@ -5,6 +5,7 @@ import { bulletinQuery, movement } from "@/lib/api"
 import { categoryHue } from "@/lib/palette"
 import { categoryLabel, categoryLabels, countryLabel } from "@/lib/labels"
 import { getSessionItem } from "@/lib/session-storage"
+import { BulletinCutoffCard } from "@/components/insight-cards"
 
 const DataChart = lazy(() => import("@/components/data-chart"))
 const RedditDiscussionPanel = lazy(() =>
@@ -322,24 +323,26 @@ function BulletinPage() {
       {series && category && (
         <>
           <div className="workspace-grid">
-            <section
-              className="panel bulletin-card"
-              style={{ background: categoryHue(category) }}
-            >
-              {historical && current?.month && (
-                <p className="bulletin-historical">
-                  Historical · last bulletin {month(current.month)}
-                </p>
-              )}
-              <h2>
-                {current?.status === "current"
+            <BulletinCutoffCard
+              category={category}
+              eyebrow={
+                historical &&
+                current?.month && (
+                  <p className="bulletin-historical">
+                    Historical · last bulletin {month(current.month)}
+                  </p>
+                )
+              }
+              title={
+                current?.status === "current"
                   ? "Current"
                   : current?.status === "unavailable"
                     ? "Unavailable"
                     : current?.cutoff
                       ? cutoffDate(current.cutoff)
-                      : "No cutoff available"}
-              </h2>
+                      : "No cutoff available"
+              }
+            >
               <p>
                 {monthlyChange == null
                   ? "Monthly change unavailable"
@@ -352,7 +355,7 @@ function BulletinPage() {
                 {categoryLabel(category)} · {countryLabel(series.country)} ·{" "}
                 {chart === "final_action" ? "Approval cutoff" : "Filing cutoff"}
               </p>
-            </section>
+            </BulletinCutoffCard>
             <Suspense fallback={<div className="skeleton" />}>
               <DataChart
                 title="Cutoff date over time"

@@ -10,6 +10,7 @@ import type { OfficialPoint } from "@/lib/api"
 import { estimateDate, formatMonths, quarterLabel } from "@/lib/estimate"
 import { formHue, formInk } from "@/lib/palette"
 import { FormPicker } from "@/components/form-picker"
+import { ArrowRight, ArrowUpRight, MessageCircle } from "lucide-react"
 
 export const Route = createFileRoute("/")({
   validateSearch: (
@@ -179,9 +180,17 @@ function Landing() {
   const savedName = sessionStorage.getItem("gongu-last-case-name")
   return (
     <main className="workspace landing-page">
-      <h1>Find your next step.</h1>
-      <p>Explore case timelines or see the latest visa bulletin.</p>
-      <div className="landing-choices">
+      <header className="landing-intro">
+        <h1>
+          Find your <span>next step.</span>
+        </h1>
+        <p>Explore case timelines or see the latest visa bulletin.</p>
+      </header>
+      <div
+        className="landing-choices"
+        role="group"
+        aria-label="Where would you like to start?"
+      >
         <div className="landing-case-choice">
           <Link
             className="landing-choice"
@@ -190,13 +199,22 @@ function Landing() {
             aria-labelledby="case-heading"
             aria-describedby="case-description"
           >
-            <strong id="case-heading">
-              {form
-                ? `Continue with ${savedName || form}`
-                : "Check my case timeline"}
-            </strong>
+            <div className="landing-choice-top">
+              <strong id="case-heading">
+                {form
+                  ? `Continue with ${savedName || form}`
+                  : "Check my case timeline"}
+              </strong>
+              <span className="landing-choice-arrow" aria-hidden="true">
+                <ArrowUpRight size={28} />
+              </span>
+            </div>
             <span id="case-description">
               See typical waits and timelines from people like you.
+            </span>
+            <span className="landing-choice-action" aria-hidden="true">
+              {form ? "Pick up where you left off" : "Find my timeline"}
+              <ArrowRight size={18} />
             </span>
           </Link>
           {form && (
@@ -216,12 +234,69 @@ function Landing() {
           aria-label="Check the visa bulletin"
           aria-describedby="bulletin-description"
         >
-          <strong>Check the visa bulletin</strong>
+          <div className="landing-choice-top">
+            <strong>Check the visa bulletin</strong>
+            <span className="landing-choice-arrow" aria-hidden="true">
+              <ArrowUpRight size={28} />
+            </span>
+          </div>
           <span id="bulletin-description">
             Explore cutoff dates for your category and country of birth.
           </span>
+          <span className="landing-choice-action" aria-hidden="true">
+            Find my cutoff date
+            <ArrowRight size={18} />
+          </span>
         </Link>
       </div>
+      <p className="landing-reassurance">Free to explore. No sign-up needed.</p>
+      <Link
+        className="landing-community"
+        to="/community"
+        search={{ sort: "new", form: "" }}
+      >
+        <MessageCircle
+          className="landing-community-icon"
+          size={36}
+          strokeWidth={1.5}
+          aria-hidden="true"
+        />
+        <div>
+          <h2>You don’t have to wait alone.</h2>
+          <p>Share a timeline. Ask a question. Find your people.</p>
+        </div>
+        <span>
+          Meet the community <ArrowRight size={20} aria-hidden="true" />
+        </span>
+      </Link>
+      <section className="landing-more" aria-labelledby="landing-more-title">
+        <h2 id="landing-more-title">A little more perspective.</h2>
+        <div className="landing-more-links">
+          <Link
+            to="/trends"
+            search={{
+              form: "I-765",
+              journey: "students",
+              insight: "student-posts",
+            }}
+          >
+            Student insights <ArrowUpRight size={17} aria-hidden="true" />
+          </Link>
+          <Link
+            to="/trends"
+            search={{
+              form: "I-129",
+              journey: "workers",
+              insight: "h1b-employers",
+            }}
+          >
+            H-1B employers <ArrowUpRight size={17} aria-hidden="true" />
+          </Link>
+          <Link to="/trends" search={{ form: "I-485", journey: "all" }}>
+            All case trends <ArrowUpRight size={17} aria-hidden="true" />
+          </Link>
+        </div>
+      </section>
     </main>
   )
 }

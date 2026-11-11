@@ -15,6 +15,7 @@ import {
 import { quarterLabel } from "@/lib/estimate"
 import { redditCaseLabels } from "@/lib/labels"
 import { chartHue, formHue } from "@/lib/palette"
+import { BigNumber } from "@/components/insight-cards"
 
 const day = (value: string) => new Date(`${value}T00:00:00Z`)
 const month = (value: string | null | undefined) =>
@@ -438,9 +439,7 @@ export function RedditWait({ form }: { form: string }) {
             </div>
             {latest ? (
               <>
-                <div className="big-number">
-                  {months(latest.p50Days)} months
-                </div>
+                <BigNumber>{months(latest.p50Days)} months</BigNumber>
                 <p className="community-info">
                   {latest.p10Days != null && latest.p90Days != null
                     ? `Middle 80%: ${months(latest.p10Days)}–${months(latest.p90Days)} months`

@@ -4,6 +4,7 @@ import { lazy, Suspense } from "react"
 import { bulletinQuery, movement } from "@/lib/api"
 import { categoryHue } from "@/lib/palette"
 import { categoryLabel, categoryLabels, countryLabel } from "@/lib/labels"
+import { BulletinCutoffCard } from "@/components/insight-cards"
 
 const DataChart = lazy(() => import("@/components/data-chart"))
 const RedditDiscussionPanel = lazy(() =>
@@ -227,19 +228,18 @@ function BulletinPage() {
             ))}
           </div>
           <div className="workspace-grid">
-            <section
-              className="panel bulletin-card"
-              style={{ background: categoryHue(category) }}
-            >
-              <h2>
-                {current?.status === "current"
+            <BulletinCutoffCard
+              category={category}
+              title={
+                current?.status === "current"
                   ? "Current"
                   : current?.status === "unavailable"
                     ? "Unavailable"
                     : current?.cutoff
                       ? cutoffDate(current.cutoff)
-                      : "No cutoff available"}
-              </h2>
+                      : "No cutoff available"
+              }
+            >
               <p>
                 {delta == null
                   ? "12-month change unavailable"
@@ -258,7 +258,7 @@ function BulletinPage() {
                 {current?.month ? `Bulletin ${month(current.month)} · ` : ""}
                 {series ? countryLabel(series.country) : ""}
               </small>
-            </section>
+            </BulletinCutoffCard>
             <Suspense fallback={<div className="skeleton" />}>
               <DataChart
                 title="Cutoff date over time"

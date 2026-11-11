@@ -40,6 +40,9 @@ body {
 .trend-shell {
   background: color-mix(in srgb, var(--page-hue) 5%, var(--ground));
 }
+.app-shell.has-agent {
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+}
 ::selection {
   background: #c7b6ec;
   color: #171717;

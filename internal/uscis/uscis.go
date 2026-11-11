@@ -8,7 +8,9 @@ import (
 	"os"
 	"time"
 
+	"ganigeorgiev.com/pocketbase/pocketbase/apis"
 	"ganigeorgiev.com/pocketbase/pocketbase/core"
+	"ganigeorgiev.com/pocketbase/pocketbase/tools/hook"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gongu/internal/uscis/db"
 )
@@ -28,6 +30,15 @@ func Register(app core.App) {
 		})
 
 		handlers := &api{q: db.New(pool), cache: make(map[string]entry)}
+		auth := apis.RequireAuth("users")
+		auth.Priority = apis.DefaultRateLimitMiddlewarePriority - 1
+		e.Router.POST("/api/x/agent/ask", handlers.agentAsk).Bind(&hook.Handler[*core.RequestEvent]{
+			Priority: -2000,
+			Func: func(r *core.RequestEvent) error {
+				r.Response.Header().Set("Cache-Control", "no-store")
+				return r.Next()
+			},
+		}, auth)
 		e.Router.GET("/api/x/uscis/forms", handlers.formList)
 		e.Router.GET("/api/x/uscis/forms/{form}", handlers.form)
 		e.Router.GET("/api/x/uscis/forms/{form}/community", handlers.community)

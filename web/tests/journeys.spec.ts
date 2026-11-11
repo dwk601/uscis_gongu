@@ -604,7 +604,14 @@ test("insight edge states, employer focus, and pay title choices", async ({
   await expect.poll(() => payRequests).toBe(5)
   await page.getByRole("button", { name: "2025" }).click()
   await expect(page.getByRole("radio", { name: "Job 0" })).toBeChecked()
+  await page.getByLabel("Search job titles").fill("no such title")
+  await expect(
+    page.getByText("No job titles match; clear the search.")
+  ).toBeVisible()
   await page.getByLabel("Search job titles").fill("Job 7")
+  await expect(
+    page.getByText("1 matching job titles", { exact: true })
+  ).toBeVisible()
   await expect(page.getByRole("radio")).toHaveCount(2)
   await page.getByRole("radio", { name: "Job 7" }).check()
   await expect.poll(() => payRequests).toBe(6)
@@ -753,6 +760,12 @@ test("bulletin selection and historical status", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toBeVisible()
   const before = requests
   const priority = page.getByLabel("Your priority date (optional)")
+  await expect(
+    page.getByText(
+      "Find it on the I-797 approval notice for your petition (I-130, I-140, I-360 or I-526).",
+      { exact: true }
+    )
+  ).toBeVisible()
   await priority.fill("2019-12-31")
   await expect(page.getByText("Current for this bulletin")).toBeVisible()
   await priority.fill("2020-01-01")
@@ -804,7 +817,21 @@ test("bulletin selection and historical status", async ({ page }) => {
   await page.getByRole("button", { name: "Approval cutoff" }).click()
   await expect(page.getByText("Current for this bulletin")).toBeVisible()
   const afterChartChanges = requests
+  await priority.fill("0002-03-15")
+  const heightBeforeError = (await page
+    .locator(".priority-comparison")
+    .boundingBox())!.height
+  await priority.blur()
+  await expect(
+    page.getByText("Enter a valid date in 1900 or later.")
+  ).toBeVisible()
+  expect(
+    (await page.locator(".priority-comparison").boundingBox())!.height
+  ).toBe(heightBeforeError)
+  await priority.fill("0002-03-15")
+  await page.evaluate("window.scrollTo(0, 250)")
   await page.getByRole("button", { name: "India", exact: true }).click()
+  await expect(page).toHaveURL(/country=INDIA/)
   await expect(
     page.getByText("Historical · last bulletin Mar 2024")
   ).toBeVisible()

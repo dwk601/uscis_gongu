@@ -22,7 +22,7 @@ const baseURL = `http://127.0.0.1:${port}`
 
 export default defineConfig({
   testDir: "./tests",
-  reporter: "line",
+  reporter: [["line"], ["./tests/guard-reporter.ts"]],
   use: {
     baseURL,
     browserName: "chromium",

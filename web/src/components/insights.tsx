@@ -241,6 +241,11 @@ function Pay() {
     q.data?.years.find((y) => y.year === year) ?? q.data?.years[0]
   const titles = selectedYear?.titles ?? []
   const selected = titles.find((t) => t.key === title) ?? titles[0]
+  const matchingCount = filter
+    ? titles.filter((item) =>
+        item.title.toLowerCase().includes(filter.toLowerCase())
+      ).length
+    : 0
   const visibleTitles = titles.filter(
     (item, index) =>
       item.key === selected?.key ||
@@ -300,8 +305,11 @@ function Pay() {
               </button>
             )}
             <p>
-              Showing {visibleTitles.length} of {titles.length} job titles;
-              search to find yours.
+              {filter
+                ? matchingCount
+                  ? `${matchingCount} matching job titles`
+                  : "No job titles match; clear the search."
+                : `Showing ${visibleTitles.length} of ${titles.length} job titles; search to find yours.`}
             </p>
             <div
               role="radiogroup"
@@ -323,10 +331,6 @@ function Pay() {
                 </label>
               ))}
             </div>
-            {filter &&
-              !titles.some((item) =>
-                item.title.toLowerCase().includes(filter.toLowerCase())
-              ) && <p>No matching titles. Clear search to see suggestions.</p>}
           </div>
           {selected && (
             <PayDetail year={selectedYear.year} title={selected.key} />

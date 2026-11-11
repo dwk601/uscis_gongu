@@ -125,8 +125,8 @@ function PriorityComparison({
     <div className="priority-comparison">
       <label htmlFor="priority-date">Your priority date (optional)</label>
       <p id="priority-hint">
-        Find it on your I-797 approval or receipt notice for the petition
-        (I-130, I-140 or I-526).
+        Find it on the I-797 approval notice for your petition (I-130, I-140,
+        I-360 or I-526).
       </p>
       <input
         id="priority-date"
@@ -156,11 +156,13 @@ function PriorityComparison({
           setError(!empty && !validDate(input.value, 1900))
         }}
       />
-      {error && (
-        <p id="priority-error" role="status">
-          Enter a valid date in 1900 or later.
-        </p>
-      )}
+      <div className="priority-error-slot">
+        {error && (
+          <p id="priority-error" role="status">
+            Enter a valid date in 1900 or later.
+          </p>
+        )}
+      </div>
       {(!current ||
         current.status === "unavailable" ||
         (current.status === "date" && !current.cutoff)) && (

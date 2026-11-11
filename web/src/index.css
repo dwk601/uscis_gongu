@@ -684,6 +684,13 @@ td {
 }
 .priority-comparison {
   margin: 24px 0;
+  overflow-anchor: none;
+}
+.priority-error-slot {
+  min-height: 3em;
+}
+.priority-error-slot p {
+  margin: 0;
 }
 .priority-comparison > label {
   display: block;

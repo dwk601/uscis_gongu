@@ -425,7 +425,9 @@ test("student insights keep history and distinguish uncovered weeks", async ({
   ).toBeVisible()
 })
 
-test("insight edge states and employer year retain focus", async ({ page }) => {
+test("insight edge states, employer focus, and pay title choices", async ({
+  page,
+}) => {
   let releaseYear: (() => void) | undefined
   await page.route("**/api/x/uscis/**", async (route) => {
     const url = new URL(route.request().url())
@@ -586,6 +588,9 @@ test("insight edge states and employer year retain focus", async ({ page }) => {
   })
   await page.goto("/trends?journey=workers&form=I-129&insight=h1b-pay")
   await expect(page.getByRole("radio")).toHaveCount(6)
+  await expect(
+    page.getByText("Showing 6 of 8 job titles; search to find yours.")
+  ).toBeVisible()
   await expect.poll(() => payRequests).toBe(2)
   await page.getByRole("radio", { name: "Job 0" }).focus()
   await page.keyboard.press("ArrowRight")
@@ -755,12 +760,55 @@ test("bulletin selection and historical status", async ({ page }) => {
     page.getByText("Not yet current for this bulletin")
   ).toBeVisible()
   await expect(page.getByText(/0 days.*not an estimated wait/)).toBeVisible()
+  await priority.fill("")
+  await expect(page).not.toHaveURL(/priorityDate=/)
+  const historyLength = await page.evaluate("history.length")
+  await priority.focus()
+  for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowLeft")
+  for (const [index, digit] of [..."03152019"].entries()) {
+    await page.keyboard.press(digit)
+    if (index < 7) {
+      await expect(page).not.toHaveURL(/priorityDate=/)
+      await expect(page.getByText("Current for this bulletin")).toHaveCount(0)
+    }
+    await expect(priority).toBeFocused()
+    expect(await page.evaluate("history.length")).toBe(historyLength)
+  }
+  await expect(page).toHaveURL(/priorityDate=2019-03-15/)
+  await expect(page.getByText("Current for this bulletin")).toBeVisible()
+  for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowLeft")
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.press("Delete")
+    if (i < 2) await page.keyboard.press("ArrowRight")
+  }
+  await priority.blur()
+  await expect(page).not.toHaveURL(/priorityDate=/)
+  expect(await page.evaluate("history.length")).toBe(historyLength)
   expect(requests).toBe(before)
+  await priority.fill("2020-01-02")
+  await expect(page.getByText(/1 day after the cutoff/)).toBeVisible()
+  await page.getByRole("button", { name: "Filing cutoff" }).click()
+  await expect(page.getByText("Not before the filing cutoff")).toBeVisible()
+  await expect(page.getByText(/1 day after the cutoff/)).toBeVisible()
+  await priority.fill("2019-12-31")
+  await expect(page.getByText("Before the filing cutoff")).toBeVisible()
+  await page.getByRole("button", { name: "Approval cutoff" }).click()
+  await expect(page.getByText("Current for this bulletin")).toBeVisible()
+  await priority.fill("0002-03-15")
+  await page.getByRole("button", { name: "Filing cutoff" }).click()
+  await expect(priority).toHaveValue("2019-12-31")
+  await expect(
+    page.getByText("Enter a valid date in 1900 or later.")
+  ).toHaveCount(0)
+  await expect(page.getByText("Before the filing cutoff")).toBeVisible()
+  await page.getByRole("button", { name: "Approval cutoff" }).click()
+  await expect(page.getByText("Current for this bulletin")).toBeVisible()
+  const afterChartChanges = requests
   await page.getByRole("button", { name: "India", exact: true }).click()
   await expect(
     page.getByText("Historical · last bulletin Mar 2024")
   ).toBeVisible()
-  expect(requests).toBe(before)
+  expect(requests).toBe(afterChartChanges)
   await page.getByRole("button", { name: "Family", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Jan 1, 2019" })).toBeVisible()
   await page.getByRole("button", { name: "Family", exact: true }).focus()
@@ -780,6 +828,9 @@ test("bulletin selection and historical status", async ({ page }) => {
   ).toBeVisible()
   await page.goto("/bulletin?category=EB5-NON-RC&priorityDate=2024-02-29")
   await expect(page.getByRole("heading", { name: "Unavailable" })).toBeVisible()
+  await expect(
+    page.getByText("This bulletin has no cutoff date to compare with.")
+  ).toBeVisible()
   await expect(
     page.getByText(
       "There is no dated cutoff to plot. See the status history and data below."

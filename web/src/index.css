@@ -646,7 +646,7 @@ td {
   margin-top: 24px;
   overflow-wrap: anywhere;
 }
-.insight-panel .controls .chip,
+.employer-years .chip,
 .insight-choices .chip,
 .priority-comparison .field {
   min-height: 44px;
@@ -657,7 +657,8 @@ td {
   gap: 9px;
   max-height: 320px;
   overflow-y: auto;
-  margin: 12px 0;
+  padding: 4px;
+  margin: 8px -4px;
 }
 .title-option {
   position: relative;

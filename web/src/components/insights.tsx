@@ -241,6 +241,13 @@ function Pay() {
     q.data?.years.find((y) => y.year === year) ?? q.data?.years[0]
   const titles = selectedYear?.titles ?? []
   const selected = titles.find((t) => t.key === title) ?? titles[0]
+  const visibleTitles = titles.filter(
+    (item, index) =>
+      item.key === selected?.key ||
+      (filter
+        ? item.title.toLowerCase().includes(filter.toLowerCase())
+        : index < 6)
+  )
   return (
     <section className="panel insight-panel">
       <h1>H‑1B offered pay</h1>
@@ -292,33 +299,29 @@ function Pay() {
                 Clear search
               </button>
             )}
+            <p>
+              Showing {visibleTitles.length} of {titles.length} job titles;
+              search to find yours.
+            </p>
             <div
               role="radiogroup"
               aria-label="Job title"
               className="title-options"
             >
-              {titles
-                .filter(
-                  (item, index) =>
-                    item.key === selected.key ||
-                    (filter
-                      ? item.title.toLowerCase().includes(filter.toLowerCase())
-                      : index < 6)
-                )
-                .map((item) => (
-                  <label className="title-option" key={item.key}>
-                    <input
-                      type="radio"
-                      name="job-title"
-                      value={item.key}
-                      checked={item.key === selected.key}
-                      onChange={() => {
-                        if (item.key !== selected.key) setTitle(item.key)
-                      }}
-                    />
-                    <span>{item.title}</span>
-                  </label>
-                ))}
+              {visibleTitles.map((item) => (
+                <label className="title-option" key={item.key}>
+                  <input
+                    type="radio"
+                    name="job-title"
+                    value={item.key}
+                    checked={item.key === selected.key}
+                    onChange={() => {
+                      if (item.key !== selected.key) setTitle(item.key)
+                    }}
+                  />
+                  <span>{item.title}</span>
+                </label>
+              ))}
             </div>
             {filter &&
               !titles.some((item) =>
@@ -363,7 +366,7 @@ function EmployerInsight() {
         retry={() => void q.refetch()}
       />
       {yearOptions && yearOptions.years.length > 0 && (
-        <div className="controls" role="group" aria-label="Year">
+        <div className="controls employer-years" role="group" aria-label="Year">
           {yearOptions.years.map((item) => (
             <button
               key={item}

@@ -76,5 +76,6 @@ export const test = base.extend({
     await runPage(page)
     console.log(`Network guard: ${JSON.stringify(counts)}`)
     expect(counts.prohibitedForwards).toBe(0)
+    expect(counts.unmockedAPI).toBe(0)
   },
 })

@@ -307,9 +307,9 @@ function Pay() {
             <p>
               {filter
                 ? matchingCount
-                  ? `${matchingCount} matching job titles`
+                  ? `${matchingCount} matching job ${matchingCount === 1 ? "title" : "titles"}`
                   : "No job titles match; clear the search."
-                : `Showing ${visibleTitles.length} of ${titles.length} job titles; search to find yours.`}
+                : `Showing ${visibleTitles.length} of the 100 most common job titles; search to find yours.`}
             </p>
             <div
               role="radiogroup"

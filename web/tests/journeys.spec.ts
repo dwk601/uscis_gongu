@@ -589,7 +589,9 @@ test("insight edge states, employer focus, and pay title choices", async ({
   await page.goto("/trends?journey=workers&form=I-129&insight=h1b-pay")
   await expect(page.getByRole("radio")).toHaveCount(6)
   await expect(
-    page.getByText("Showing 6 of 8 job titles; search to find yours.")
+    page.getByText(
+      "Showing 6 of the 100 most common job titles; search to find yours."
+    )
   ).toBeVisible()
   await expect.poll(() => payRequests).toBe(2)
   await page.getByRole("radio", { name: "Job 0" }).focus()
@@ -610,7 +612,7 @@ test("insight edge states, employer focus, and pay title choices", async ({
   ).toBeVisible()
   await page.getByLabel("Search job titles").fill("Job 7")
   await expect(
-    page.getByText("1 matching job titles", { exact: true })
+    page.getByText("1 matching job title", { exact: true })
   ).toBeVisible()
   await expect(page.getByRole("radio")).toHaveCount(2)
   await page.getByRole("radio", { name: "Job 7" }).check()

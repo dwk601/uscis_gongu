@@ -4,7 +4,14 @@ import {
   Outlet,
   useRouterState,
 } from "@tanstack/react-router"
-import { lazy, Suspense, useEffect, useRef, type CSSProperties } from "react"
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react"
 import { formHue, formInk } from "@/lib/palette"
 import { cn } from "@/lib/utils"
 import { SiteHeader } from "@/components/site-header"
@@ -30,6 +37,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 )
 
 function RootLayout() {
+  const [launcherTarget, setLauncherTarget] = useState<HTMLSpanElement | null>(
+    null
+  )
   const { location, matches } = useRouterState({
     select: (state) => ({ location: state.location, matches: state.matches }),
   })
@@ -63,8 +73,7 @@ function RootLayout() {
     <div
       className={cn(
         "app-shell",
-        location.pathname === "/trends" && "trend-shell",
-        showAgent && "has-agent"
+        location.pathname === "/trends" && "trend-shell"
       )}
       style={
         {
@@ -73,9 +82,9 @@ function RootLayout() {
         } as CSSProperties
       }
     >
-      <SiteHeader />
+      <SiteHeader onLauncherSlot={setLauncherTarget} />
       <Outlet />
-      {showAgent && <AgentWidget />}
+      {showAgent && <AgentWidget launcherTarget={launcherTarget} />}
       {import.meta.env.DEV && (
         <Suspense fallback={null}>
           <RouterDevtools position="top-right" />

@@ -4,7 +4,11 @@ import { getSessionItem } from "@/lib/session-storage"
 import { AccountAction } from "./account-action"
 import { useTheme } from "./theme-provider"
 
-export function SiteHeader() {
+export function SiteHeader({
+  onLauncherSlot,
+}: {
+  onLauncherSlot: (node: HTMLSpanElement | null) => void
+}) {
   const { theme, setTheme } = useTheme()
   const location = useRouterState({ select: (state) => state.location })
   const params = new URLSearchParams(location.searchStr)
@@ -51,6 +55,7 @@ export function SiteHeader() {
           {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
         </button>
         <AccountAction />
+        <span ref={onLauncherSlot} />
       </div>
     </header>
   )

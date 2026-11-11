@@ -33,15 +33,13 @@ body {
   margin: 0;
 }
 .app-shell {
+  position: relative;
   min-height: 100svh;
   background: var(--ground);
   transition: background 0.45s ease-out;
 }
 .trend-shell {
   background: color-mix(in srgb, var(--page-hue) 5%, var(--ground));
-}
-.app-shell.has-agent {
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
 }
 ::selection {
   background: #c7b6ec;

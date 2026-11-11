@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { MessageCircle, X } from "lucide-react"
 import { useEffect, useId, useRef, useState, type FormEvent } from "react"
+import { createPortal } from "react-dom"
 import { mutationErrorMessage, useAuth } from "@/lib/auth"
 import { agentError, askAgent, type AgentResponse } from "@/lib/agent"
 import { pb } from "@/lib/pb"
@@ -222,11 +223,16 @@ function AgentSession({
   )
 }
 
-export function AgentWidget() {
+export function AgentWidget({
+  launcherTarget,
+}: {
+  launcherTarget: HTMLElement | null
+}) {
   const user = useAuth()
   const location = useRouterState({ select: (state) => state.location })
   const redirect = location.pathname + location.searchStr
   const [open, setOpen] = useState(false)
+  const [panelTop, setPanelTop] = useState(88)
   const [sessionEnded, setSessionEnded] = useState(false)
   const launcher = useRef<HTMLButtonElement>(null)
   const panel = useRef<HTMLElement>(null)
@@ -235,7 +241,7 @@ export function AgentWidget() {
 
   function close() {
     setOpen(false)
-    launcher.current?.focus()
+    launcher.current?.focus({ preventScroll: true })
   }
 
   async function endSession(error: unknown) {
@@ -259,7 +265,7 @@ export function AgentWidget() {
       if (event.key === "Escape") {
         event.preventDefault()
         setOpen(false)
-        launcher.current?.focus()
+        launcher.current?.focus({ preventScroll: true })
       }
     }
     document.addEventListener("keydown", escape)
@@ -289,6 +295,10 @@ export function AgentWidget() {
         ref={panel}
         id={panelId}
         className="agent-panel"
+        style={{
+          top: panelTop,
+          maxHeight: `min(600px, calc(100dvh - ${panelTop + 8}px))`,
+        }}
         data-open={open}
         role="dialog"
         aria-modal="false"
@@ -317,17 +327,30 @@ export function AgentWidget() {
           <SignIn redirect={redirect} ended={sessionEnded} />
         )}
       </section>
-      <Button
-        ref={launcher}
-        className="chip agent-launcher"
-        type="button"
-        aria-label="Ask gongu"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => (open ? close() : setOpen(true))}
-      >
-        <MessageCircle size={24} aria-hidden="true" />
-      </Button>
+      {launcherTarget &&
+        createPortal(
+          <Button
+            ref={launcher}
+            className="chip agent-launcher"
+            type="button"
+            aria-label="Ask gongu"
+            aria-expanded={open}
+            aria-controls={panelId}
+            onClick={() => {
+              if (open) close()
+              else {
+                setPanelTop(
+                  (document.querySelector(".site-header") as HTMLElement)
+                    .offsetHeight + 8
+                )
+                setOpen(true)
+              }
+            }}
+          >
+            <MessageCircle size={24} aria-hidden="true" />
+          </Button>,
+          launcherTarget
+        )}
     </div>
   )
 }

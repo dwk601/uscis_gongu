@@ -151,11 +151,21 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   })
 
   await page.goto("/trends?form=I-485")
-  await expect(page.getByRole("main").locator("..")).toHaveCSS(
-    "padding-bottom",
-    "72px"
-  )
   const launcher = page.getByRole("button", { name: "Ask gongu", exact: true })
+  await page.evaluate("window.scrollTo(0, 600)")
+  const a = await launcher.boundingBox()
+  for (const element of await page
+    .locator("main button, main a, main p, main h1, main h2")
+    .all()) {
+    const b = await element.boundingBox()
+    if (!a || !b || b.y + b.height <= 0 || b.y >= 844) continue
+    expect(
+      a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y
+    ).toBe(false)
+  }
   await launcher.click()
   const dialog = page.getByRole("dialog", { name: "Ask gongu", exact: true })
   await expect(dialog).toBeVisible()
@@ -254,7 +264,9 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
     "Ask gongu is busy. Please try again in a moment."
   )
   await expect(question).toHaveValue("What about my next question?")
+  const beforeEscape = await page.evaluate("window.scrollY")
   await page.keyboard.press("Escape")
+  expect(await page.evaluate("window.scrollY")).toBe(beforeEscape)
   await expect(dialog).not.toBeVisible()
   await expect(launcher).toBeFocused()
   await expect(launcher).toHaveAttribute("aria-expanded", "false")

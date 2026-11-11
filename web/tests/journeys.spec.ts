@@ -708,6 +708,33 @@ test("bulletin selection and historical status", async ({ page }) => {
 })
 
 test("my case keeps a same-year filing change local", async ({ page }) => {
+  await page.route("https://analytics.gongu.xyz/**", (route) => route.abort())
+  const unexpected: string[] = []
+  await page.route("**/api/**", async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (path === "/api/x/uscis/bulletin")
+      return route.fulfill({ json: { categories: [], series: [] } })
+    if (path === "/api/x/uscis/forms")
+      return route.fulfill({
+        json: {
+          forms: [
+            { form: "I-485", name: "Green card application", featured: true },
+          ],
+        },
+      })
+    if (path === "/api/x/uscis/forms/I-485")
+      return route.fulfill({
+        json: { form: "I-485", name: "Green card application", official: [] },
+      })
+    if (path === "/api/x/uscis/forms/I-485/community")
+      return route.fulfill({ json: { form: "I-485", series: [] } })
+    if (path === "/api/collections/post_feed/records")
+      return route.fulfill({
+        json: { page: 1, perPage: 20, totalItems: 0, totalPages: 0, items: [] },
+      })
+    unexpected.push(path)
+    return route.abort()
+  })
   let requests = 0
   let catalogUnavailable = false
   let releaseCatalog: () => void = () => {}
@@ -979,4 +1006,5 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: /Green card application/ })
   ).toBeVisible()
+  expect(unexpected).toEqual([])
 })

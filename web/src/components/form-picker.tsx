@@ -35,13 +35,13 @@ export function FormPicker({
   inline?: boolean
   adjacent?: ReactNode
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(inline && initiallyOpen)
   const [otherState, setOtherState] = useState<{
     value: string
     open: boolean
   }>()
   const [filter, setFilter] = useState("")
-  const expanded = initiallyOpen || open
+  const expanded = inline ? open : initiallyOpen || open
   const id = useId()
   const root = useRef<HTMLDivElement>(null)
   const summary = useRef<HTMLButtonElement>(null)
@@ -118,7 +118,18 @@ export function FormPicker({
       }}
     >
       {caption && <div className="form-picker-caption">{caption}</div>}
-      {!initiallyOpen && (
+      {inline && (
+        <button
+          ref={summary}
+          type="button"
+          className="form-other-toggle"
+          aria-expanded={expanded}
+          onClick={() => (open ? close() : show())}
+        >
+          {open ? "Close" : "Change form"}
+        </button>
+      )}
+      {!initiallyOpen && !inline && (
         <button
           ref={summary}
           type="button"
@@ -132,6 +143,11 @@ export function FormPicker({
           </span>
           <span>{open ? "Close" : "Change form"}</span>
         </button>
+      )}
+      {!expanded && inline && adjacent && (
+        <div className="form-picker-options">
+          <div className="form-other">{adjacent}</div>
+        </div>
       )}
       {expanded && (
         <div className="form-picker-options">

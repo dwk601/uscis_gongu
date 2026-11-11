@@ -26,6 +26,8 @@ export default defineConfig({
   use: {
     baseURL,
     browserName: "chromium",
+    serviceWorkers: "block",
+    timezoneId: "America/Los_Angeles",
     trace: "off",
     screenshot: "off",
   },

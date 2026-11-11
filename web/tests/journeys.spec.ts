@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 
 test("route focus follows screen changes, not in-page updates", async ({
   page,

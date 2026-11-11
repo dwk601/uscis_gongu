@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 
 test("filtered community remains readable when its summary fails", async ({
   page,

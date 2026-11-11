@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 
 test("Ask gongu signs in, renders data, retains route state, and handles its budget", async ({
   page,

@@ -55,7 +55,7 @@ func TestCommunityRules(t *testing.T) {
 		{"role injection create", "POST", "users/records", `{"email":"new@example.com","password":"password123","passwordConfirm":"password123","role":"admin"}`, "", 400, []string{"message"}, nil},
 		{"role injection patch", "PATCH", "users/records/" + a, `{"role":"admin"}`, a, 404, []string{"message"}, nil},
 		{"reserved name create", "POST", "users/records", `{"email":"new@example.com","password":"password123","passwordConfirm":"password123","name":"Admin helper"}`, "", 400, []string{`"name":`, `"message":"That name is reserved."`}, nil},
-		{"reserved name patch", "PATCH", "users/records/" + a, `{"name":"the ADMIN helper"}`, a, 400, []string{`"name":`, `"message":"That name is reserved."`}, nil},
+		{"reserved name patch", "PATCH", "users/records/" + a, `{"name":"the ＡＤ\u200bMIN helper"}`, a, 400, []string{`"name":`, `"message":"That name is reserved."`}, nil},
 		{"admin self name", "PATCH", "users/records/" + admin, `{"name":"Admin team"}`, admin, 200, []string{`"name":"Admin team"`}, nil},
 		{"grandfathered name", "PATCH", "users/records/" + a, `{"emailVisibility":true}`, a, 200, []string{`"emailVisibility":true`, `"name":"former ADMIN"`}, nil},
 		{"votes private", "GET", "votes/records", "", "", 200, []string{`"totalItems":0`}, nil},
@@ -225,6 +225,9 @@ func TestAdminBootstrap(t *testing.T) {
 	users, err := app.FindCollectionByNameOrId("users")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if users.Fields.GetByName("role") != nil || *users.ListRule != "id = @request.auth.id" {
+		t.Fatal("downAdmin left the role field or admin list rule")
 	}
 	var members []*core.Record
 	for i, name := range []string{"admin", " ADMIN "} {

@@ -20,7 +20,6 @@ func upAdmin(app core.App) error {
 	users.CreateRule = types.Pointer(`@request.body.role:isset = false`)
 	users.UpdateRule = types.Pointer(`id = @request.auth.id && @request.body.role:isset = false`)
 	users.DeleteRule = types.Pointer(`id = @request.auth.id`)
-	users.ManageRule = nil
 	if err := app.Save(users); err != nil {
 		return err
 	}
@@ -71,7 +70,6 @@ func downAdmin(app core.App) error {
 	users.CreateRule = types.Pointer("")
 	users.UpdateRule = types.Pointer(`id = @request.auth.id`)
 	users.DeleteRule = types.Pointer(`id = @request.auth.id`)
-	users.ManageRule = nil
 	if err := app.Save(users); err != nil {
 		return err
 	}

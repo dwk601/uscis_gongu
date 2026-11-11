@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type ReactNode } from "react"
+import { useId, useRef, useState } from "react"
 import type { FormSummary } from "@/lib/api"
 import { formHue, formInk } from "@/lib/palette"
 
@@ -21,7 +21,6 @@ export function FormPicker({
   unavailable = false,
   onRetry,
   inline = false,
-  adjacent,
 }: {
   forms?: FormSummary[]
   value: string
@@ -33,15 +32,20 @@ export function FormPicker({
   unavailable?: boolean
   onRetry?: () => void
   inline?: boolean
-  adjacent?: ReactNode
 }) {
-  const [open, setOpen] = useState(inline && initiallyOpen)
+  const [open, setOpen] = useState(false)
   const [otherState, setOtherState] = useState<{
     value: string
     open: boolean
   }>()
   const [filter, setFilter] = useState("")
-  const expanded = inline ? open : initiallyOpen || open
+  const [lastValue, setLastValue] = useState(value)
+  if (value !== lastValue) {
+    setLastValue(value)
+    setOtherState(undefined)
+    setFilter("")
+  }
+  const expanded = inline || initiallyOpen || open
   const id = useId()
   const root = useRef<HTMLDivElement>(null)
   const summary = useRef<HTMLButtonElement>(null)
@@ -111,24 +115,13 @@ export function FormPicker({
       role="group"
       aria-label={label}
       onKeyDown={(e) => {
-        if (e.key === "Escape" && open) {
+        if (!inline && e.key === "Escape" && open) {
           e.preventDefault()
           close()
         }
       }}
     >
       {caption && <div className="form-picker-caption">{caption}</div>}
-      {inline && (
-        <button
-          ref={summary}
-          type="button"
-          className="form-other-toggle"
-          aria-expanded={expanded}
-          onClick={() => (open ? close() : show())}
-        >
-          {open ? "Close" : "Change form"}
-        </button>
-      )}
       {!initiallyOpen && !inline && (
         <button
           ref={summary}
@@ -143,11 +136,6 @@ export function FormPicker({
           </span>
           <span>{open ? "Close" : "Change form"}</span>
         </button>
-      )}
-      {!expanded && inline && adjacent && (
-        <div className="form-picker-options">
-          <div className="form-other">{adjacent}</div>
-        </div>
       )}
       {expanded && (
         <div className="form-picker-options">
@@ -198,7 +186,7 @@ export function FormPicker({
               ) : null
             })
           )}
-          {(others.length > 0 || adjacent) && (
+          {others.length > 0 && (
             <div className="form-other">
               {others.length > 0 && (
                 <button
@@ -210,7 +198,6 @@ export function FormPicker({
                   Don't see yours? Browse all other forms ({others.length})
                 </button>
               )}
-              {adjacent}
               {other && (
                 <div className="form-other-options">
                   <label htmlFor={id}>Search by name or form number</label>

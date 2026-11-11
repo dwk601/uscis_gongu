@@ -361,34 +361,34 @@ function Trends() {
       ) : (
         <>
           {journey === "all" ? (
-            <FormPicker
-              forms={forms.data?.forms}
-              value={search.form}
-              label="Form"
-              caption="Choose a form"
-              initiallyOpen
-              inline
-              unavailable={forms.isError}
-              onRetry={() => void forms.refetch()}
-              onChange={(form) => {
-                if (form !== search.form) {
-                  setVisa(undefined)
-                  setSource(undefined)
-                  update({ form, journey, series: undefined })
-                }
-              }}
-              adjacent={
-                <label className="field-label trend-filed">
-                  <span>Filed</span>
-                  <FiledInput
-                    className="field"
-                    inputRef={filedRef}
-                    value={search.filed}
-                    onCommit={(filed) => update({ filed })}
-                  />
-                </label>
-              }
-            />
+            <div className="trend-form-controls">
+              <FormPicker
+                forms={forms.data?.forms}
+                value={search.form}
+                label="Form"
+                caption="Choose a form"
+                initiallyOpen
+                inline
+                unavailable={forms.isError}
+                onRetry={() => void forms.refetch()}
+                onChange={(form) => {
+                  if (form !== search.form) {
+                    setVisa(undefined)
+                    setSource(undefined)
+                    update({ form, journey, series: undefined })
+                  }
+                }}
+              />
+              <label className="field-label trend-filed">
+                <span>Filed</span>
+                <FiledInput
+                  className="field"
+                  inputRef={filedRef}
+                  value={search.filed}
+                  onCommit={(filed) => update({ filed })}
+                />
+              </label>
+            </div>
           ) : (
             <div
               ref={formRailRef}

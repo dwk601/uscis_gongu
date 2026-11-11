@@ -3,6 +3,11 @@ import { expect, test } from "@playwright/test"
 test("route focus follows screen changes, not in-page updates", async ({
   page,
 }) => {
+  await page.route("https://analytics.gongu.xyz/**", (route) => route.abort())
+  const waitForFocusEffects = () =>
+    page.evaluate(
+      "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+    )
   await page.route("**/api/**", async (route) => {
     const path = new URL(route.request().url()).pathname
     if (path === "/api/x/uscis/case")
@@ -33,6 +38,7 @@ test("route focus follows screen changes, not in-page updates", async ({
     return route.abort()
   })
   await page.goto("/")
+  await waitForFocusEffects()
   await expect(
     page.getByRole("heading", { name: "Find your next step." })
   ).not.toBeFocused()
@@ -41,6 +47,8 @@ test("route focus follows screen changes, not in-page updates", async ({
     page.getByRole("heading", { name: "My case", exact: true })
   ).toBeFocused()
   await page.getByRole("button", { name: /Green card/ }).click()
+  await expect(page).toHaveURL(/form=I-485/)
+  await waitForFocusEffects()
   await expect(
     page.getByRole("heading", { name: "My case", exact: true })
   ).not.toBeFocused()

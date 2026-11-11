@@ -1135,44 +1135,66 @@ td {
 .form-other .form-choices {
   margin-top: 12px;
 }
-.form-picker-inline .form-picker-options {
-  padding: 0 0 18px;
-}
-.form-inline-featured {
-  padding: 8px 5px;
-  margin: 0 -5px 10px;
-}
-.form-picker-inline .form-other {
+.trend-form-controls {
   display: grid;
-  grid-template-columns: max-content max-content;
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
   gap: 8px;
+  margin-bottom: 18px;
 }
-.form-picker-inline .form-other-toggle {
-  grid-row: 2;
-}
-.form-picker-inline .trend-filed {
+.trend-form-controls .form-picker-inline,
+.trend-form-controls .form-picker-options,
+.trend-form-controls .form-other,
+.trend-form-controls .trend-filed {
   display: contents;
 }
-.form-picker-inline .trend-filed > span:first-child {
-  grid-column: 2;
-  grid-row: 1;
-}
-.form-picker-inline .trend-filed > input {
-  grid-column: 2;
-  grid-row: 2;
-}
-.form-picker-inline .form-other-options,
-.form-picker-inline .filed-hint {
+.trend-form-controls .form-picker-caption,
+.trend-form-controls .form-inline-featured,
+.trend-form-controls .form-other-options,
+.trend-form-controls .filed-hint,
+.trend-form-controls [role="status"] {
   grid-column: 1 / -1;
 }
-@media (max-width: 520px) {
-  .form-picker-inline .form-other {
+.trend-form-controls .form-picker-caption {
+  grid-row: 1;
+  margin: 0;
+}
+.trend-form-controls .form-inline-featured {
+  grid-row: 2;
+  width: 0;
+  min-width: 100%;
+  padding: 8px 5px;
+  margin: 0 -5px;
+}
+.trend-form-controls .form-other-toggle {
+  grid-column: 1;
+  grid-row: 4;
+}
+.trend-form-controls .trend-filed > span:first-child {
+  grid-column: 2;
+  grid-row: 3;
+}
+.trend-form-controls .trend-filed > input {
+  grid-column: 2;
+  grid-row: 4;
+  justify-self: start;
+}
+.trend-form-controls .form-other-options {
+  grid-row: 5;
+  width: 0;
+  min-width: 100%;
+}
+.trend-form-controls .filed-hint {
+  grid-row: 6;
+}
+@media (max-width: 560px) {
+  .trend-form-controls {
     grid-template-columns: minmax(0, 1fr);
   }
-  .form-picker-inline .form-other-toggle,
-  .form-picker-inline .trend-filed > span:first-child,
-  .form-picker-inline .trend-filed > input {
+  .trend-form-controls .form-other-toggle,
+  .trend-form-controls .trend-filed > span:first-child,
+  .trend-form-controls .trend-filed > input,
+  .trend-form-controls .form-other-options {
     grid-column: 1;
     grid-row: auto;
   }

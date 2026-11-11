@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react"
 import { bulletinQuery, movement } from "@/lib/api"
 import { categoryHue } from "@/lib/palette"
 import { categoryLabel, categoryLabels, countryLabel } from "@/lib/labels"
+import { getSessionItem } from "@/lib/session-storage"
 
 const DataChart = lazy(() => import("@/components/data-chart"))
 const RedditDiscussionPanel = lazy(() =>
@@ -141,7 +142,7 @@ function BulletinPage() {
           new Date(`${p.cutoff}T00:00:00Z`).getUTCMonth() / 12
         : null,
   }))
-  const savedForm = sessionStorage.getItem("gongu-last-case-form") || ""
+  const savedForm = getSessionItem("gongu-last-case-form") || ""
   return (
     <main
       className="workspace bulletin-page"

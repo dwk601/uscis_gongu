@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { Moon, Sun } from "lucide-react"
+import { getSessionItem } from "@/lib/session-storage"
 import { AccountAction } from "./account-action"
 import { useTheme } from "./theme-provider"
 
@@ -11,8 +12,7 @@ export function SiteHeader() {
   const caseActive =
     location.pathname === "/" &&
     (!!currentForm || params.get("view") === "case")
-  const form =
-    currentForm || sessionStorage.getItem("gongu-last-case-form") || ""
+  const form = currentForm || getSessionItem("gongu-last-case-form") || ""
   return (
     <header className="site-header">
       <Link to="/" search={{ form: "" }} className="brand">

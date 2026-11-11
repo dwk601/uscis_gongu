@@ -9,6 +9,11 @@ import { caseQuery, type CaseResponse } from "@/lib/case"
 import type { OfficialPoint } from "@/lib/api"
 import { estimateDate, formatMonths, quarterLabel } from "@/lib/estimate"
 import { formHue, formInk } from "@/lib/palette"
+import {
+  getSessionItem,
+  removeSessionItem,
+  setSessionItem,
+} from "@/lib/session-storage"
 import { FormPicker } from "@/components/form-picker"
 import { ArrowRight, ArrowUpRight, MessageCircle } from "lucide-react"
 
@@ -176,8 +181,8 @@ function Home() {
 }
 
 function Landing() {
-  const form = sessionStorage.getItem("gongu-last-case-form") || ""
-  const savedName = sessionStorage.getItem("gongu-last-case-name")
+  const form = getSessionItem("gongu-last-case-form") || ""
+  const savedName = getSessionItem("gongu-last-case-name")
   return (
     <main className="workspace landing-page">
       <header className="landing-intro">
@@ -312,18 +317,18 @@ function CasePage() {
   })
   useEffect(() => {
     if (search.form && result.isSuccess && !result.isPlaceholderData) {
-      sessionStorage.setItem("gongu-last-case-form", search.form)
-      sessionStorage.setItem(
+      setSessionItem("gongu-last-case-form", search.form)
+      setSessionItem(
         "gongu-last-case-name",
         result.data.forms.find((form) => form.form === search.form)?.name ||
           search.form
       )
     } else if (
       (result.error as { status?: number })?.status === 404 &&
-      sessionStorage.getItem("gongu-last-case-form") === search.form
+      getSessionItem("gongu-last-case-form") === search.form
     ) {
-      sessionStorage.removeItem("gongu-last-case-form")
-      sessionStorage.removeItem("gongu-last-case-name")
+      removeSessionItem("gongu-last-case-form")
+      removeSessionItem("gongu-last-case-name")
     }
   }, [
     search.form,

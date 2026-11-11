@@ -1016,3 +1016,65 @@ test("my case keeps a same-year filing change local", async ({ page }) => {
   ).toBeVisible()
   expect(unexpected).toEqual([])
 })
+
+test("denied session storage keeps landing, case selection, and navigation usable", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(globalThis, "sessionStorage", {
+      get() {
+        throw new DOMException(
+          "Access is denied for this document.",
+          "SecurityError"
+        )
+      },
+    })
+  })
+  await page.route("https://analytics.gongu.xyz/**", (route) => route.abort())
+  await page.route("**/api/**", async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (path === "/api/x/uscis/case")
+      return route.fulfill({
+        json: {
+          forms: [
+            { form: "I-485", name: "Green card application", featured: true },
+          ],
+          form: "I-485",
+          categoryLabel: "Family",
+          official: null,
+          community: null,
+          summary: { eligibleReports: null, years: [] },
+          trend: [],
+          freshness: [],
+        },
+      })
+    if (path === "/api/x/uscis/bulletin")
+      return route.fulfill({ json: { categories: [], series: [] } })
+    return route.abort()
+  })
+  await page.goto("/")
+  await expect(
+    page.getByRole("heading", { name: "Find your next step." })
+  ).toBeVisible()
+  await page
+    .getByRole("link", { name: "Check my case timeline", exact: true })
+    .click()
+  await page.getByRole("button", { name: /Green card application/ }).click()
+  await expect(page).toHaveURL(/form=I-485/)
+  await expect(
+    page.getByRole("heading", { name: "How long it usually takes" })
+  ).toBeVisible()
+  const mainNav = page.getByRole("navigation", { name: "Main navigation" })
+  await mainNav.getByRole("link", { name: "Visa bulletin" }).click()
+  await expect(
+    page.getByRole("heading", { name: "Visa bulletin", exact: true })
+  ).toBeVisible()
+  await mainNav.getByRole("link", { name: "My case" }).click()
+  await expect(
+    page.getByRole("group", { name: "Choose your case" })
+  ).toBeVisible()
+  await page.getByRole("link", { name: "gongu", exact: true }).click()
+  await expect(
+    page.getByRole("link", { name: "Check my case timeline", exact: true })
+  ).toBeVisible()
+})

@@ -1,8 +1,15 @@
 import { expect, test } from "@playwright/test"
 
 test("visa routes remain usable across form history", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
   const forms = [
     { form: "N-400", name: "Citizenship", featured: true, defaultSeries: "" },
+    ...Array.from({ length: 12 }, (_, i) => ({
+      form: `I-${100 + i}`,
+      name: `Featured application ${i}`,
+      featured: true,
+      defaultSeries: "",
+    })),
     {
       form: "I-999",
       name: "Other application",
@@ -78,17 +85,23 @@ test("visa routes remain usable across form history", async ({ page }) => {
   await page.keyboard.press("Escape")
   await expect(page.getByLabel("Search by name or form number")).toBeVisible()
   await page.getByLabel("Search by name or form number").fill("I-999")
+  await page.evaluate("window.scrollTo(0, 150)")
+  expect(await page.evaluate<number>("window.scrollY")).toBeGreaterThan(0)
   await page.getByRole("button", { name: /Other application/ }).click()
   await expect(page).toHaveURL(/form=I-999/)
-  await page.getByRole("button", { name: /Browse all other forms/ }).click()
-  await expect(page.getByLabel("Search by name or form number")).toHaveCount(0)
+  await expect(page.getByRole("heading", { level: 1 })).toBeInViewport()
+  await expect
+    .poll(() => page.evaluate<number>("window.scrollY"))
+    .toBeGreaterThan(0)
+  await expect(page.getByRole("button", { name: /Change form/ })).toBeFocused()
   await page.goBack()
   await page.goForward()
+  await page.getByRole("button", { name: /Change form/ }).click()
   const selectedOther = page.getByRole("button", {
     name: /Other application.*Selected/,
   })
   await expect(selectedOther).toBeVisible()
-  await expect(selectedOther).not.toBeFocused()
+  await expect(selectedOther).toBeFocused()
   await page.getByRole("button", { name: /I-485/ }).click()
   await page.getByRole("button", { name: /K3|K-3/ }).click()
   await page.goBack()

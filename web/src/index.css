@@ -992,7 +992,6 @@ td {
   input.field {
     min-height: 44px;
   }
-  .trend-workspace > .controls > .field,
   .trend-workspace > .controls > .field-label,
   .insight-panel .controls > label,
   .insight-panel > label:has(> .field) {
@@ -1149,6 +1148,7 @@ td {
   display: contents;
 }
 .trend-form-controls .form-picker-caption,
+.trend-form-controls .form-summary,
 .trend-form-controls .form-inline-featured,
 .trend-form-controls .form-other-options,
 .trend-form-controls .filed-hint,
@@ -1191,11 +1191,23 @@ td {
   .trend-form-controls {
     grid-template-columns: minmax(0, 1fr);
   }
-  .trend-form-controls .form-other-toggle,
-  .trend-form-controls .trend-filed > span:first-child,
-  .trend-form-controls .trend-filed > input,
+  .trend-form-controls .form-other-toggle {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .trend-form-controls .trend-filed > span:first-child {
+    grid-column: 1;
+    grid-row: 4;
+  }
+  .trend-form-controls .trend-filed > input {
+    grid-column: 1;
+    grid-row: 5;
+  }
   .trend-form-controls .form-other-options {
     grid-column: 1;
-    grid-row: auto;
+    grid-row: 6;
+  }
+  .trend-form-controls .filed-hint {
+    grid-row: 7;
   }
 }

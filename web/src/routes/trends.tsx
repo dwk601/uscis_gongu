@@ -190,7 +190,10 @@ function Trends() {
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
   const update = (next: Partial<Search>) =>
-    void navigate({ search: (previous) => ({ ...previous, ...next }) })
+    void navigate({
+      search: (previous) => ({ ...previous, ...next }),
+      resetScroll: false,
+    })
   const forms = useQuery(formsQuery())
   const detail = useQuery(formQuery(search.form))
   const community = useQuery(communityQuery(search.form))
@@ -227,10 +230,20 @@ function Trends() {
     let cancelled = false
     void document.fonts.ready.then(() => {
       if (!cancelled) {
-        for (const rail of [journeyRailRef.current, formRailRef.current])
-          rail
-            ?.querySelector<HTMLElement>('[aria-pressed="true"]')
-            ?.scrollIntoView({ block: "nearest", inline: "nearest" })
+        for (const rail of [journeyRailRef.current, formRailRef.current]) {
+          const selected = rail?.querySelector<HTMLElement>(
+            '[aria-pressed="true"]'
+          )
+          if (!rail || !selected) continue
+          const scroller = selected.parentElement
+          if (!scroller) continue
+          const bounds = scroller.getBoundingClientRect()
+          const choice = selected.getBoundingClientRect()
+          if (choice.left < bounds.left)
+            scroller.scrollLeft += choice.left - bounds.left
+          else if (choice.right > bounds.right)
+            scroller.scrollLeft += choice.right - bounds.right
+        }
       }
     })
     return () => {

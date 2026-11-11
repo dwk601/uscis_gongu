@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react"
+import { useId, useLayoutEffect, useRef, useState } from "react"
 import type { FormSummary } from "@/lib/api"
 import { formHue, formInk } from "@/lib/palette"
 
@@ -34,6 +34,7 @@ export function FormPicker({
   inline?: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const [pickedInline, setPickedInline] = useState(false)
   const [otherState, setOtherState] = useState<{
     value: string
     open: boolean
@@ -45,10 +46,22 @@ export function FormPicker({
     setOtherState(undefined)
     setFilter("")
   }
-  const expanded = inline || initiallyOpen || open
+  const expanded = inline ? !pickedInline || open : initiallyOpen || open
   const id = useId()
   const root = useRef<HTMLDivElement>(null)
   const summary = useRef<HTMLButtonElement>(null)
+  const pendingScroll = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    if (pendingScroll.current !== null && summary.current) {
+      const summaryTop =
+        summary.current.getBoundingClientRect().top + window.scrollY
+      const target = Math.min(pendingScroll.current, summaryTop)
+      pendingScroll.current = null
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => window.scrollTo(0, target))
+      )
+    }
+  })
   const selected = forms?.find((f) => f.form === value)
   const other =
     otherState?.value === value
@@ -60,7 +73,7 @@ export function FormPicker({
   const mapped = groups.flatMap(([, codes]) => codes)
   const close = () => {
     setOpen(false)
-    requestAnimationFrame(() => summary.current?.focus())
+    requestAnimationFrame(() => summary.current?.focus({ preventScroll: true }))
   }
   const show = () => {
     setFilter("")
@@ -86,8 +99,10 @@ export function FormPicker({
     })
   }
   const choose = (form: string) => {
+    if (inline) pendingScroll.current = window.scrollY
     if (form !== value) onChange(form)
-    if (!inline) close()
+    if (inline) setPickedInline(true)
+    close()
   }
   const choice = (f: FormSummary) => (
     <button
@@ -115,14 +130,14 @@ export function FormPicker({
       role="group"
       aria-label={label}
       onKeyDown={(e) => {
-        if (!inline && e.key === "Escape" && open) {
+        if (e.key === "Escape" && open) {
           e.preventDefault()
           close()
         }
       }}
     >
       {caption && <div className="form-picker-caption">{caption}</div>}
-      {!initiallyOpen && !inline && (
+      {((!initiallyOpen && !inline) || (inline && pickedInline)) && (
         <button
           ref={summary}
           type="button"
@@ -188,16 +203,14 @@ export function FormPicker({
           )}
           {others.length > 0 && (
             <div className="form-other">
-              {others.length > 0 && (
-                <button
-                  type="button"
-                  className="form-other-toggle"
-                  aria-expanded={other}
-                  onClick={() => setOther(!other)}
-                >
-                  Don't see yours? Browse all other forms ({others.length})
-                </button>
-              )}
+              <button
+                type="button"
+                className="form-other-toggle"
+                aria-expanded={other}
+                onClick={() => setOther(!other)}
+              >
+                Don't see yours? Browse all other forms ({others.length})
+              </button>
               {other && (
                 <div className="form-other-options">
                   <label htmlFor={id}>Search by name or form number</label>

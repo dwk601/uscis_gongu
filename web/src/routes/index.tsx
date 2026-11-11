@@ -1,3 +1,4 @@
+import { validDate } from "@/lib/dates"
 import {
   keepPreviousData,
   useQuery,
@@ -30,18 +31,7 @@ export const Route = createFileRoute("/")({
   }),
   component: Home,
 })
-function validFiled(value: unknown) {
-  if (
-    typeof value !== "string" ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
-    Number(value.slice(0, 4)) < 1900
-  )
-    return false
-  const date = new Date(`${value}T00:00:00Z`)
-  return (
-    !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
-  )
-}
+const validFiled = (value: unknown) => validDate(value, 1900)
 function dateLabel(date: Date) {
   return date
     .toLocaleDateString("en-US", {

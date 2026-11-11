@@ -256,54 +256,74 @@ function Pay() {
       {q.data && !selected && <p>Nothing to show yet.</p>}
       {selectedYear && selected && (
         <>
-          <div className="controls">
-            <label>
-              Year{" "}
-              <select
-                className="field"
-                value={selectedYear.year}
-                onChange={(e) => {
-                  setYear(Number(e.target.value))
-                  setTitle("")
-                }}
-              >
-                {q.data?.years.map((y) => (
-                  <option key={y.year}>{y.year}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Search job titles{" "}
+          <div className="insight-choices">
+            <div role="group" aria-label="Year" className="controls">
+              {q.data?.years.map((item) => (
+                <button
+                  key={item.year}
+                  className="chip"
+                  aria-pressed={item.year === selectedYear.year}
+                  onClick={() => {
+                    if (item.year !== selectedYear.year) {
+                      setTitle(
+                        item.titles.find((title) => title.key === selected.key)
+                          ?.key ??
+                          item.titles[0]?.key ??
+                          ""
+                      )
+                      setYear(item.year)
+                    }
+                  }}
+                >
+                  {item.year}
+                </button>
+              ))}
+            </div>
+            <label className="field-label">
+              Search job titles
               <input
                 className="field"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
               />
             </label>
-            <label>
-              Job title{" "}
-              <select
-                className="field"
-                value={selected?.key ?? ""}
-                onChange={(e) => setTitle(e.target.value)}
-              >
-                {selected &&
-                  !selected.title
-                    .toLowerCase()
-                    .includes(filter.toLowerCase()) && (
-                    <option value={selected.key}>{selected.title}</option>
-                  )}
-                {titles
-                  .filter((t) =>
-                    t.title.toLowerCase().includes(filter.toLowerCase())
-                  )
-                  .map((t) => (
-                    <option key={t.key} value={t.key}>
-                      {t.title}
-                    </option>
-                  ))}
-              </select>
-            </label>
+            {filter && (
+              <button className="chip" onClick={() => setFilter("")}>
+                Clear search
+              </button>
+            )}
+            <div
+              role="radiogroup"
+              aria-label="Job title"
+              className="title-options"
+            >
+              {titles
+                .filter(
+                  (item, index) =>
+                    item.key === selected.key ||
+                    (filter
+                      ? item.title.toLowerCase().includes(filter.toLowerCase())
+                      : index < 6)
+                )
+                .map((item) => (
+                  <label className="title-option" key={item.key}>
+                    <input
+                      type="radio"
+                      name="job-title"
+                      value={item.key}
+                      checked={item.key === selected.key}
+                      onChange={() => {
+                        if (item.key !== selected.key) setTitle(item.key)
+                      }}
+                    />
+                    <span>{item.title}</span>
+                  </label>
+                ))}
+            </div>
+            {filter &&
+              !titles.some((item) =>
+                item.title.toLowerCase().includes(filter.toLowerCase())
+              ) && <p>No matching titles. Clear search to see suggestions.</p>}
           </div>
           {selected && (
             <PayDetail year={selectedYear.year} title={selected.key} />
@@ -328,7 +348,7 @@ function EmployerInsight() {
     ...employersQuery(year),
     placeholderData: keepPreviousData,
   })
-  const yearOptions = q.data ?? catalog.data
+  const yearOptions = catalog.data ?? q.data
   const max = Math.max(
     1,
     ...(q.data?.employers.map((e) => e.initialApprovals) ?? [])
@@ -343,18 +363,20 @@ function EmployerInsight() {
         retry={() => void q.refetch()}
       />
       {yearOptions && yearOptions.years.length > 0 && (
-        <label>
-          Year{" "}
-          <select
-            className="field"
-            value={year ?? yearOptions.year ?? ""}
-            onChange={(e) => setYear(Number(e.target.value))}
-          >
-            {yearOptions.years.map((y) => (
-              <option key={y}>{y}</option>
-            ))}
-          </select>
-        </label>
+        <div className="controls" role="group" aria-label="Year">
+          {yearOptions.years.map((item) => (
+            <button
+              key={item}
+              className="chip"
+              aria-pressed={item === (year ?? catalog.data?.year)}
+              onClick={() => {
+                if (item !== (year ?? catalog.data?.year)) setYear(item)
+              }}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
       )}
       {q.isPlaceholderData && <p role="status">Loading employers…</p>}
       {q.data && (

@@ -646,6 +646,48 @@ td {
   margin-top: 24px;
   overflow-wrap: anywhere;
 }
+.insight-panel .controls .chip,
+.insight-choices .chip,
+.priority-comparison .field {
+  min-height: 44px;
+}
+.title-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 12px 0;
+}
+.title-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  border: 1px solid var(--hairline);
+  border-radius: 99px;
+  padding: 9px 15px;
+  cursor: pointer;
+}
+.title-option:has(input:checked) {
+  background: var(--ink);
+  color: var(--ground);
+}
+.title-option:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.title-option input {
+  position: absolute;
+  opacity: 0;
+}
+.priority-comparison {
+  margin: 24px 0;
+}
+.priority-comparison > label {
+  display: block;
+  margin-bottom: 8px;
+}
 .insight-panel h1 {
   margin-top: 0;
 }

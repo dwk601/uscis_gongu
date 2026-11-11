@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { lazy, Suspense, useEffect, useRef, useState } from "react"
 import { bulletinQuery, movement } from "@/lib/api"
+import { validDate } from "@/lib/dates"
 import { categoryHue } from "@/lib/palette"
 import { categoryLabel, categoryLabels, countryLabel } from "@/lib/labels"
 import { getSessionItem } from "@/lib/session-storage"
@@ -27,6 +28,7 @@ type Search = {
   chart?: string
   country?: string
   group?: string
+  priorityDate?: string
 }
 export const Route = createFileRoute("/bulletin")({
   validateSearch: (search: Record<string, unknown>): Search => ({
@@ -40,6 +42,9 @@ export const Route = createFileRoute("/bulletin")({
       typeof search.country === "string" && /^[A-Z0-9 -]+$/.test(search.country)
         ? search.country
         : "ALL",
+    priorityDate: validDate(search.priorityDate, 1900)
+      ? search.priorityDate
+      : undefined,
     group:
       typeof search.group === "string" &&
       groups.includes(search.group as (typeof groups)[number])
@@ -78,13 +83,29 @@ function BulletinPage() {
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
   const update = (next: Partial<Search>) =>
-    void navigate({ search: (previous) => ({ ...previous, ...next }) })
+    void navigate({
+      search: (previous) => ({ ...previous, ...next }),
+      resetScroll: false,
+    })
   const category = search.category
   const chart = search.chart ?? "final_action"
   const country = search.country ?? "ALL"
   const known = !!category && Object.hasOwn(categoryLabels, category)
   const bulletin = useQuery(bulletinQuery(known ? category : "EB2", chart))
   const group = known ? groupFor(category) : search.group
+  const priorityInput = useRef<HTMLInputElement>(null)
+  const committedPriority = useRef(search.priorityDate)
+  const [draftValid, setDraftValid] = useState(true)
+  const [priorityError, setPriorityError] = useState(false)
+  useEffect(() => {
+    if (search.priorityDate !== committedPriority.current) {
+      if (priorityInput.current)
+        priorityInput.current.value = search.priorityDate ?? ""
+      committedPriority.current = search.priorityDate
+      setDraftValid(true)
+      setPriorityError(false)
+    }
+  }, [search.priorityDate])
   const [expanded, setExpanded] = useState(false)
   const [discussionOpen, setDiscussionOpen] = useState(false)
   const summaryRef = useRef<HTMLButtonElement>(null)
@@ -365,6 +386,101 @@ function BulletinPage() {
                 dateValues
               />
             </Suspense>
+          </div>
+          <div className="priority-comparison">
+            <label htmlFor="priority-date">Your priority date (optional)</label>
+            <input
+              id="priority-date"
+              ref={priorityInput}
+              className="field"
+              type="date"
+              defaultValue={search.priorityDate ?? ""}
+              aria-describedby={priorityError ? "priority-error" : undefined}
+              onChange={(event) => {
+                const input = event.currentTarget
+                const value = input.value
+                const valid = validDate(value, 1900)
+                setDraftValid(valid || (!value && !input.validity.badInput))
+                setPriorityError(false)
+                if (valid || (!value && !input.validity.badInput)) {
+                  const next = valid ? value : undefined
+                  if (next !== committedPriority.current) {
+                    committedPriority.current = next
+                    void navigate({
+                      search: (previous) => ({
+                        ...previous,
+                        priorityDate: next,
+                      }),
+                      replace: true,
+                      resetScroll: false,
+                    })
+                  }
+                }
+              }}
+              onBlur={(event) =>
+                setPriorityError(
+                  !validDate(event.currentTarget.value, 1900) &&
+                    (!!event.currentTarget.value ||
+                      event.currentTarget.validity.badInput)
+                )
+              }
+            />
+            {priorityError && (
+              <p id="priority-error" role="status">
+                Enter a valid date in 1900 or later.
+              </p>
+            )}
+            {draftValid &&
+              search.priorityDate &&
+              current?.status === "current" && (
+                <p>
+                  No cutoff restriction for this bulletin
+                  {historical && current.month
+                    ? ` (${month(current.month)})`
+                    : ""}
+                  .
+                </p>
+              )}
+            {draftValid &&
+              search.priorityDate &&
+              current?.status === "date" &&
+              current.cutoff &&
+              (() => {
+                const days = Math.round(
+                  (Date.parse(`${search.priorityDate}T00:00:00Z`) -
+                    Date.parse(`${current.cutoff}T00:00:00Z`)) /
+                    86400000
+                )
+                const earlier = days < 0
+                return (
+                  <div>
+                    <p>
+                      <strong>
+                        {chart === "final_action"
+                          ? earlier
+                            ? "Current for this bulletin"
+                            : "Not yet current for this bulletin"
+                          : earlier
+                            ? "Before the filing cutoff"
+                            : "Not before the filing cutoff"}
+                      </strong>
+                      {historical && current.month
+                        ? ` (${month(current.month)})`
+                        : ""}
+                    </p>
+                    <p>
+                      Your date must be earlier than the cutoff. The same date
+                      doesn’t count.
+                    </p>
+                    {!earlier && (
+                      <p>
+                        {days.toLocaleString()} days from the cutoff · not an
+                        estimated wait.
+                      </p>
+                    )}
+                  </div>
+                )
+              })()}
           </div>
           <details className="bulletin-details">
             <summary>More context</summary>

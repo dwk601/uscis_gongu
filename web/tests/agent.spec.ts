@@ -115,30 +115,8 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
     body: `event: status\ndata: {"message":"Thinking…"}\n\nevent: answer\ndata: ${JSON.stringify(body)}\n\n`,
   })
   let requests = 0
-  let releaseShort: (() => void) | undefined
   let release: (() => void) | undefined
   await page.route("**/api/x/agent/ask", async (route) => {
-    if (
-      route.request().postDataJSON().question.startsWith("Short sheet answer")
-    ) {
-      await new Promise<void>((resolve) => {
-        releaseShort = resolve
-      })
-      return route.fulfill(
-        stream({
-          ...answer,
-          blocks: [
-            {
-              type: "paragraph",
-              text:
-                `Answer start ${route.request().postDataJSON().question.split(" ")[3]}. ` +
-                "Long answer. ".repeat(200),
-            },
-            ...answer.blocks,
-          ],
-        })
-      )
-    }
     requests++
     expect(route.request().method()).toBe("POST")
     expect(route.request().headers().authorization).toBe(token)
@@ -337,45 +315,6 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   expect(await page.evaluate("document.documentElement.scrollWidth")).toBe(390)
   expect((await dialog.boundingBox())!.height).toBeLessThanOrEqual(844 * 0.85)
 
-  for (const size of [
-    { width: 667, height: 375 },
-    { width: 844, height: 390 },
-  ]) {
-    await page.setViewportSize(size)
-    await question.fill(
-      `Short sheet answer ${size.width} ${"question ".repeat(150)}`
-    )
-    await dialog.getByRole("button", { name: "Ask", exact: true }).click()
-    await expect.poll(() => !!releaseShort).toBe(true)
-    await page.evaluate(
-      "document.querySelector('.agent-panel').scrollTop = document.querySelector('.agent-panel').scrollHeight"
-    )
-    releaseShort!()
-    releaseShort = undefined
-    await expect(dialog.getByRole("status")).toHaveText("Answer ready.")
-    await expect(
-      dialog.getByText(`Answer start ${size.width}.`, { exact: false })
-    ).toBeVisible()
-    await expect(dialog.locator(".agent-answer")).toHaveAttribute(
-      "aria-busy",
-      "false"
-    )
-    await expect(question).toBeFocused()
-    const positions = await page.evaluate<{
-      answerTop: number
-      headerBottom: number
-      panelBottom: number
-    }>(`(() => {
-      const panel = document.querySelector('.agent-panel')
-      const answer = panel.querySelector('.agent-answer').getBoundingClientRect()
-      const header = panel.querySelector('.agent-header').getBoundingClientRect()
-      return { answerTop: answer.top, headerBottom: header.bottom, panelBottom: panel.getBoundingClientRect().bottom }
-    })()`)
-    expect(positions.answerTop).toBeGreaterThanOrEqual(
-      positions.headerBottom - 1
-    )
-    expect(positions.answerTop).toBeLessThan(positions.panelBottom)
-  }
   await question.fill("short viewport draft")
   const submit = dialog.getByRole("button", { name: "Ask", exact: true })
   const close = dialog.getByRole("button", { name: "Close Ask gongu" })

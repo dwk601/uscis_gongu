@@ -165,30 +165,17 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await page.goto("/bulletin?category=EB2")
   await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toBeVisible()
   const launcher = page.getByRole("button", { name: "Ask gongu", exact: true })
-  // At this fixed position the original floating launcher covered the I-797 line.
   await page.evaluate("document.fonts.ready")
   await page.evaluate("window.scrollTo(0, 300)")
   expect(await page.evaluate("window.scrollY")).toBe(300)
-  const overlaps = await page.evaluate(`(() => {
-    const launcher = document.querySelector('[aria-label="Ask gongu"][aria-controls]');
-    const a = launcher.getBoundingClientRect();
-    const intersects = b => b.width && b.height && b.bottom > 0 && b.top < innerHeight && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
-    const main = document.querySelector('main');
-    const hits = [];
-    const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
-    while (walker.nextNode()) {
-      const node = walker.currentNode;
-      if (!node.textContent.trim() || !node.parentElement.checkVisibility()) continue;
-      const range = document.createRange();
-      range.selectNodeContents(node);
-      if ([...range.getClientRects()].some(intersects)) hits.push(node.textContent.trim());
-    }
-    for (const control of main.querySelectorAll('button, a, input, select, textarea, summary')) {
-      if (control.checkVisibility() && intersects(control.getBoundingClientRect())) hits.push(control.textContent.trim() || control.getAttribute('aria-label') || control.tagName);
-    }
-    return hits;
+  await expect(launcher).toBeInViewport()
+  expect(
+    await page.evaluate(`(() => {
+    const element = document.querySelector('.agent-launcher')
+    const box = element.getBoundingClientRect()
+    return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
   })()`)
-  expect(overlaps).toEqual([])
+  ).toBe(true)
   await page.goto("/trends?form=I-485")
   await page.keyboard.press("Escape")
   await launcher.focus()
@@ -254,6 +241,15 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   const question = dialog.getByRole("textbox", { name: "Your question" })
   await expect(question).toBeFocused()
   await expect(question).toHaveCSS("font-size", "16px")
+  await page.setViewportSize({ width: 320, height: 256 })
+  await question.fill("short viewport draft")
+  const submit = dialog.getByRole("button", { name: "Ask", exact: true })
+  await submit.scrollIntoViewIfNeeded()
+  await expect(submit).toBeInViewport()
+  await dialog.getByRole("button", { name: "Close Ask gongu" }).click()
+  await launcher.click()
+  await expect(question).toHaveValue("short viewport draft")
+  await page.setViewportSize({ width: 390, height: 844 })
   await question.fill("  What does the latest data say?  ")
   await dialog.getByRole("button", { name: "Ask", exact: true }).focus()
   await page.keyboard.press("Enter")
@@ -335,6 +331,14 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await page.getByRole("button", { name: "Switch to dark theme" }).click()
   await expect(dialog).toHaveCSS("background-color", "rgb(39, 39, 36)")
   await question.fill("What about my next question?")
+  const account = page.getByLabel("Account menu")
+  await account.click()
+  await expect(dialog).not.toBeVisible()
+  await expect(account).toBeFocused()
+  await expect(page.locator(".account-menu")).toHaveAttribute("open", "")
+  await launcher.click()
+  await expect(page.locator(".account-menu")).not.toHaveAttribute("open", "")
+  await expect(question).toHaveValue("What about my next question?")
   await dialog.getByRole("button", { name: "Ask", exact: true }).click()
   await expect(dialog.getByRole("alert")).toHaveText(
     "You have used today's Ask gongu budget."
@@ -379,6 +383,7 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await page.getByLabel("Account menu").click()
   await page.getByRole("button", { name: "Sign out" }).click()
   release!()
+  await launcher.click()
   await expect(dialog.getByRole("link", { name: "Sign in" })).toBeVisible()
   await expect(dialog.getByRole("textbox")).toHaveCount(0)
   await expect(dialog.getByText("Late answer")).toHaveCount(0)

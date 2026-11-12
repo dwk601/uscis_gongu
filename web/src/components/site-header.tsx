@@ -1,14 +1,18 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { Moon, Sun } from "lucide-react"
-import { useLayoutEffect, useRef } from "react"
+import { useLayoutEffect, useRef, type RefObject } from "react"
 import { getSessionItem } from "@/lib/session-storage"
 import { AccountAction } from "./account-action"
 import { useTheme } from "./theme-provider"
 
 export function SiteHeader({
   onLauncherSlot,
+  accountMenu,
+  onAccountOpen,
 }: {
   onLauncherSlot: (node: HTMLSpanElement | null) => void
+  accountMenu: RefObject<HTMLDetailsElement | null>
+  onAccountOpen: () => void
 }) {
   const header = useRef<HTMLElement>(null)
   useLayoutEffect(() => {
@@ -74,7 +78,7 @@ export function SiteHeader({
         >
           {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
         </button>
-        <AccountAction />
+        <AccountAction menu={accountMenu} onOpen={onAccountOpen} />
         <span ref={onLauncherSlot} />
       </div>
     </header>

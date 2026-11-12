@@ -225,13 +225,18 @@ function AgentSession({
 
 export function AgentWidget({
   launcherTarget,
+  open,
+  onOpenChange,
+  onOpening,
 }: {
   launcherTarget: HTMLElement | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onOpening: () => void
 }) {
   const user = useAuth()
   const location = useRouterState({ select: (state) => state.location })
   const redirect = location.pathname + location.searchStr
-  const [open, setOpen] = useState(false)
   const [tooltipDismissed, setTooltipDismissed] = useState(false)
   const [sessionEnded, setSessionEnded] = useState(false)
   const launcher = useRef<HTMLButtonElement>(null)
@@ -240,7 +245,7 @@ export function AgentWidget({
   const titleId = useId()
 
   function close() {
-    setOpen(false)
+    onOpenChange(false)
     launcher.current?.focus({ preventScroll: true })
   }
 
@@ -280,13 +285,13 @@ export function AgentWidget({
       if (event.key === "Escape") {
         event.preventDefault()
         setTooltipDismissed(true)
-        setOpen(false)
+        onOpenChange(false)
         launcher.current?.focus({ preventScroll: true })
       }
     }
     document.addEventListener("keydown", escape)
     return () => document.removeEventListener("keydown", escape)
-  }, [open, sessionEnded])
+  }, [open, sessionEnded, onOpenChange])
 
   useEffect(() => {
     if (!open) return
@@ -353,7 +358,10 @@ export function AgentWidget({
             onMouseEnter={() => setTooltipDismissed(false)}
             onClick={() => {
               if (open) close()
-              else setOpen(true)
+              else {
+                onOpening()
+                onOpenChange(true)
+              }
             }}
           >
             <MessageCircle size={20} aria-hidden="true" />

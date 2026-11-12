@@ -40,6 +40,8 @@ function RootLayout() {
   const [launcherTarget, setLauncherTarget] = useState<HTMLSpanElement | null>(
     null
   )
+  const [agentOpen, setAgentOpen] = useState(false)
+  const accountMenu = useRef<HTMLDetailsElement>(null)
   const { location, matches } = useRouterState({
     select: (state) => ({ location: state.location, matches: state.matches }),
   })
@@ -69,6 +71,11 @@ function RootLayout() {
   const form =
     typeof location.search.form === "string" ? location.search.form : "I-485"
   const showAgent = location.pathname !== "/login"
+  const [previousShowAgent, setPreviousShowAgent] = useState(showAgent)
+  if (showAgent !== previousShowAgent) {
+    setPreviousShowAgent(showAgent)
+    if (!showAgent) setAgentOpen(false)
+  }
   return (
     <div
       className={cn(
@@ -82,9 +89,20 @@ function RootLayout() {
         } as CSSProperties
       }
     >
-      <SiteHeader onLauncherSlot={setLauncherTarget} />
+      <SiteHeader
+        onLauncherSlot={setLauncherTarget}
+        accountMenu={accountMenu}
+        onAccountOpen={() => setAgentOpen(false)}
+      />
       <Outlet />
-      {showAgent && <AgentWidget launcherTarget={launcherTarget} />}
+      {showAgent && (
+        <AgentWidget
+          launcherTarget={launcherTarget}
+          open={agentOpen}
+          onOpenChange={setAgentOpen}
+          onOpening={() => accountMenu.current?.removeAttribute("open")}
+        />
+      )}
       {import.meta.env.DEV && (
         <Suspense fallback={null}>
           <RouterDevtools position="top-right" />

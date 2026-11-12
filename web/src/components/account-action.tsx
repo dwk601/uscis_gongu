@@ -1,14 +1,19 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
-import { useEffect, useRef } from "react"
+import { useEffect, type RefObject } from "react"
 import { useAuth } from "@/lib/auth"
 import { pb } from "@/lib/pb"
 import "./community.css"
 
-export function AccountAction() {
+export function AccountAction({
+  menu,
+  onOpen,
+}: {
+  menu: RefObject<HTMLDetailsElement | null>
+  onOpen: () => void
+}) {
   const user = useAuth()
   const client = useQueryClient()
-  const menu = useRef<HTMLDetailsElement>(null)
   const location = useRouterState({ select: (state) => state.location.href })
   useEffect(() => {
     function closeOutside(event: PointerEvent) {
@@ -27,7 +32,7 @@ export function AccountAction() {
       document.removeEventListener("pointerdown", closeOutside)
       document.removeEventListener("keydown", closeEscape)
     }
-  }, [])
+  }, [menu])
   useEffect(() => {
     let id = pb.authStore.record?.id
     return pb.authStore.onChange((_token, record) => {
@@ -50,7 +55,13 @@ export function AccountAction() {
       </Link>
     )
   return (
-    <details className="account-menu" ref={menu}>
+    <details
+      className="account-menu"
+      ref={menu}
+      onToggle={(event) => {
+        if (event.currentTarget.open) onOpen()
+      }}
+    >
       <summary aria-label="Account menu">
         {(user.name || user.email || "M").slice(0, 1).toUpperCase()}
       </summary>

@@ -307,11 +307,11 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await expect
     .poll(async () => {
       const panelBox = await dialog.boundingBox()
-      const launcherBox = await launcher.boundingBox()
+      const headerBox = await page.locator(".site-header").boundingBox()
       return (
         panelBox &&
-        launcherBox &&
-        Math.round(panelBox.y - launcherBox.y - launcherBox.height)
+        headerBox &&
+        Math.round(panelBox.y - headerBox.y - headerBox.height)
       )
     })
     .toBe(8)

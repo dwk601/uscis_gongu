@@ -1,13 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { MessageCircle, X } from "lucide-react"
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type CSSProperties,
-  type FormEvent,
-} from "react"
+import { useEffect, useId, useRef, useState, type FormEvent } from "react"
 import { createPortal } from "react-dom"
 import { mutationErrorMessage, useAuth } from "@/lib/auth"
 import { agentError, askAgent, type AgentResponse } from "@/lib/agent"
@@ -230,14 +223,6 @@ function AgentSession({
   )
 }
 
-function launcherPanelTop(launcher: HTMLElement) {
-  const launcherBottom = launcher.getBoundingClientRect().bottom
-  const navigationBottom =
-    document.querySelector(".site-header nav")?.getBoundingClientRect()
-      .bottom ?? 0
-  return Math.max(launcherBottom, navigationBottom) + window.scrollY + 8
-}
-
 export function AgentWidget({
   launcherTarget,
 }: {
@@ -248,7 +233,6 @@ export function AgentWidget({
   const redirect = location.pathname + location.searchStr
   const [open, setOpen] = useState(false)
   const [tooltipDismissed, setTooltipDismissed] = useState(false)
-  const [panelTop, setPanelTop] = useState(88)
   const [sessionEnded, setSessionEnded] = useState(false)
   const launcher = useRef<HTMLButtonElement>(null)
   const panel = useRef<HTMLElement>(null)
@@ -300,20 +284,13 @@ export function AgentWidget({
         launcher.current?.focus({ preventScroll: true })
       }
     }
-    function reposition() {
-      if (launcher.current) setPanelTop(launcherPanelTop(launcher.current))
-    }
     document.addEventListener("keydown", escape)
-    window.addEventListener("resize", reposition)
-    return () => {
-      document.removeEventListener("keydown", escape)
-      window.removeEventListener("resize", reposition)
-    }
+    return () => document.removeEventListener("keydown", escape)
   }, [open, sessionEnded])
 
   useEffect(() => {
     if (!open) return
-    const mobile = window.matchMedia("(max-width: 640px)")
+    const mobile = window.matchMedia("(max-width: 640px), (max-height: 520px)")
     const previousOverflow = document.body.style.overflow
     function lock() {
       document.body.style.overflow = mobile.matches
@@ -334,7 +311,6 @@ export function AgentWidget({
         ref={panel}
         id={panelId}
         className="agent-panel"
-        style={{ "--agent-panel-top": `${panelTop}px` } as CSSProperties}
         data-open={open}
         role="dialog"
         aria-modal="false"
@@ -377,10 +353,7 @@ export function AgentWidget({
             onMouseEnter={() => setTooltipDismissed(false)}
             onClick={() => {
               if (open) close()
-              else {
-                setPanelTop(launcherPanelTop(launcher.current!))
-                setOpen(true)
-              }
+              else setOpen(true)
             }}
           >
             <MessageCircle size={20} aria-hidden="true" />

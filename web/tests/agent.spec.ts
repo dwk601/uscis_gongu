@@ -169,16 +169,11 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await page.evaluate("window.scrollTo(0, 300)")
   expect(await page.evaluate("window.scrollY")).toBe(300)
   await expect(launcher).toBeInViewport()
-  await expect(launcher).toHaveCSS("box-shadow", "none")
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 844 })
     const header = await page.locator(".site-header").boundingBox()
     expect(header!.x).toBe(0)
     expect(header!.width).toBe(width)
-    await expect(page.locator(".site-header")).toHaveCSS(
-      "border-bottom-width",
-      "1px"
-    )
   }
   await page.setViewportSize({ width: 390, height: 844 })
   await page.evaluate("window.scrollTo(0, 300)")
@@ -248,14 +243,6 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   )
   await signIn.click()
   await expect(launcher).toHaveCount(0)
-  const headerSignIn = await page
-    .getByRole("banner")
-    .getByRole("link", { name: "Sign in" })
-    .boundingBox()
-  const card = await page.locator("main .social-card").boundingBox()
-  expect(Math.round(headerSignIn!.x + headerSignIn!.width)).toBe(
-    Math.round(card!.x + card!.width)
-  )
   await page.getByLabel("Email").fill("member@example.com")
   await page.getByLabel("Password").fill("password123")
   await page

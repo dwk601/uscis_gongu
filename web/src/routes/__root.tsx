@@ -71,11 +71,7 @@ function RootLayout() {
   const form =
     typeof location.search.form === "string" ? location.search.form : "I-485"
   const showAgent = location.pathname !== "/login"
-  const [previousShowAgent, setPreviousShowAgent] = useState(showAgent)
-  if (showAgent !== previousShowAgent) {
-    setPreviousShowAgent(showAgent)
-    if (!showAgent) setAgentOpen(false)
-  }
+  if (!showAgent && agentOpen) setAgentOpen(false)
   return (
     <div
       className={cn(

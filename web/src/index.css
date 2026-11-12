@@ -37,7 +37,6 @@ body {
   margin: 0;
 }
 .app-shell {
-  position: relative;
   min-height: 100svh;
   background: var(--ground);
   transition: background 0.45s ease-out;

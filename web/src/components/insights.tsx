@@ -241,17 +241,12 @@ function Pay() {
     q.data?.years.find((y) => y.year === year) ?? q.data?.years[0]
   const titles = selectedYear?.titles ?? []
   const selected = titles.find((t) => t.key === title) ?? titles[0]
-  const matchingCount = filter
-    ? titles.filter((item) =>
-        item.title.toLowerCase().includes(filter.toLowerCase())
-      ).length
-    : 0
+  const matchesFilter = (item: { title: string }) =>
+    item.title.toLowerCase().includes(filter.toLowerCase())
+  const matchingCount = filter ? titles.filter(matchesFilter).length : 0
   const visibleTitles = titles.filter(
     (item, index) =>
-      item.key === selected?.key ||
-      (filter
-        ? item.title.toLowerCase().includes(filter.toLowerCase())
-        : index < 6)
+      item.key === selected?.key || (filter ? matchesFilter(item) : index < 6)
   )
   return (
     <section className="panel insight-panel">

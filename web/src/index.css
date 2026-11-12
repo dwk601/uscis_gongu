@@ -557,6 +557,11 @@ td {
     padding: 8px 12px;
   }
 }
+@media (max-width: 340px) {
+  .site-header .brand span {
+    display: none;
+  }
+}
 @media (max-height: 520px) {
   html {
     scroll-padding-top: 0;

@@ -39,9 +39,9 @@ export function SiteHeader({
   const form = currentForm || getSessionItem("gongu-last-case-form") || ""
   return (
     <header ref={header} className="site-header">
-      <Link to="/" search={{ form: "" }} className="brand">
+      <Link to="/" search={{ form: "" }} className="brand" aria-label="gongu">
         <img src="/gongu.svg" alt="" />
-        gongu
+        <span>gongu</span>
       </Link>
       <nav aria-label="Main navigation">
         <Link

@@ -383,7 +383,8 @@ export function AgentWidget({
               }
             }}
           >
-            <MessageCircle size={24} aria-hidden="true" />
+            <MessageCircle size={20} aria-hidden="true" />
+            <span>Ask</span>
           </Button>,
           launcherTarget
         )}

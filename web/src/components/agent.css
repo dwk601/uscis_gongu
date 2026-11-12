@@ -287,7 +287,6 @@
 }
 @media (max-width: 640px) {
   .agent-panel {
-    position: fixed;
     top: auto;
     right: 0;
     bottom: 0;
@@ -325,6 +324,7 @@
   .agent-content {
     flex: 0 0 auto;
     min-height: 80px;
+    overflow: visible;
   }
   .agent-form textarea {
     font-size: 16px;

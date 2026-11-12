@@ -557,7 +557,7 @@ td {
     padding: 8px 12px;
   }
 }
-@media (max-width: 340px) {
+@media (max-width: 352px) {
   .site-header .brand span {
     display: none;
   }

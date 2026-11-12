@@ -17,19 +17,19 @@ export function SiteHeader({
   const header = useRef<HTMLElement>(null)
   useLayoutEffect(() => {
     const element = header.current!
-    const sticky = window.matchMedia("(min-height: 521px)")
+    const short = window.matchMedia("(max-height: 520px)")
     const update = () =>
       document.documentElement.style.setProperty(
         "--header-h",
-        sticky.matches ? `${element.getBoundingClientRect().height}px` : "0px"
+        !short.matches ? `${element.getBoundingClientRect().height}px` : "0px"
       )
     const observer = new ResizeObserver(update)
     observer.observe(element)
-    sticky.addEventListener("change", update)
+    short.addEventListener("change", update)
     update()
     return () => {
       observer.disconnect()
-      sticky.removeEventListener("change", update)
+      short.removeEventListener("change", update)
       document.documentElement.style.removeProperty("--header-h")
     }
   }, [])

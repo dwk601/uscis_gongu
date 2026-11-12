@@ -85,13 +85,6 @@ test("visa routes remain usable across form history", async ({ page }) => {
   await page.keyboard.press("Escape")
   await expect(page.getByLabel("Search by name or form number")).toBeVisible()
   await page.getByLabel("Search by name or form number").fill("I-999")
-  await page.evaluate(`(() => {
-    const header = document.querySelector('.site-header')
-    header.style.position = 'sticky'
-    header.style.top = '0'
-    header.style.zIndex = '10'
-    document.documentElement.style.setProperty('--header-h', header.getBoundingClientRect().height + 'px')
-  })()`)
   await page.evaluate("window.scrollTo(0, 150)")
   expect(await page.evaluate<number>("window.scrollY")).toBeGreaterThan(0)
   await page.getByRole("button", { name: /Other application/ }).click()

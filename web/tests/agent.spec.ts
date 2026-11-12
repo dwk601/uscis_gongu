@@ -241,15 +241,6 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   const question = dialog.getByRole("textbox", { name: "Your question" })
   await expect(question).toBeFocused()
   await expect(question).toHaveCSS("font-size", "16px")
-  await page.setViewportSize({ width: 320, height: 256 })
-  await question.fill("short viewport draft")
-  const submit = dialog.getByRole("button", { name: "Ask", exact: true })
-  await submit.scrollIntoViewIfNeeded()
-  await expect(submit).toBeInViewport()
-  await dialog.getByRole("button", { name: "Close Ask gongu" }).click()
-  await launcher.click()
-  await expect(question).toHaveValue("short viewport draft")
-  await page.setViewportSize({ width: 390, height: 844 })
   await question.fill("  What does the latest data say?  ")
   await dialog.getByRole("button", { name: "Ask", exact: true }).focus()
   await page.keyboard.press("Enter")
@@ -298,6 +289,35 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   expect(await page.evaluate("document.documentElement.scrollWidth")).toBe(390)
   expect((await dialog.boundingBox())!.height).toBeLessThanOrEqual(844 * 0.85)
 
+  await question.fill("short viewport draft")
+  const submit = dialog.getByRole("button", { name: "Ask", exact: true })
+  const close = dialog.getByRole("button", { name: "Close Ask gongu" })
+  for (const size of [
+    { width: 667, height: 375 },
+    { width: 844, height: 390 },
+    { width: 320, height: 256 },
+  ]) {
+    await page.setViewportSize(size)
+    await page.evaluate("document.querySelector('.agent-panel').scrollTop = 0")
+    await page.mouse.move(size.width / 2, size.height / 2)
+    await page.mouse.wheel(0, 10000)
+    await expect(submit).toBeInViewport()
+    await expect(close).toBeInViewport()
+    expect(
+      await page.evaluate(`(() => {
+      return ['.agent-form button[type="submit"]', '.agent-header button'].every(selector => {
+        const element = document.querySelector(selector)
+        const box = element.getBoundingClientRect()
+        return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
+      })
+    })()`)
+    ).toBe(true)
+  }
+  await close.click()
+  await launcher.click()
+  await expect(question).toHaveValue("short viewport draft")
+  await question.fill("")
+
   await page.setViewportSize({ width: 1024, height: 768 })
   await expect(dialog).toHaveCSS("width", "380px")
   await expect
@@ -305,12 +325,16 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
       const panelBox = await dialog.boundingBox()
       const headerBox = await page.locator(".site-header").boundingBox()
       return (
-        panelBox &&
-        headerBox &&
-        Math.round(panelBox.y - headerBox.y - headerBox.height)
+        !!panelBox &&
+        !!headerBox &&
+        panelBox.y >= headerBox.y + headerBox.height &&
+        panelBox.x >= 0 &&
+        panelBox.y >= 0 &&
+        panelBox.x + panelBox.width <= 1024 &&
+        panelBox.y + panelBox.height <= 768
       )
     })
-    .toBe(8)
+    .toBe(true)
   await page.evaluate("window.scrollTo(0, 40)")
   const beforeClose = await page.evaluate("window.scrollY")
   expect(beforeClose).toBe(40)

@@ -738,7 +738,20 @@ test("bulletin selection and historical status", async ({ page }) => {
       json: {
         categories: [{ code: "F2A" }, { code: "EB2" }, { code: "EB5-RC" }],
         series: [
-          { country: "ALL", points: [point] },
+          {
+            country: "ALL",
+            points:
+              category === "EB2"
+                ? [
+                    {
+                      month: "2020-01-01",
+                      cutoff: "2011-01-01",
+                      status: "date",
+                    },
+                    point,
+                  ]
+                : [point],
+          },
           {
             country: "INDIA",
             points: [
@@ -878,6 +891,9 @@ test("bulletin selection and historical status", async ({ page }) => {
   ).toHaveCount(0)
   await page.goto("/bulletin?category=EB2&priorityDate=2023-02-29")
   await expect(page.getByLabel("Your priority date (optional)")).toHaveValue("")
+  await expect
+    .poll(() => labels.allTextContents())
+    .toEqual(expect.arrayContaining(["2015", "2020"]))
   await page.goto("/bulletin?category=EB2&priorityDate=1899-12-31")
   await expect(page.getByLabel("Your priority date (optional)")).toHaveValue("")
   await page.goto("/bulletin?category=UNKNOWN")

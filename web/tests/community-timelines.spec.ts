@@ -85,6 +85,13 @@ test("visa routes remain usable across form history", async ({ page }) => {
   await page.keyboard.press("Escape")
   await expect(page.getByLabel("Search by name or form number")).toBeVisible()
   await page.getByLabel("Search by name or form number").fill("I-999")
+  await page.evaluate(`(() => {
+    const header = document.querySelector('.site-header')
+    header.style.position = 'sticky'
+    header.style.top = '0'
+    header.style.zIndex = '10'
+    document.documentElement.style.setProperty('--header-h', header.getBoundingClientRect().height + 'px')
+  })()`)
   await page.evaluate("window.scrollTo(0, 150)")
   expect(await page.evaluate<number>("window.scrollY")).toBeGreaterThan(0)
   await page.getByRole("button", { name: /Other application/ }).click()
@@ -93,7 +100,18 @@ test("visa routes remain usable across form history", async ({ page }) => {
   await expect
     .poll(() => page.evaluate<number>("window.scrollY"))
     .toBeGreaterThan(0)
-  await expect(page.getByRole("button", { name: /Change form/ })).toBeFocused()
+  const changeForm = page.getByRole("button", { name: /Change form/ })
+  await expect(changeForm).toBeFocused()
+  await expect
+    .poll(() =>
+      page.evaluate(`(() => {
+    const element = document.querySelector('.trend-form-controls .form-summary')
+    const box = element.getBoundingClientRect()
+    const header = document.querySelector('.site-header').getBoundingClientRect()
+    return box.top >= header.bottom && element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
+  })()`)
+    )
+    .toBe(true)
   await page.goBack()
   await page.goForward()
   await page.getByRole("button", { name: /Change form/ }).click()

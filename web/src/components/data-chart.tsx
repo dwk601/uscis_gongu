@@ -1,9 +1,38 @@
 import { areaY, defineChart, lineY } from "@tanstack/charts"
 import { Chart } from "@tanstack/charts/react"
 import { scaleLinear } from "@tanstack/charts/scales/linear"
-import { scaleUtc } from "@tanstack/charts/scales/time"
+import { scaleUtc, type UtcScale } from "@tanstack/charts/scales/time"
 import type { CSSProperties } from "react"
 import { chartHue } from "@/lib/palette"
+
+function cutoffScale(scale: UtcScale): UtcScale {
+  const copy = scale.copy
+  scale.copy = () => cutoffScale(copy())
+  scale.tickFormat = (count) => {
+    const candidates = scale.ticks(count)
+    const annual =
+      candidates.length > 0 &&
+      candidates.every(
+        (date) =>
+          date.getUTCMonth() === 0 &&
+          date.getUTCDate() === 1 &&
+          date.getUTCHours() === 0 &&
+          date.getUTCMinutes() === 0 &&
+          date.getUTCSeconds() === 0 &&
+          date.getUTCMilliseconds() === 0
+      )
+    return (value) =>
+      annual
+        ? String(value.getUTCFullYear())
+        : new Date(value).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            timeZone: "UTC",
+          })
+  }
+  return scale
+}
 
 export type ChartRow = {
   x: number
@@ -138,21 +167,11 @@ export default function DataChart({
         : dateValues && Number.isFinite(minDate)
           ? {
               // The UTC scale accepts numeric timestamps, although its domain getter returns Dates.
-              scale: scaleUtc().domain([
-                minDate - padding,
-                maxDate + padding,
-              ]) as unknown as ReturnType<typeof scaleLinear>,
+              scale: cutoffScale(
+                scaleUtc().domain([minDate - padding, maxDate + padding])
+              ) as unknown as ReturnType<typeof scaleLinear>,
               axis: {
-                ticks: {
-                  spacing: 64,
-                  format: (value: Date | number) =>
-                    new Date(value).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                      timeZone: "UTC",
-                    }),
-                },
+                ticks: { spacing: 64 },
                 tickLabels: { thin: { minGap: 8 } },
               },
             }

@@ -218,9 +218,10 @@
 @media (max-width: 700px) {
   .site-header {
     height: auto;
+    min-height: 108px;
     grid-template-columns: 1fr auto;
-    row-gap: 8px;
-    padding: 14px 20px;
+    row-gap: 3px;
+    padding: 8px 20px;
   }
   .site-header nav {
     grid-column: 1 / -1;

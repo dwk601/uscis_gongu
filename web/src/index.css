@@ -29,6 +29,9 @@
 * {
   box-sizing: border-box;
 }
+html {
+  scroll-padding-top: calc(var(--header-h, 0px) + 8px);
+}
 body {
   margin: 0;
 }
@@ -74,6 +77,11 @@ p {
   line-height: 1.5;
 }
 .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: inherit;
+  border-bottom: 1px solid var(--hairline);
   height: 80px;
   max-width: 1320px;
   margin: auto;
@@ -547,6 +555,14 @@ td {
   }
   .chip {
     padding: 8px 12px;
+  }
+}
+@media (max-height: 520px) {
+  html {
+    scroll-padding-top: 0;
+  }
+  .site-header {
+    position: relative;
   }
 }
 @media (prefers-reduced-motion: reduce) {

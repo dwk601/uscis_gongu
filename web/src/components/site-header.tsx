@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { Moon, Sun } from "lucide-react"
+import { useLayoutEffect, useRef } from "react"
 import { getSessionItem } from "@/lib/session-storage"
 import { AccountAction } from "./account-action"
 import { useTheme } from "./theme-provider"
@@ -9,6 +10,25 @@ export function SiteHeader({
 }: {
   onLauncherSlot: (node: HTMLSpanElement | null) => void
 }) {
+  const header = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    const element = header.current!
+    const sticky = window.matchMedia("(min-height: 521px)")
+    const update = () =>
+      document.documentElement.style.setProperty(
+        "--header-h",
+        sticky.matches ? `${element.getBoundingClientRect().height}px` : "0px"
+      )
+    const observer = new ResizeObserver(update)
+    observer.observe(element)
+    sticky.addEventListener("change", update)
+    update()
+    return () => {
+      observer.disconnect()
+      sticky.removeEventListener("change", update)
+      document.documentElement.style.removeProperty("--header-h")
+    }
+  }, [])
   const { theme, setTheme } = useTheme()
   const location = useRouterState({ select: (state) => state.location })
   const params = new URLSearchParams(location.searchStr)
@@ -18,7 +38,7 @@ export function SiteHeader({
     (!!currentForm || params.get("view") === "case")
   const form = currentForm || getSessionItem("gongu-last-case-form") || ""
   return (
-    <header className="site-header">
+    <header ref={header} className="site-header">
       <Link to="/" search={{ form: "" }} className="brand">
         <img src="/gongu.svg" alt="" />
         gongu

@@ -53,7 +53,6 @@
   border-radius: 99px;
   background: var(--page-hue);
   color: var(--page-ink, #171717);
-  box-shadow: 0 4px 20px #0002;
 }
 .agent-launcher:hover {
   background: color-mix(in srgb, var(--page-hue) 88%, var(--panel));

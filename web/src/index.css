@@ -29,8 +29,9 @@
 * {
   box-sizing: border-box;
 }
-html {
-  scroll-padding-top: calc(var(--header-h, 0px) + 8px);
+main,
+main :is(a, button, input, select, textarea, summary, [tabindex], :target) {
+  scroll-margin-top: calc(var(--header-h, 0px) + 8px);
 }
 body {
   margin: 0;
@@ -83,9 +84,7 @@ p {
   background: inherit;
   border-bottom: 1px solid var(--hairline);
   height: 80px;
-  max-width: 1320px;
-  margin: auto;
-  padding: 0 min(5vw, 66px);
+  padding: 0 calc(max(0px, (100% - 1320px) / 2) + min(5vw, 66px));
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   column-gap: 16px;
@@ -563,9 +562,6 @@ td {
   }
 }
 @media (max-height: 520px) {
-  html {
-    scroll-padding-top: 0;
-  }
   .site-header {
     position: relative;
   }

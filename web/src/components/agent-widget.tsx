@@ -1,6 +1,13 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { MessageCircle, X } from "lucide-react"
-import { useEffect, useId, useRef, useState, type FormEvent } from "react"
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react"
 import { createPortal } from "react-dom"
 import { mutationErrorMessage, useAuth } from "@/lib/auth"
 import { agentError, askAgent, type AgentResponse } from "@/lib/agent"
@@ -77,6 +84,7 @@ function AgentSession({
   const [pending, setPending] = useState(false)
   const request = useRef<AbortController | null>(null)
   const content = useRef<HTMLDivElement>(null)
+  const revealAnswer = useRef(false)
   const input = useRef<HTMLTextAreaElement>(null)
   const inputId = useId()
   const hintId = useId()
@@ -84,6 +92,29 @@ function AgentSession({
   const tooLong = length > 2000
 
   useEffect(() => () => request.current?.abort(), [])
+
+  useLayoutEffect(() => {
+    if (!revealAnswer.current || !exchange?.answer) return
+    revealAnswer.current = false
+    input.current?.focus({ preventScroll: true })
+    const area = content.current
+    if (!area) return
+    area.scrollTo({ top: 0 })
+    if (window.matchMedia("(max-height: 520px)").matches) {
+      const sheet = area.closest<HTMLElement>(".agent-panel")
+      const answer = area.querySelector<HTMLElement>(".agent-answer")
+      const header = sheet?.querySelector<HTMLElement>(".agent-header")
+      if (sheet && answer && header) {
+        sheet.scrollTo({
+          top:
+            sheet.scrollTop +
+            answer.getBoundingClientRect().top -
+            sheet.getBoundingClientRect().top -
+            header.getBoundingClientRect().height,
+        })
+      }
+    }
+  }, [exchange])
 
   // A failed or canceled question returns to the textarea for a retry and the
   // previous exchange stays on screen.
@@ -122,12 +153,10 @@ function AgentSession({
         if (isCurrent()) setStatus(message)
       })
       if (!isCurrent()) return
+      revealAnswer.current = true
       setExchange({ question: asked, answer: response })
       setBudget(response.budget)
       setStatus("Answer ready.")
-      content.current?.scrollTo({ top: 0 })
-      // Ask is disabled with an empty textarea; keep focus ready for a follow-up.
-      input.current?.focus()
     } catch (err) {
       if (!isCurrent()) return
       const failure = agentError(err)

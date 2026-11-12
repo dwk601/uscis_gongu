@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 
 test("Ask gongu signs in, renders data, retains route state, and handles its budget", async ({
   page,
@@ -25,7 +25,19 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
         },
       })
     if (path.endsWith("/bulletin"))
-      return route.fulfill({ json: { categories: [], series: [] } })
+      return route.fulfill({
+        json: {
+          categories: [{ code: "EB2" }],
+          series: [
+            {
+              country: "ALL",
+              points: [
+                { month: "2025-01-01", cutoff: "2020-01-01", status: "date" },
+              ],
+            },
+          ],
+        },
+      })
     if (path.endsWith("/community"))
       return route.fulfill({ json: { series: [] } })
     return route.fulfill({ json: { name: "Green card", official: [] } })
@@ -150,15 +162,79 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
     )
   })
 
-  await page.goto("/trends?form=I-485")
-  await expect(page.getByRole("main").locator("..")).toHaveCSS(
-    "padding-bottom",
-    "72px"
-  )
+  await page.goto("/bulletin?category=EB2")
+  await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toBeVisible()
   const launcher = page.getByRole("button", { name: "Ask gongu", exact: true })
+  await page.evaluate("document.fonts.ready")
+  await page.evaluate("window.scrollTo(0, 300)")
+  expect(await page.evaluate("window.scrollY")).toBe(300)
+  await expect(launcher).toBeInViewport()
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 844 })
+    const header = await page.locator(".site-header").boundingBox()
+    expect(header!.x).toBe(0)
+    expect(header!.width).toBe(width)
+  }
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.evaluate("window.scrollTo(0, 300)")
+  await page.evaluate(
+    "document.querySelector('.theme-toggle').focus({ preventScroll: true })"
+  )
+  await page.keyboard.press("Tab")
+  await expect(
+    page.getByRole("banner").getByRole("link", { name: "Sign in" })
+  ).toBeFocused()
+  expect(await page.evaluate("window.scrollY")).toBe(300)
+  await page.keyboard.press("Shift+Tab")
+  await expect(
+    page.getByRole("button", { name: "Switch to dark theme" })
+  ).toBeFocused()
+  expect(await page.evaluate("window.scrollY")).toBe(300)
+  expect(
+    await page.evaluate(`(() => {
+    const element = document.querySelector('.agent-launcher')
+    const box = element.getBoundingClientRect()
+    return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
+  })()`)
+  ).toBe(true)
+  await page.goto("/trends?form=I-485")
+  await page.keyboard.press("Escape")
+  await launcher.focus()
+  const tooltipVisibility = () =>
+    page.evaluate(
+      "getComputedStyle(document.querySelector('.agent-launcher').parentElement, '::after').visibility"
+    )
+  expect(await tooltipVisibility()).toBe("visible")
+  await page.keyboard.press("Escape")
+  expect(await tooltipVisibility()).toBe("hidden")
+  await page.getByRole("button", { name: "Switch to dark theme" }).focus()
+  await launcher.focus()
+  expect(await tooltipVisibility()).toBe("visible")
   await launcher.click()
   const dialog = page.getByRole("dialog", { name: "Ask gongu", exact: true })
   await expect(dialog).toBeVisible()
+  await page.setViewportSize({ width: 701, height: 844 })
+  const community = page.getByRole("link", { name: "Community", exact: true })
+  const theme = page.getByRole("button", { name: "Switch to dark theme" })
+  const communityBox = await community.boundingBox()
+  const themeBox = await theme.boundingBox()
+  expect(
+    themeBox!.x - (communityBox!.x + communityBox!.width)
+  ).toBeGreaterThanOrEqual(8)
+  await expect
+    .poll(async () => {
+      const panelBox = await dialog.boundingBox()
+      const launcherBox = await launcher.boundingBox()
+      return (
+        panelBox &&
+        launcherBox &&
+        Math.round(
+          panelBox.x + panelBox.width - launcherBox.x - launcherBox.width
+        )
+      )
+    })
+    .toBe(0)
+  await page.setViewportSize({ width: 390, height: 844 })
   await expect(dialog.getByRole("textbox")).toHaveCount(0)
   const signIn = dialog.getByRole("link", { name: "Sign in" })
   const href = await signIn.getAttribute("href")
@@ -226,8 +302,59 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   expect(await page.evaluate("document.documentElement.scrollWidth")).toBe(390)
   expect((await dialog.boundingBox())!.height).toBeLessThanOrEqual(844 * 0.85)
 
-  await page.setViewportSize({ width: 1280, height: 900 })
+  await question.fill("short viewport draft")
+  const submit = dialog.getByRole("button", { name: "Ask", exact: true })
+  const close = dialog.getByRole("button", { name: "Close Ask gongu" })
+  for (const size of [
+    { width: 667, height: 375 },
+    { width: 844, height: 390 },
+    { width: 320, height: 256 },
+  ]) {
+    await page.setViewportSize(size)
+    await page.evaluate("document.querySelector('.agent-panel').scrollTop = 0")
+    await page.mouse.move(size.width / 2, size.height / 2)
+    await page.mouse.wheel(0, 10000)
+    await expect(submit).toBeInViewport()
+    await expect(close).toBeInViewport()
+    expect(
+      await page.evaluate(`(() => {
+      return ['.agent-form button[type="submit"]', '.agent-header button'].every(selector => {
+        const element = document.querySelector(selector)
+        const box = element.getBoundingClientRect()
+        return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
+      })
+    })()`)
+    ).toBe(true)
+  }
+  await close.click()
+  await launcher.click()
+  await expect(question).toHaveValue("short viewport draft")
+  await question.fill("")
+
+  await page.setViewportSize({ width: 1024, height: 768 })
   await expect(dialog).toHaveCSS("width", "380px")
+  await expect
+    .poll(async () => {
+      const panelBox = await dialog.boundingBox()
+      const headerBox = await page.locator(".site-header").boundingBox()
+      return (
+        !!panelBox &&
+        !!headerBox &&
+        panelBox.y >= headerBox.y + headerBox.height &&
+        panelBox.x >= 0 &&
+        panelBox.y >= 0 &&
+        panelBox.x + panelBox.width <= 1024 &&
+        panelBox.y + panelBox.height <= 768
+      )
+    })
+    .toBe(true)
+  await page.evaluate("window.scrollTo(0, 40)")
+  const beforeClose = await page.evaluate("window.scrollY")
+  expect(beforeClose).toBe(40)
+  await dialog.getByRole("button", { name: "Close Ask gongu" }).click()
+  expect(await page.evaluate("window.scrollY")).toBe(beforeClose)
+  await expect(launcher).toBeFocused()
+  await launcher.click()
   await page
     .getByRole("navigation", { name: "Main navigation" })
     .getByText("Bulletin")
@@ -241,6 +368,14 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await page.getByRole("button", { name: "Switch to dark theme" }).click()
   await expect(dialog).toHaveCSS("background-color", "rgb(39, 39, 36)")
   await question.fill("What about my next question?")
+  const account = page.getByLabel("Account menu")
+  await account.click()
+  await expect(dialog).not.toBeVisible()
+  await expect(account).toBeFocused()
+  await expect(page.locator(".account-menu")).toHaveAttribute("open", "")
+  await launcher.click()
+  await expect(page.locator(".account-menu")).not.toHaveAttribute("open", "")
+  await expect(question).toHaveValue("What about my next question?")
   await dialog.getByRole("button", { name: "Ask", exact: true }).click()
   await expect(dialog.getByRole("alert")).toHaveText(
     "You have used today's Ask gongu budget."
@@ -254,7 +389,11 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
     "Ask gongu is busy. Please try again in a moment."
   )
   await expect(question).toHaveValue("What about my next question?")
+  await page.evaluate("window.scrollTo(0, 40)")
+  const beforeEscape = await page.evaluate("window.scrollY")
+  expect(beforeEscape).toBe(40)
   await page.keyboard.press("Escape")
+  expect(await page.evaluate("window.scrollY")).toBe(beforeEscape)
   await expect(dialog).not.toBeVisible()
   await expect(launcher).toBeFocused()
   await expect(launcher).toHaveAttribute("aria-expanded", "false")
@@ -281,6 +420,7 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await page.getByLabel("Account menu").click()
   await page.getByRole("button", { name: "Sign out" }).click()
   release!()
+  await launcher.click()
   await expect(dialog.getByRole("link", { name: "Sign in" })).toBeVisible()
   await expect(dialog.getByRole("textbox")).toHaveCount(0)
   await expect(dialog.getByText("Late answer")).toHaveCount(0)

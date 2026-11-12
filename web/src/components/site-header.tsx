@@ -1,10 +1,38 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { Moon, Sun } from "lucide-react"
+import { useLayoutEffect, useRef, type RefObject } from "react"
 import { getSessionItem } from "@/lib/session-storage"
 import { AccountAction } from "./account-action"
 import { useTheme } from "./theme-provider"
 
-export function SiteHeader() {
+export function SiteHeader({
+  onLauncherSlot,
+  accountMenu,
+  onAccountOpen,
+}: {
+  onLauncherSlot: (node: HTMLSpanElement | null) => void
+  accountMenu: RefObject<HTMLDetailsElement | null>
+  onAccountOpen: () => void
+}) {
+  const header = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    const element = header.current!
+    const short = window.matchMedia("(max-height: 520px)")
+    const update = () =>
+      document.documentElement.style.setProperty(
+        "--header-h",
+        !short.matches ? `${element.getBoundingClientRect().height}px` : "0px"
+      )
+    const observer = new ResizeObserver(update)
+    observer.observe(element)
+    short.addEventListener("change", update)
+    update()
+    return () => {
+      observer.disconnect()
+      short.removeEventListener("change", update)
+      document.documentElement.style.removeProperty("--header-h")
+    }
+  }, [])
   const { theme, setTheme } = useTheme()
   const location = useRouterState({ select: (state) => state.location })
   const params = new URLSearchParams(location.searchStr)
@@ -14,10 +42,10 @@ export function SiteHeader() {
     (!!currentForm || params.get("view") === "case")
   const form = currentForm || getSessionItem("gongu-last-case-form") || ""
   return (
-    <header className="site-header">
-      <Link to="/" search={{ form: "" }} className="brand">
+    <header ref={header} className="site-header">
+      <Link to="/" search={{ form: "" }} className="brand" aria-label="gongu">
         <img src="/gongu.svg" alt="" />
-        gongu
+        <span>gongu</span>
       </Link>
       <nav aria-label="Main navigation">
         <Link
@@ -50,7 +78,8 @@ export function SiteHeader() {
         >
           {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
         </button>
-        <AccountAction />
+        <AccountAction menu={accountMenu} onOpen={onAccountOpen} />
+        <span ref={onLauncherSlot} />
       </div>
     </header>
   )

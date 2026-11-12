@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 
 test("route focus follows screen changes, not in-page updates", async ({
   page,
@@ -425,7 +425,9 @@ test("student insights keep history and distinguish uncovered weeks", async ({
   ).toBeVisible()
 })
 
-test("insight edge states and employer year retain focus", async ({ page }) => {
+test("insight edge states, employer focus, and pay title choices", async ({
+  page,
+}) => {
   let releaseYear: (() => void) | undefined
   await page.route("**/api/x/uscis/**", async (route) => {
     const url = new URL(route.request().url())
@@ -529,20 +531,97 @@ test("insight edge states and employer year retain focus", async ({ page }) => {
   await page
     .getByRole("button", { name: "Employers with H‑1B approvals" })
     .click()
-  const select = page.getByLabel("Year")
-  await select.focus()
-  await select.selectOption("2024")
-  await expect(select).toBeFocused()
+  const yearButton = page.getByRole("button", { name: "2024" })
+  await yearButton.focus()
+  await yearButton.click()
+  await expect(yearButton).toBeFocused()
   await expect(page.getByRole("status")).toHaveText("Loading employers…")
   await expect.poll(() => !!releaseYear).toBe(true)
   releaseYear!()
   await expect(page.getByText("Insights unavailable.")).toBeVisible()
-  await expect(select).toBeFocused()
+  await expect(yearButton).toBeFocused()
   releaseYear = undefined
-  await select.selectOption("2023")
+  await page.getByRole("button", { name: "2023" }).click()
   await expect.poll(() => !!releaseYear).toBe(true)
   releaseYear!()
   await expect(page.getByText("Nothing to show yet.")).toBeVisible()
+
+  let payRequests = 0
+  const titles = Array.from({ length: 8 }, (_, i) => ({
+    key: `job${i}`,
+    title: `Job ${i}`,
+    cases: 30,
+  }))
+  await page.route("**/api/x/uscis/insights/h1b-pay**", async (route) => {
+    payRequests++
+    const url = new URL(route.request().url())
+    if (!url.searchParams.has("year"))
+      return route.fulfill({
+        json: {
+          years: [
+            { year: 2025, from: "2025-01-01", to: "2025-12-31", titles },
+            {
+              year: 2024,
+              from: "2024-01-01",
+              to: "2024-12-31",
+              titles: [titles[1], titles[7]],
+            },
+            {
+              year: 2023,
+              from: "2023-01-01",
+              to: "2023-12-31",
+              titles: [titles[0]],
+            },
+          ],
+        },
+      })
+    const box = { cases: 30, p10: 50, p25: 60, p50: 70, p75: 80, p90: 90 }
+    return route.fulfill({
+      json: {
+        all: box,
+        states: [],
+        year: Number(url.searchParams.get("year")),
+        key: url.searchParams.get("title"),
+        title: "Job",
+      },
+    })
+  })
+  await page.goto("/trends?journey=workers&form=I-129&insight=h1b-pay")
+  await expect(page.getByRole("radio")).toHaveCount(6)
+  await expect(
+    page.getByText(
+      "Showing 6 of the 8 most common job titles; search to find yours."
+    )
+  ).toBeVisible()
+  await expect.poll(() => payRequests).toBe(2)
+  await page.getByRole("radio", { name: "Job 0" }).focus()
+  await page.keyboard.press("ArrowRight")
+  await expect(page.getByRole("radio", { name: "Job 1" })).toBeChecked()
+  await expect.poll(() => payRequests).toBe(3)
+  await page.getByRole("button", { name: "2024" }).click()
+  await expect(page.getByRole("radio", { name: "Job 1" })).toBeChecked()
+  await expect.poll(() => payRequests).toBe(4)
+  await page.getByRole("button", { name: "2023" }).click()
+  await expect(page.getByRole("radio", { name: "Job 0" })).toBeChecked()
+  await expect.poll(() => payRequests).toBe(5)
+  await page.getByRole("button", { name: "2025" }).click()
+  await expect(page.getByRole("radio", { name: "Job 0" })).toBeChecked()
+  await page.getByLabel("Search job titles").fill("no such title")
+  await expect(
+    page.getByText("No job titles match; clear the search.")
+  ).toBeVisible()
+  await page.getByLabel("Search job titles").fill("Job 7")
+  await expect(
+    page.getByText("1 matching job title", { exact: true })
+  ).toBeVisible()
+  await expect(page.getByRole("radio")).toHaveCount(2)
+  await page.getByRole("radio", { name: "Job 7" }).check()
+  await expect.poll(() => payRequests).toBe(6)
+  await page.getByRole("button", { name: "Clear search" }).click()
+  await expect(page.getByRole("radio")).toHaveCount(7)
+  await page.getByRole("button", { name: "2025" }).click()
+  await page.getByRole("radio", { name: "Job 7" }).check()
+  expect(payRequests).toBe(6)
 })
 
 test("Reddit failures remain local and retryable", async ({ page }) => {
@@ -659,7 +738,20 @@ test("bulletin selection and historical status", async ({ page }) => {
       json: {
         categories: [{ code: "F2A" }, { code: "EB2" }, { code: "EB5-RC" }],
         series: [
-          { country: "ALL", points: [point] },
+          {
+            country: "ALL",
+            points:
+              category === "EB2"
+                ? [
+                    {
+                      month: "2020-01-01",
+                      cutoff: "2011-01-01",
+                      status: "date",
+                    },
+                    point,
+                  ]
+                : [point],
+          },
           {
             country: "INDIA",
             points: [
@@ -681,12 +773,91 @@ test("bulletin selection and historical status", async ({ page }) => {
     .getByRole("button", { name: /Spouses and unmarried children/ })
     .click()
   await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toBeVisible()
+  const labels = page.locator('text[data-ts-key^="y-tick-label:"]')
+  await expect.poll(() => labels.count()).toBeGreaterThan(0)
+  for (const label of await labels.allTextContents()) {
+    const date = Date.parse(`${label} UTC`)
+    expect(date).toBeGreaterThanOrEqual(Date.parse("2019-12-01T00:00:00Z"))
+    expect(date).toBeLessThanOrEqual(Date.parse("2020-02-01T00:00:00Z"))
+  }
   const before = requests
+  const priority = page.getByLabel("Your priority date (optional)")
+  await expect(
+    page.getByText(
+      "Find it on the I-797 approval notice for your petition (I-130, I-140, I-360 or I-526).",
+      { exact: true }
+    )
+  ).toBeVisible()
+  await priority.fill("2019-12-31")
+  await expect(page.getByText("Current for this bulletin")).toBeVisible()
+  await priority.fill("2020-01-01")
+  await expect(
+    page.getByText("Not yet current for this bulletin")
+  ).toBeVisible()
+  await expect(page.getByText(/0 days.*not an estimated wait/)).toBeVisible()
+  await priority.fill("")
+  await expect(page).not.toHaveURL(/priorityDate=/)
+  const historyLength = await page.evaluate("history.length")
+  await priority.focus()
+  for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowLeft")
+  for (const [index, digit] of [..."03152019"].entries()) {
+    await page.keyboard.press(digit)
+    if (index < 7) {
+      await expect(page).not.toHaveURL(/priorityDate=/)
+      await expect(page.getByText("Current for this bulletin")).toHaveCount(0)
+    }
+    await expect(priority).toBeFocused()
+    expect(await page.evaluate("history.length")).toBe(historyLength)
+  }
+  await expect(page).toHaveURL(/priorityDate=2019-03-15/)
+  await expect(page.getByText("Current for this bulletin")).toBeVisible()
+  for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowLeft")
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.press("Delete")
+    if (i < 2) await page.keyboard.press("ArrowRight")
+  }
+  await priority.blur()
+  await expect(page).not.toHaveURL(/priorityDate=/)
+  expect(await page.evaluate("history.length")).toBe(historyLength)
+  expect(requests).toBe(before)
+  await priority.fill("2020-01-02")
+  await expect(page.getByText(/1 day after the cutoff/)).toBeVisible()
+  await page.getByRole("button", { name: "Filing cutoff" }).click()
+  await expect(page.getByText("Not before the filing cutoff")).toBeVisible()
+  await expect(page.getByText(/1 day after the cutoff/)).toBeVisible()
+  await priority.fill("2019-12-31")
+  await expect(page.getByText("Before the filing cutoff")).toBeVisible()
+  await page.getByRole("button", { name: "Approval cutoff" }).click()
+  await expect(page.getByText("Current for this bulletin")).toBeVisible()
+  await priority.fill("0002-03-15")
+  await page.getByRole("button", { name: "Filing cutoff" }).click()
+  await expect(priority).toHaveValue("2019-12-31")
+  await expect(
+    page.getByText("Enter a valid date in 1900 or later.")
+  ).toHaveCount(0)
+  await expect(page.getByText("Before the filing cutoff")).toBeVisible()
+  await page.getByRole("button", { name: "Approval cutoff" }).click()
+  await expect(page.getByText("Current for this bulletin")).toBeVisible()
+  const afterChartChanges = requests
+  await priority.fill("0002-03-15")
+  const heightBeforeError = (await page
+    .locator(".priority-comparison")
+    .boundingBox())!.height
+  await priority.blur()
+  await expect(
+    page.getByText("Enter a valid date in 1900 or later.")
+  ).toBeVisible()
+  expect(
+    (await page.locator(".priority-comparison").boundingBox())!.height
+  ).toBe(heightBeforeError)
+  await priority.fill("0002-03-15")
+  await page.evaluate("window.scrollTo(0, 250)")
   await page.getByRole("button", { name: "India", exact: true }).click()
+  await expect(page).toHaveURL(/country=INDIA/)
   await expect(
     page.getByText("Historical · last bulletin Mar 2024")
   ).toBeVisible()
-  expect(requests).toBe(before)
+  expect(requests).toBe(afterChartChanges)
   await page.getByRole("button", { name: "Family", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Jan 1, 2019" })).toBeVisible()
   await page.getByRole("button", { name: "Family", exact: true }).focus()
@@ -700,14 +871,31 @@ test("bulletin selection and historical status", async ({ page }) => {
     page.getByText("Historical · last bulletin Apr 2022")
   ).toBeVisible()
   await expect(page.getByText(/no dated cutoff to plot/i)).toBeVisible()
-  await page.goto("/bulletin?category=EB5-NON-RC")
+  await page.getByLabel("Your priority date (optional)").fill("2024-02-29")
+  await expect(
+    page.getByText(/No cutoff restriction for this bulletin/)
+  ).toBeVisible()
+  await page.goto("/bulletin?category=EB5-NON-RC&priorityDate=2024-02-29")
   await expect(page.getByRole("heading", { name: "Unavailable" })).toBeVisible()
+  await expect(
+    page.getByText("This bulletin has no cutoff date to compare with.")
+  ).toBeVisible()
   await expect(
     page.getByText(
       "There is no dated cutoff to plot. See the status history and data below."
     )
   ).toBeVisible()
   await expect(page.getByText("No data available.")).toHaveCount(0)
+  await expect(
+    page.getByText(/No cutoff restriction for this bulletin/)
+  ).toHaveCount(0)
+  await page.goto("/bulletin?category=EB2&priorityDate=2023-02-29")
+  await expect(page.getByLabel("Your priority date (optional)")).toHaveValue("")
+  await expect
+    .poll(() => labels.allTextContents())
+    .toEqual(expect.arrayContaining(["2015", "2020"]))
+  await page.goto("/bulletin?category=EB2&priorityDate=1899-12-31")
+  await expect(page.getByLabel("Your priority date (optional)")).toHaveValue("")
   await page.goto("/bulletin?category=UNKNOWN")
   await expect(page.getByRole("alert")).toContainText("not in the catalog")
   await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toHaveCount(

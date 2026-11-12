@@ -4,7 +4,14 @@ import {
   Outlet,
   useRouterState,
 } from "@tanstack/react-router"
-import { lazy, Suspense, useEffect, useRef, type CSSProperties } from "react"
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react"
 import { formHue, formInk } from "@/lib/palette"
 import { cn } from "@/lib/utils"
 import { SiteHeader } from "@/components/site-header"
@@ -30,6 +37,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 )
 
 function RootLayout() {
+  const [launcherTarget, setLauncherTarget] = useState<HTMLSpanElement | null>(
+    null
+  )
+  const [agentOpen, setAgentOpen] = useState(false)
+  const accountMenu = useRef<HTMLDetailsElement>(null)
   const { location, matches } = useRouterState({
     select: (state) => ({ location: state.location, matches: state.matches }),
   })
@@ -59,12 +71,12 @@ function RootLayout() {
   const form =
     typeof location.search.form === "string" ? location.search.form : "I-485"
   const showAgent = location.pathname !== "/login"
+  if (!showAgent && agentOpen) setAgentOpen(false)
   return (
     <div
       className={cn(
         "app-shell",
-        location.pathname === "/trends" && "trend-shell",
-        showAgent && "has-agent"
+        location.pathname === "/trends" && "trend-shell"
       )}
       style={
         {
@@ -73,9 +85,20 @@ function RootLayout() {
         } as CSSProperties
       }
     >
-      <SiteHeader />
+      <SiteHeader
+        onLauncherSlot={setLauncherTarget}
+        accountMenu={accountMenu}
+        onAccountOpen={() => setAgentOpen(false)}
+      />
       <Outlet />
-      {showAgent && <AgentWidget />}
+      {showAgent && (
+        <AgentWidget
+          launcherTarget={launcherTarget}
+          open={agentOpen}
+          onOpenChange={setAgentOpen}
+          onOpening={() => accountMenu.current?.removeAttribute("open")}
+        />
+      )}
       {import.meta.env.DEV && (
         <Suspense fallback={null}>
           <RouterDevtools position="top-right" />

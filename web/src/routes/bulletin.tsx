@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { lazy, Suspense, useEffect, useRef, useState } from "react"
-import { bulletinQuery, movement } from "@/lib/api"
+import { bulletinQuery, movement, type Bulletin } from "@/lib/api"
+import { validDate } from "@/lib/dates"
 import { categoryHue } from "@/lib/palette"
 import { categoryLabel, categoryLabels, countryLabel } from "@/lib/labels"
 import { getSessionItem } from "@/lib/session-storage"
@@ -27,6 +28,7 @@ type Search = {
   chart?: string
   country?: string
   group?: string
+  priorityDate?: string
 }
 export const Route = createFileRoute("/bulletin")({
   validateSearch: (search: Record<string, unknown>): Search => ({
@@ -40,6 +42,9 @@ export const Route = createFileRoute("/bulletin")({
       typeof search.country === "string" && /^[A-Z0-9 -]+$/.test(search.country)
         ? search.country
         : "ALL",
+    priorityDate: validDate(search.priorityDate, 1900)
+      ? search.priorityDate
+      : undefined,
     group:
       typeof search.group === "string" &&
       groups.includes(search.group as (typeof groups)[number])
@@ -74,11 +79,135 @@ function CategoryName({ code }: { code: string }) {
     </span>
   )
 }
+function PriorityComparison({
+  current,
+  chart,
+  historical,
+}: {
+  current?: Bulletin["series"][number]["points"][number]
+  chart: string
+  historical: boolean
+}) {
+  const { priorityDate } = Route.useSearch()
+  const navigate = Route.useNavigate()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const committed = useRef(priorityDate)
+  const [draftValid, setDraftValid] = useState(true)
+  const [error, setError] = useState(false)
+  useEffect(() => {
+    if (priorityDate !== committed.current) {
+      if (inputRef.current) inputRef.current.value = priorityDate ?? ""
+      committed.current = priorityDate
+      setDraftValid(true)
+      setError(false)
+    }
+  }, [priorityDate])
+  const commit = (next?: string) => {
+    if (next === committed.current) return
+    committed.current = next
+    void navigate({
+      search: (previous) => ({ ...previous, priorityDate: next }),
+      replace: true,
+      resetScroll: false,
+    })
+  }
+  const days =
+    priorityDate && current?.status === "date" && current.cutoff
+      ? Math.round(
+          (Date.parse(`${priorityDate}T00:00:00Z`) -
+            Date.parse(`${current.cutoff}T00:00:00Z`)) /
+            86400000
+        )
+      : null
+  const qualifier =
+    historical && current?.month ? ` (${month(current.month)})` : ""
+  return (
+    <div className="priority-comparison">
+      <label htmlFor="priority-date">Your priority date (optional)</label>
+      <p id="priority-hint">
+        Find it on the I-797 approval notice for your petition (I-130, I-140,
+        I-360 or I-526).
+      </p>
+      <input
+        id="priority-date"
+        ref={inputRef}
+        className="field"
+        type="date"
+        defaultValue={priorityDate ?? ""}
+        aria-describedby={
+          error ? "priority-hint priority-error" : "priority-hint"
+        }
+        onChange={(event) => {
+          const input = event.currentTarget
+          const value = input.value
+          const valid = validDate(value, 1900)
+          setDraftValid(valid || (!value && !input.validity.badInput))
+          setError(false)
+          if (valid || (!value && !input.validity.badInput))
+            commit(valid ? value : undefined)
+        }}
+        onBlur={(event) => {
+          const input = event.currentTarget
+          const empty = !input.value && !input.validity.badInput
+          if (empty) {
+            commit(undefined)
+            setDraftValid(true)
+          }
+          setError(!empty && !validDate(input.value, 1900))
+        }}
+      />
+      <div className="priority-error-slot">
+        {error && (
+          <p id="priority-error" role="status">
+            Enter a valid date in 1900 or later.
+          </p>
+        )}
+      </div>
+      {(!current ||
+        current.status === "unavailable" ||
+        (current.status === "date" && !current.cutoff)) && (
+        <p>This bulletin has no cutoff date to compare with.</p>
+      )}
+      {draftValid && priorityDate && current?.status === "current" && (
+        <p>No cutoff restriction for this bulletin{qualifier}.</p>
+      )}
+      {draftValid && priorityDate && days !== null && (
+        <div>
+          <p>
+            <strong>
+              {chart === "final_action"
+                ? days < 0
+                  ? "Current for this bulletin"
+                  : "Not yet current for this bulletin"
+                : days < 0
+                  ? "Before the filing cutoff"
+                  : "Not before the filing cutoff"}
+            </strong>
+            {qualifier}
+          </p>
+          <p>
+            Your date must be earlier than the cutoff. The same date doesn’t
+            count.
+          </p>
+          {days >= 0 && (
+            <p>
+              {days.toLocaleString()} {days === 1 ? "day" : "days"} after the
+              cutoff · not an estimated wait.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 function BulletinPage() {
   const search = Route.useSearch()
   const navigate = Route.useNavigate()
   const update = (next: Partial<Search>) =>
-    void navigate({ search: (previous) => ({ ...previous, ...next }) })
+    void navigate({
+      search: (previous) => ({ ...previous, ...next }),
+      resetScroll: false,
+    })
   const category = search.category
   const chart = search.chart ?? "final_action"
   const country = search.country ?? "ALL"
@@ -139,8 +268,7 @@ function BulletinPage() {
     exact: p.cutoff ? cutoffDate(p.cutoff) : undefined,
     value:
       p.status === "date" && p.cutoff
-        ? new Date(`${p.cutoff}T00:00:00Z`).getUTCFullYear() +
-          new Date(`${p.cutoff}T00:00:00Z`).getUTCMonth() / 12
+        ? Date.parse(`${p.cutoff}T00:00:00Z`)
         : null,
   }))
   const savedForm = getSessionItem("gongu-last-case-form") || ""
@@ -366,6 +494,12 @@ function BulletinPage() {
               />
             </Suspense>
           </div>
+          <PriorityComparison
+            key={`${category}:${chart}:${country}`}
+            current={current}
+            chart={chart}
+            historical={historical}
+          />
           <details className="bulletin-details">
             <summary>More context</summary>
             <p>

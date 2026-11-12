@@ -55,7 +55,17 @@ export function FormPicker({
     if (pendingScroll.current !== null && summary.current) {
       const summaryTop =
         summary.current.getBoundingClientRect().top + window.scrollY
-      const target = Math.min(pendingScroll.current, summaryTop)
+      const headerHeight =
+        parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--header-h"
+          )
+        ) || 0
+      const clearance = headerHeight > 0 ? headerHeight + 8 : 0
+      const target = Math.max(
+        0,
+        Math.min(pendingScroll.current, summaryTop - clearance)
+      )
       pendingScroll.current = null
       requestAnimationFrame(() =>
         requestAnimationFrame(() => window.scrollTo(0, target))

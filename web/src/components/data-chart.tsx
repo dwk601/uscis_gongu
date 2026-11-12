@@ -1,9 +1,38 @@
 import { areaY, defineChart, lineY } from "@tanstack/charts"
 import { Chart } from "@tanstack/charts/react"
 import { scaleLinear } from "@tanstack/charts/scales/linear"
-import { scaleUtc } from "@tanstack/charts/scales/time"
+import { scaleUtc, type UtcScale } from "@tanstack/charts/scales/time"
 import type { CSSProperties } from "react"
 import { chartHue } from "@/lib/palette"
+
+function cutoffScale(scale: UtcScale): UtcScale {
+  const copy = scale.copy
+  scale.copy = () => cutoffScale(copy())
+  scale.tickFormat = (count) => {
+    const candidates = scale.ticks(count)
+    const annual =
+      candidates.length > 0 &&
+      candidates.every(
+        (date) =>
+          date.getUTCMonth() === 0 &&
+          date.getUTCDate() === 1 &&
+          date.getUTCHours() === 0 &&
+          date.getUTCMinutes() === 0 &&
+          date.getUTCSeconds() === 0 &&
+          date.getUTCMilliseconds() === 0
+      )
+    return (value) =>
+      annual
+        ? String(value.getUTCFullYear())
+        : new Date(value).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            timeZone: "UTC",
+          })
+  }
+  return scale
+}
 
 export type ChartRow = {
   x: number
@@ -71,7 +100,22 @@ export default function DataChart({
   pending?: string
 }) {
   const x = (row: ChartRow) => (calendar ? new Date(row.x) : row.x)
-  const definition = defineChart({
+  let minDate = Infinity
+  let maxDate = -Infinity
+  if (dateValues) {
+    for (const row of rows) {
+      if (row.value != null && Number.isFinite(row.value)) {
+        minDate = Math.min(minDate, row.value)
+        maxDate = Math.max(maxDate, row.value)
+      }
+    }
+  }
+  const day = 86400000
+  const padding = Math.min(
+    366 * day,
+    Math.max(31 * day, (maxDate - minDate) * 0.1)
+  )
+  const definition = defineChart(({ width }) => ({
     marks: [
       ...(band
         ? [
@@ -120,22 +164,25 @@ export default function DataChart({
               },
             },
           }
-        : { scale: scaleLinear },
+        : dateValues && Number.isFinite(minDate)
+          ? {
+              // The UTC scale accepts numeric timestamps, although its domain getter returns Dates.
+              scale: cutoffScale(
+                scaleUtc().domain([minDate - padding, maxDate + padding])
+              ) as unknown as ReturnType<typeof scaleLinear>,
+              axis: {
+                ticks: { spacing: 64 },
+                tickLabels: { thin: { minGap: 8 } },
+              },
+            }
+          : { scale: scaleLinear },
     },
-    ...(dateValues ? { margin: { left: 72, right: 12 } } : {}),
-  })
+    ...(dateValues
+      ? { margin: { left: width <= 620 ? 80 : 100, right: 12 } }
+      : {}),
+  }))
   const display = (value: number | null) =>
-    value == null
-      ? "—"
-      : dateValues
-        ? new Date(
-            Date.UTC(Math.floor(value), Math.round((value % 1) * 12), 1)
-          ).toLocaleDateString("en-US", {
-            month: "short",
-            year: "numeric",
-            timeZone: "UTC",
-          })
-        : Math.round(value * 10) / 10
+    value == null ? "—" : Math.round(value * 10) / 10
   const [lightStroke, darkStroke] = chartHue(hue)
   return (
     <section

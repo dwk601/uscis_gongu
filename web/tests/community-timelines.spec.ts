@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "./fixtures.js"
 
 test("visa routes remain usable across form history", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
@@ -93,7 +93,18 @@ test("visa routes remain usable across form history", async ({ page }) => {
   await expect
     .poll(() => page.evaluate<number>("window.scrollY"))
     .toBeGreaterThan(0)
-  await expect(page.getByRole("button", { name: /Change form/ })).toBeFocused()
+  const changeForm = page.getByRole("button", { name: /Change form/ })
+  await expect(changeForm).toBeFocused()
+  await expect
+    .poll(() =>
+      page.evaluate(`(() => {
+    const element = document.querySelector('.trend-form-controls .form-summary')
+    const box = element.getBoundingClientRect()
+    const header = document.querySelector('.site-header').getBoundingClientRect()
+    return box.top >= header.bottom && element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
+  })()`)
+    )
+    .toBe(true)
   await page.goBack()
   await page.goForward()
   await page.getByRole("button", { name: /Change form/ }).click()

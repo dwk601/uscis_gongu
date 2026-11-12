@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import { MessageCircle, X } from "lucide-react"
 import { useEffect, useId, useRef, useState, type FormEvent } from "react"
+import { createPortal } from "react-dom"
 import { mutationErrorMessage, useAuth } from "@/lib/auth"
 import { agentError, askAgent, type AgentResponse } from "@/lib/agent"
 import { pb } from "@/lib/pb"
@@ -222,11 +223,21 @@ function AgentSession({
   )
 }
 
-export function AgentWidget() {
+export function AgentWidget({
+  launcherTarget,
+  open,
+  onOpenChange,
+  onOpening,
+}: {
+  launcherTarget: HTMLElement | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onOpening: () => void
+}) {
   const user = useAuth()
   const location = useRouterState({ select: (state) => state.location })
   const redirect = location.pathname + location.searchStr
-  const [open, setOpen] = useState(false)
+  const [tooltipDismissed, setTooltipDismissed] = useState(false)
   const [sessionEnded, setSessionEnded] = useState(false)
   const launcher = useRef<HTMLButtonElement>(null)
   const panel = useRef<HTMLElement>(null)
@@ -234,8 +245,8 @@ export function AgentWidget() {
   const titleId = useId()
 
   function close() {
-    setOpen(false)
-    launcher.current?.focus()
+    onOpenChange(false)
+    launcher.current?.focus({ preventScroll: true })
   }
 
   async function endSession(error: unknown) {
@@ -253,22 +264,38 @@ export function AgentWidget() {
   )
 
   useEffect(() => {
+    function dismissTooltip(event: KeyboardEvent) {
+      const button = launcher.current
+      if (
+        event.key === "Escape" &&
+        (button?.matches(":focus-visible") ||
+          (window.matchMedia("(hover: hover)").matches &&
+            button?.parentElement?.matches(":hover")))
+      )
+        setTooltipDismissed(true)
+    }
+    document.addEventListener("keydown", dismissTooltip)
+    return () => document.removeEventListener("keydown", dismissTooltip)
+  }, [])
+
+  useEffect(() => {
     if (!open) return
     panel.current?.querySelector<HTMLElement>("textarea, a")?.focus()
     function escape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault()
-        setOpen(false)
-        launcher.current?.focus()
+        setTooltipDismissed(true)
+        onOpenChange(false)
+        launcher.current?.focus({ preventScroll: true })
       }
     }
     document.addEventListener("keydown", escape)
     return () => document.removeEventListener("keydown", escape)
-  }, [open, sessionEnded])
+  }, [open, sessionEnded, onOpenChange])
 
   useEffect(() => {
     if (!open) return
-    const mobile = window.matchMedia("(max-width: 640px)")
+    const mobile = window.matchMedia("(max-width: 640px), (max-height: 520px)")
     const previousOverflow = document.body.style.overflow
     function lock() {
       document.body.style.overflow = mobile.matches
@@ -317,17 +344,31 @@ export function AgentWidget() {
           <SignIn redirect={redirect} ended={sessionEnded} />
         )}
       </section>
-      <Button
-        ref={launcher}
-        className="chip agent-launcher"
-        type="button"
-        aria-label="Ask gongu"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => (open ? close() : setOpen(true))}
-      >
-        <MessageCircle size={24} aria-hidden="true" />
-      </Button>
+      {launcherTarget &&
+        createPortal(
+          <Button
+            ref={launcher}
+            className="chip agent-launcher"
+            type="button"
+            aria-label="Ask gongu"
+            aria-expanded={open}
+            aria-controls={panelId}
+            data-tooltip-dismissed={tooltipDismissed}
+            onBlur={() => setTooltipDismissed(false)}
+            onMouseEnter={() => setTooltipDismissed(false)}
+            onClick={() => {
+              if (open) close()
+              else {
+                onOpening()
+                onOpenChange(true)
+              }
+            }}
+          >
+            <MessageCircle size={20} aria-hidden="true" />
+            <span>Ask</span>
+          </Button>,
+          launcherTarget
+        )}
     </div>
   )
 }

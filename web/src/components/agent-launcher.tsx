@@ -1,20 +1,19 @@
 import { MessageCircle } from "lucide-react"
-import { useEffect, useState, type RefObject } from "react"
+import { useEffect, useRef, useState } from "react"
 import "./agent-launcher.css"
 
 export function AgentLauncher({
-  launcher,
   panel,
   open,
   onIntent,
   onOpenChange,
 }: {
-  launcher: RefObject<HTMLButtonElement | null>
   panel: HTMLElement | null
   open: boolean
   onIntent: () => void
   onOpenChange: (open: boolean) => void
 }) {
+  const launcher = useRef<HTMLButtonElement>(null)
   const [tooltipDismissed, setTooltipDismissed] = useState(false)
 
   useEffect(() => {
@@ -36,7 +35,7 @@ export function AgentLauncher({
     }
     document.addEventListener("keydown", escape, true)
     return () => document.removeEventListener("keydown", escape, true)
-  }, [launcher, panel, open, onOpenChange])
+  }, [panel, open, onOpenChange])
 
   return (
     <button

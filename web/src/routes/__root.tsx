@@ -17,9 +17,9 @@ import { cn } from "@/lib/utils"
 import { SiteHeader } from "@/components/site-header"
 import { AgentLauncher } from "@/components/agent-launcher"
 
-const AgentWidget = lazy(() =>
+const loadAgentWidget = () =>
   import("@/components/agent-widget").then((m) => ({ default: m.AgentWidget }))
-)
+const AgentWidget = lazy(loadAgentWidget)
 const RouterDevtools = import.meta.env.DEV
   ? lazy(() =>
       import("@tanstack/react-router-devtools").then((m) => ({
@@ -43,8 +43,12 @@ function RootLayout() {
   const [agentOpen, setAgentOpen] = useState(false)
   const [agentLoaded, setAgentLoaded] = useState(false)
   const [agentPanel, setAgentPanel] = useState<HTMLDivElement | null>(null)
-  const agentLauncher = useRef<HTMLButtonElement>(null)
   const accountMenu = useRef<HTMLDetailsElement>(null)
+  const loadAgent = () =>
+    loadAgentWidget().then(
+      () => setAgentLoaded(true),
+      () => setAgentOpen(false)
+    )
   const { location, matches } = useRouterState({
     select: (state) => ({ location: state.location, matches: state.matches }),
   })
@@ -92,13 +96,12 @@ function RootLayout() {
         launcher={
           showAgent && (
             <AgentLauncher
-              launcher={agentLauncher}
               panel={agentPanel}
               open={agentOpen}
-              onIntent={() => setAgentLoaded(true)}
+              onIntent={loadAgent}
               onOpenChange={(next) => {
                 if (next) {
-                  setAgentLoaded(true)
+                  loadAgent()
                   accountMenu.current?.removeAttribute("open")
                 }
                 setAgentOpen(next)

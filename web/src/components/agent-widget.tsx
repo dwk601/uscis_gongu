@@ -272,12 +272,7 @@ export function AgentWidget({
 
   return (
     <div className="agent-widget">
-      <Dialog
-        open={open}
-        modal={false}
-        closeOnOutsidePress={false}
-        onOpenChange={onOpenChange}
-      >
+      <Dialog open={open} modal={false} onOpenChange={onOpenChange}>
         <DialogContent
           ref={panelRef}
           className="agent-panel"

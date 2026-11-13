@@ -1,3 +1,4 @@
+import { Toggle, ToggleGroup } from "@ui-sdk/react/toggle"
 import { journeys, type JourneyId } from "@/lib/journeys"
 
 // Browsers do not scroll a partly visible focused button into view on their own.
@@ -13,32 +14,38 @@ export function JourneyPicker({
   onChange: (id: JourneyId) => void
 }) {
   return (
-    <div
+    <ToggleGroup
       className="journey-picker journey-picker--compact"
-      role="group"
       aria-label="Journey"
+      value={[value]}
+      deselectable={false}
+      onValueChange={([id]) => {
+        if (id) onChange(id)
+      }}
     >
       {journeys.map((journey) => (
-        <button
-          type="button"
+        <Toggle
           className="chip"
           key={journey.id}
-          aria-pressed={value === journey.id}
+          value={journey.id}
           onFocus={revealOnFocus}
-          onClick={() => onChange(journey.id)}
+          onClick={() => {
+            if (value === journey.id) onChange(journey.id)
+          }}
         >
           <span>{journey.name}</span>
-        </button>
+        </Toggle>
       ))}
-      <button
-        type="button"
+      <Toggle
         className="chip"
-        aria-pressed={value === "all"}
+        value="all"
         onFocus={revealOnFocus}
-        onClick={() => onChange("all")}
+        onClick={() => {
+          if (value === "all") onChange("all")
+        }}
       >
         <span>All forms</span>
-      </button>
-    </div>
+      </Toggle>
+    </ToggleGroup>
   )
 }

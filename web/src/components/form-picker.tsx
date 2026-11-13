@@ -1,7 +1,9 @@
 import { useId, useLayoutEffect, useRef, useState } from "react"
+import { Toggle, ToggleGroup } from "@ui-sdk/react/toggle"
 import type { FormSummary } from "@/lib/api"
 import { formHue, formInk } from "@/lib/palette"
 
+const emptyForm = "__empty__"
 const groups: [string, string[]][] = [
   ["Green cards", ["I-485", "I-140", "I-526", "I-90", "I-751"]],
   ["Family", ["I-130", "I-129F"]],
@@ -114,13 +116,18 @@ export function FormPicker({
     if (inline) setPickedInline(true)
     close()
   }
+  const selectedValue = [value || emptyForm]
+  const chooseValue = ([form]: string[]) => {
+    if (form) choose(form === emptyForm ? "" : form)
+  }
   const choice = (f: FormSummary) => (
-    <button
-      type="button"
+    <Toggle
       className="form-choice"
       key={f.form}
-      aria-pressed={value === f.form}
-      onClick={() => choose(f.form)}
+      value={f.form}
+      onClick={() => {
+        if (value === f.form) choose(f.form)
+      }}
       style={{ background: formHue(f.form), color: formInk(f.form) }}
     >
       <span>{f.name}</span>
@@ -128,7 +135,7 @@ export function FormPicker({
         {f.form}
         {value === f.form ? " · Selected" : ""}
       </small>
-    </button>
+    </Toggle>
   )
   const matches = (filter.trim() ? (forms ?? []) : others).filter((f) =>
     `${f.form} ${f.name}`.toLowerCase().includes(filter.toLowerCase().trim())
@@ -170,15 +177,24 @@ export function FormPicker({
             </h2>
           )}
           {emptyLabel && (
-            <button
-              type="button"
-              className="form-choice form-choice-empty"
-              aria-pressed={!value}
-              onClick={() => choose("")}
+            <ToggleGroup
+              render={<span />}
+              aria-label={emptyLabel}
+              value={selectedValue}
+              deselectable={false}
+              onValueChange={chooseValue}
             >
-              {emptyLabel}
-              {!value && " · Selected"}
-            </button>
+              <Toggle
+                className="form-choice form-choice-empty"
+                value={emptyForm}
+                onClick={() => {
+                  if (!value) choose("")
+                }}
+              >
+                {emptyLabel}
+                {!value && " · Selected"}
+              </Toggle>
+            </ToggleGroup>
           )}
           {!forms && (
             <p role="status">
@@ -193,9 +209,15 @@ export function FormPicker({
             </p>
           )}
           {inline ? (
-            <div className="form-choices form-inline-featured">
+            <ToggleGroup
+              className="form-choices form-inline-featured"
+              aria-label="Featured forms"
+              value={selectedValue}
+              deselectable={false}
+              onValueChange={chooseValue}
+            >
               {featured.map(choice)}
-            </div>
+            </ToggleGroup>
           ) : (
             groups.map(([heading, codes]) => {
               const items = featured.filter(
@@ -206,7 +228,15 @@ export function FormPicker({
               return items.length ? (
                 <section key={heading}>
                   <h3>{heading}</h3>
-                  <div className="form-choices">{items.map(choice)}</div>
+                  <ToggleGroup
+                    className="form-choices"
+                    aria-label={heading}
+                    value={selectedValue}
+                    deselectable={false}
+                    onValueChange={chooseValue}
+                  >
+                    {items.map(choice)}
+                  </ToggleGroup>
                 </section>
               ) : null
             })
@@ -242,7 +272,15 @@ export function FormPicker({
                       Clear search
                     </button>
                   )}
-                  <div className="form-choices">{matches.map(choice)}</div>
+                  <ToggleGroup
+                    className="form-choices"
+                    aria-label="Other forms"
+                    value={selectedValue}
+                    deselectable={false}
+                    onValueChange={chooseValue}
+                  >
+                    {matches.map(choice)}
+                  </ToggleGroup>
                   {!matches.length && (
                     <p>No forms found. Try another name or form number.</p>
                   )}

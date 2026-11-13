@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query"
 import {
   createRootRouteWithContext,
   Outlet,
+  redirect,
   useRouterState,
 } from "@tanstack/react-router"
 import {
@@ -14,6 +15,9 @@ import {
 } from "react"
 import { formHue, formInk } from "@/lib/palette"
 import { cn } from "@/lib/utils"
+import { authReady, safeRedirect } from "@/lib/auth"
+import { pb } from "@/lib/pb"
+import { profileComplete } from "@/lib/profile"
 import { SiteHeader } from "@/components/site-header"
 import { AgentLauncher } from "@/components/agent-launcher"
 
@@ -36,7 +40,21 @@ const QueryDevtools = import.meta.env.DEV
   : () => null
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
-  { component: RootLayout }
+  {
+    beforeLoad: async ({ location }) => {
+      if (!pb.authStore.isValid) return
+      const pathname = location.pathname.replace(/\/+$/, "") || "/"
+      if (["/welcome", "/login", "/settings"].includes(pathname)) return
+      if (profileComplete(pb.authStore.record)) return
+      await authReady
+      if (!pb.authStore.isValid || profileComplete(pb.authStore.record)) return
+      throw redirect({
+        to: "/welcome",
+        search: { redirect: safeRedirect(location.href) },
+      })
+    },
+    component: RootLayout,
+  }
 )
 
 function RootLayout() {
@@ -54,7 +72,8 @@ function RootLayout() {
   })
   const leafSearch = matches.at(-1)?.search as
     { form?: string; view?: string } | undefined
-  const pathname = matches.at(-1)?.pathname ?? location.pathname
+  const pathname =
+    (matches.at(-1)?.pathname ?? location.pathname).replace(/\/+$/, "") || "/"
   const screen =
     pathname === "/"
       ? leafSearch?.form || leafSearch?.view === "case"
@@ -77,7 +96,7 @@ function RootLayout() {
   }, [screen])
   const form =
     typeof location.search.form === "string" ? location.search.form : "I-485"
-  const showAgent = location.pathname !== "/login"
+  const showAgent = !["/login", "/welcome"].includes(pathname)
   if (!showAgent && agentOpen) setAgentOpen(false)
   return (
     <div

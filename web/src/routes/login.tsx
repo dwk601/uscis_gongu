@@ -2,33 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useState, type FormEvent } from "react"
 import { Toggle, ToggleGroup } from "@ui-sdk/react/toggle"
 import { pb } from "@/lib/pb"
-import { errorMessage } from "@/lib/auth"
-
-function safeRedirect(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined
-  try {
-    const decoded = decodeURIComponent(value)
-    if (
-      [...decoded].some(
-        (char) =>
-          char.charCodeAt(0) < 32 ||
-          (char.charCodeAt(0) >= 127 && char.charCodeAt(0) <= 159) ||
-          char === "\\"
-      )
-    )
-      return undefined
-    const path = value.split(/[?#]/, 1)[0]
-    if (
-      !/^(?:\/|\/trends|\/bulletin|\/settings|\/community\/?|\/community\/[a-z0-9]{15})$/.test(
-        path
-      )
-    )
-      return undefined
-    return value
-  } catch {
-    return undefined
-  }
-}
+import { errorMessage, safeRedirect } from "@/lib/auth"
 
 export const Route = createFileRoute("/login")({
   validateSearch: (s: Record<string, unknown>): { redirect?: string } => ({
@@ -64,7 +38,8 @@ function Login() {
             created = true
           })
       await pb.collection("users").authWithPassword(email, password)
-      await navigate({ href: redirect || "/community" })
+      if (create) await navigate({ to: "/welcome", search: { redirect } })
+      else await navigate({ href: redirect || "/community" })
     } catch (err) {
       if (created) setCreate(false)
       const status = (err as { status?: number }).status

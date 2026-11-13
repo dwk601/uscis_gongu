@@ -14,6 +14,7 @@ import { Route as BulletinRouteImport } from './routes/bulletin'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TrendsRouteImport } from './routes/trends'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as CommunityIndexRouteImport } from './routes/community/index'
 import { Route as CommunityPostIdRouteImport } from './routes/community/$postId'
 
@@ -42,6 +43,11 @@ const TrendsRoute = TrendsRouteImport.update({
   path: '/trends',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommunityIndexRoute = CommunityIndexRouteImport.update({
   id: '/community/',
   path: '/community/',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/trends': typeof TrendsRoute
+  '/welcome': typeof WelcomeRoute
   '/community/$postId': typeof CommunityPostIdRoute
   '/community/': typeof CommunityIndexRoute
 }
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/trends': typeof TrendsRoute
+  '/welcome': typeof WelcomeRoute
   '/community/$postId': typeof CommunityPostIdRoute
   '/community': typeof CommunityIndexRoute
 }
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/trends': typeof TrendsRoute
+  '/welcome': typeof WelcomeRoute
   '/community/$postId': typeof CommunityPostIdRoute
   '/community/': typeof CommunityIndexRoute
 }
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/settings'
     | '/trends'
+    | '/welcome'
     | '/community/$postId'
     | '/community/'
   fileRoutesByTo: FileRoutesByTo
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/settings'
     | '/trends'
+    | '/welcome'
     | '/community/$postId'
     | '/community'
   id:
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/settings'
     | '/trends'
+    | '/welcome'
     | '/community/$postId'
     | '/community/'
   fileRoutesById: FileRoutesById
@@ -117,6 +129,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
   TrendsRoute: typeof TrendsRoute
+  WelcomeRoute: typeof WelcomeRoute
   CommunityPostIdRoute: typeof CommunityPostIdRoute
   CommunityIndexRoute: typeof CommunityIndexRoute
 }
@@ -158,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrendsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/community/': {
       id: '/community/'
       path: '/community'
@@ -181,6 +201,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
   TrendsRoute: TrendsRoute,
+  WelcomeRoute: WelcomeRoute,
   CommunityPostIdRoute: CommunityPostIdRoute,
   CommunityIndexRoute: CommunityIndexRoute,
 }

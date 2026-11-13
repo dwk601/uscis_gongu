@@ -39,6 +39,32 @@ export function useAuth() {
   )
 }
 
+export function safeRedirect(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined
+  try {
+    const decoded = decodeURIComponent(value)
+    if (
+      [...decoded].some(
+        (char) =>
+          char.charCodeAt(0) < 32 ||
+          (char.charCodeAt(0) >= 127 && char.charCodeAt(0) <= 159) ||
+          char === "\\"
+      )
+    )
+      return undefined
+    const path = value.split(/[?#]/, 1)[0]
+    if (
+      !/^(?:\/|\/trends|\/bulletin|\/settings|\/community\/?|\/community\/[a-z0-9]{15})$/.test(
+        path
+      )
+    )
+      return undefined
+    return value
+  } catch {
+    return undefined
+  }
+}
+
 export function isAdmin(user: RecordModel | null | undefined) {
   const role: unknown = user?.role
   return role === "admin"

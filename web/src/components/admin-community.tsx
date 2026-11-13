@@ -72,41 +72,43 @@ export function AdminCommunity({ userId }: { userId: string }) {
         </p>
       )}
       {members.data?.items.length === 0 && <p>No members on this page.</p>}
-      <ToggleGroup
-        aria-label="Members"
-        orientation="vertical"
-        value={member ? [member.id] : []}
-        deselectable={false}
-        onValueChange={([id]) => {
-          const selected = members.data?.items.find((item) => item.id === id)
-          if (selected) setMember(selected)
-        }}
-      >
-        {members.data?.items.map((item) => (
-          <article className="social-card" key={item.id}>
-            <Toggle
-              className="chip social-body"
-              value={item.id}
-              onClick={() => {
-                if (member?.id === item.id) setMember(item)
-              }}
-            >
-              {item.name || "member"}
-            </Toggle>
-            <p className="social-meta">
-              <span>{item.id}</span>
-              <span>
-                Joined{" "}
-                <time dateTime={item.created.replace(" ", "T")}>
-                  {new Date(
-                    item.created.replace(" ", "T")
-                  ).toLocaleDateString()}
-                </time>
-              </span>
-            </p>
-          </article>
-        ))}
-      </ToggleGroup>
+      {!!members.data?.items.length && (
+        <ToggleGroup
+          aria-label="Members"
+          orientation="vertical"
+          value={member ? [member.id] : []}
+          deselectable={false}
+          onValueChange={([id]) => {
+            const selected = members.data?.items.find((item) => item.id === id)
+            if (selected) setMember(selected)
+          }}
+        >
+          {members.data?.items.map((item) => (
+            <article className="social-card" key={item.id}>
+              <Toggle
+                className="chip social-body"
+                value={item.id}
+                onClick={() => {
+                  if (member?.id === item.id) setMember(item)
+                }}
+              >
+                {item.name || "member"}
+              </Toggle>
+              <p className="social-meta">
+                <span>{item.id}</span>
+                <span>
+                  Joined{" "}
+                  <time dateTime={item.created.replace(" ", "T")}>
+                    {new Date(
+                      item.created.replace(" ", "T")
+                    ).toLocaleDateString()}
+                  </time>
+                </span>
+              </p>
+            </article>
+          ))}
+        </ToggleGroup>
+      )}
       <Pagination
         page={page}
         totalPages={members.data?.totalPages ?? page}

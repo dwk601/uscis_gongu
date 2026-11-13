@@ -95,7 +95,26 @@ test("journey navigation preserves an explicit series without refetching the for
         },
       })
     if (path.endsWith("/community"))
-      return route.fulfill({ json: { series: [] } })
+      return route.fulfill({
+        json: {
+          series: ["K1", "F-1"].map((visaType) => ({
+            visaType,
+            meaning: "Filed to decision",
+            points: [
+              {
+                filingYear: 2024,
+                p50: 100,
+                p10: 50,
+                p90: 150,
+                completed: 40,
+                sampleSize:
+                  (visaType === "F-1") === path.includes("I-765") ? 100 : 50,
+                pendingShare: 0.2,
+              },
+            ],
+          })),
+        },
+      })
     if (path.endsWith("/bulletin"))
       return route.fulfill({ json: { categories: [], series: [] } })
     if (path.endsWith("/I-485")) requests++
@@ -114,10 +133,19 @@ test("journey navigation preserves an explicit series without refetching the for
   await expect(
     page.getByRole("button", { name: "Employment", exact: true })
   ).toHaveAttribute("aria-pressed", "true")
-  await page
-    .getByRole("group", { name: "Case category" })
-    .getByRole("button", { name: "Family", exact: true })
-    .click()
+  const categories = page.getByRole("group", { name: "Case category" })
+  const familyCategory = categories.getByRole("button", {
+    name: "Family",
+    exact: true,
+  })
+  await categories
+    .getByRole("button", { name: "Employment", exact: true })
+    .focus()
+  await page.keyboard.press("ArrowLeft")
+  await expect(familyCategory).toBeFocused()
+  await expect(familyCategory).toHaveAttribute("aria-pressed", "false")
+  await expect(page).not.toHaveURL(/series=/)
+  await page.keyboard.press("Enter")
   await expect(page).toHaveURL(/series=family/)
   const before = requests
   await page
@@ -134,6 +162,17 @@ test("journey navigation preserves an explicit series without refetching the for
       .getByRole("button", { name: "Family", exact: true })
   ).toHaveAttribute("aria-pressed", "true")
   expect(requests).toBe(before)
+  await page
+    .getByRole("group", { name: "Form", exact: true })
+    .getByRole("button", { name: /I-765/ })
+    .click()
+  const visaRoutes = page.getByRole("group", { name: "Visa route" })
+  const selectedVisa = visaRoutes.getByRole("button", { name: "Came on F-1" })
+  await expect(selectedVisa).toHaveAttribute("aria-pressed", "true")
+  await selectedVisa.click()
+  await page.goBack()
+  await expect(page).toHaveURL(/form=I-485/)
+  await expect(selectedVisa).toHaveAttribute("aria-pressed", "true")
 })
 
 test("student insights keep history and distinguish uncovered weeks", async ({
@@ -349,6 +388,14 @@ test("student insights keep history and distinguish uncovered weeks", async ({
   await expect(
     page.getByText(/Filed Jun 2026 · 40 approved reports · approved so far/)
   ).toBeVisible()
+  await page
+    .getByRole("group", { name: "Reddit case type" })
+    .getByRole("button", { pressed: true })
+    .click()
+  await expect(
+    page.getByRole("button", { name: "All · 2 months" })
+  ).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByText("2 months", { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "All · 2 months" }).click()
   expect(redditRequests).toBe(1)
   await page
@@ -379,6 +426,20 @@ test("student insights keep history and distinguish uncovered weeks", async ({
   await expect(
     page.getByRole("cell", { name: "More posts than usual" })
   ).toBeVisible()
+  const topics = page.getByRole("group", { name: "Topic" })
+  await topics.getByRole("button", { name: "SEVIS" }).focus()
+  await page.keyboard.press("ArrowRight")
+  await expect(topics.getByRole("button", { name: "CPT" })).toBeFocused()
+  await expect(topics.getByRole("button", { name: "SEVIS" })).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  )
+  await page.keyboard.press("Space")
+  await expect(topics.getByRole("button", { name: "CPT" })).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  )
+  await expect(page.getByRole("row", { name: /2024-01-08 0 —/ })).toBeVisible()
   await page.goBack()
   await expect(
     page.getByRole("button", { name: "Came on F-1 · not OPT data" })
@@ -388,6 +449,16 @@ test("student insights keep history and distinguish uncovered weeks", async ({
     page.getByRole("heading", { name: "What students post about" })
   ).toBeVisible()
   await page.goBack()
+  await page.getByRole("button", { name: "What students post about" }).click()
+  await page
+    .getByRole("group", { name: "Journey" })
+    .getByRole("button", { name: "Students", exact: true })
+    .click()
+  await expect(page).not.toHaveURL(/insight=/)
+  await expect(page.getByRole("button", { name: "Case wait" })).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  )
   await page
     .getByRole("group", { name: "Journey" })
     .getByRole("button", { name: "Workers", exact: true })
@@ -768,7 +839,22 @@ test("bulletin selection and historical status", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Jan 1, 2020" })).toHaveCount(
     0
   )
-  await page.getByRole("button", { name: "Family", exact: true }).click()
+  const bulletinGroups = page.getByRole("group", { name: "Bulletin group" })
+  await bulletinGroups
+    .getByRole("button", { name: "Family", exact: true })
+    .focus()
+  await page.keyboard.press("ArrowRight")
+  await expect(
+    bulletinGroups.getByRole("button", { name: "Work & special immigrants" })
+  ).toBeFocused()
+  await expect(
+    bulletinGroups.getByRole("button", { pressed: true })
+  ).toHaveCount(0)
+  await page.keyboard.press("ArrowLeft")
+  await page.keyboard.press("Space")
+  await expect(
+    bulletinGroups.getByRole("button", { name: "Family", exact: true })
+  ).toHaveAttribute("aria-pressed", "true")
   await page
     .getByRole("button", { name: /Spouses and unmarried children/ })
     .click()
@@ -860,6 +946,17 @@ test("bulletin selection and historical status", async ({ page }) => {
   expect(requests).toBe(afterChartChanges)
   await page.getByRole("button", { name: "Family", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Jan 1, 2019" })).toBeVisible()
+  const selectedCategory = page
+    .getByRole("group", { name: "Bulletin category" })
+    .getByRole("button", { pressed: true })
+  await expect(selectedCategory).toBeFocused()
+  await selectedCategory.click()
+  await expect(page.getByRole("button", { name: /Change/ })).toBeFocused()
+  await expect(
+    page.getByRole("group", { name: "Bulletin category" })
+  ).toHaveCount(0)
+  expect(requests).toBe(afterChartChanges)
+  await page.getByRole("button", { name: "Family", exact: true }).click()
   await page.getByRole("button", { name: "Family", exact: true }).focus()
   await page.keyboard.press("Escape")
   await expect(page.getByRole("button", { name: /Change/ })).toBeFocused()

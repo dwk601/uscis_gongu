@@ -691,15 +691,15 @@ td {
   padding: 9px 15px;
   cursor: pointer;
 }
-.title-option:has(input:checked) {
+.title-option:has([data-slot="radio"][data-checked]) {
   background: var(--ink);
   color: var(--ground);
 }
-.title-option:has(input:focus-visible) {
+.title-option:has([data-slot="radio"]:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
-.title-option input {
+.title-option [data-slot="radio"] {
   position: absolute;
   opacity: 0;
 }

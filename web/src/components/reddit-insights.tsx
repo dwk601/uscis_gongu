@@ -1,3 +1,4 @@
+import { Toggle, ToggleGroup } from "@ui-sdk/react/toggle"
 import { useQuery } from "@tanstack/react-query"
 import { areaY, barY, defineChart, lineY } from "@tanstack/charts"
 import { Chart } from "@tanstack/charts/react"
@@ -400,32 +401,47 @@ export function RedditWait({ form }: { form: string }) {
           <p>No Reddit timeline available.</p>
         ) : (
           <>
-            <div
+            <ToggleGroup
               className="controls"
-              role="group"
+              value={[type == null ? "not-stated" : `case:${type}`]}
+              deselectable={false}
+              onValueChange={([type]) => {
+                setCaseType(type === "not-stated" ? null : type.slice(5))
+                setProcessing("all")
+              }}
               aria-label="Reddit case type"
             >
               {types.map((t) => (
-                <button
+                <Toggle
                   className="chip"
                   key={t ?? "unknown"}
-                  aria-pressed={t === type}
+                  value={t == null ? "not-stated" : `case:${t}`}
                   onClick={() => {
-                    setCaseType(t)
-                    setProcessing("all")
+                    if (t === type) {
+                      setCaseType(t)
+                      setProcessing("all")
+                    }
                   }}
                 >
                   {t ? (redditCaseLabels[t] ?? t) : "Not stated"}
-                </button>
+                </Toggle>
               ))}
-            </div>
-            <div className="controls" role="group" aria-label="Processing">
+            </ToggleGroup>
+            <ToggleGroup
+              className="controls"
+              value={[key(selected.premium)]}
+              deselectable={false}
+              onValueChange={([processing]) => setProcessing(processing)}
+              aria-label="Processing"
+            >
               {options.map((s) => (
-                <button
+                <Toggle
                   className="chip"
                   key={key(s.premium)}
-                  aria-pressed={s === selected}
-                  onClick={() => setProcessing(key(s.premium))}
+                  value={key(s.premium)}
+                  onClick={() => {
+                    if (s === selected) setProcessing(key(s.premium))
+                  }}
                 >
                   {s.premium == null
                     ? "All"
@@ -434,9 +450,9 @@ export function RedditWait({ form }: { form: string }) {
                       : "Regular"}{" "}
                   · {s.points.length}{" "}
                   {s.points.length === 1 ? "month" : "months"}
-                </button>
+                </Toggle>
               ))}
-            </div>
+            </ToggleGroup>
             {latest ? (
               <>
                 <BigNumber>{months(latest.p50Days)} months</BigNumber>

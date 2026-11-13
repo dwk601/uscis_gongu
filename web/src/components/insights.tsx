@@ -1,3 +1,5 @@
+import { Radio, RadioGroup } from "@ui-sdk/react/radio"
+import { Toggle, ToggleGroup } from "@ui-sdk/react/toggle"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Fragment, lazy, Suspense, useState } from "react"
 import {
@@ -64,18 +66,26 @@ function Visa() {
       />
       {q.data && (
         <>
-          <div className="controls" role="group" aria-label="Consulate">
+          <ToggleGroup
+            className="controls"
+            value={group ? [`office:${group.office}`] : []}
+            deselectable={false}
+            onValueChange={([office]) => setOffice(office.slice(7))}
+            aria-label="Consulate"
+          >
             {q.data.groups.map((g) => (
-              <button
+              <Toggle
                 className="chip"
-                aria-pressed={group?.office === g.office}
+                value={`office:${g.office}`}
                 key={g.office}
-                onClick={() => setOffice(g.office)}
+                onClick={() => {
+                  if (g.office === group?.office) setOffice(g.office)
+                }}
               >
                 {g.office}
-              </button>
+              </Toggle>
             ))}
-          </div>
+          </ToggleGroup>
           {group ? (
             <>
               <h2>
@@ -264,28 +274,35 @@ function Pay() {
       {selectedYear && selected && (
         <>
           <div className="insight-choices">
-            <div role="group" aria-label="Year" className="controls">
+            <ToggleGroup
+              aria-label="Year"
+              className="controls"
+              value={[String(selectedYear.year)]}
+              deselectable={false}
+              onValueChange={([year]) => {
+                const item = q.data?.years.find(
+                  (item) => item.year === Number(year)
+                )
+                if (!item) return
+                setTitle(
+                  item.titles.find((title) => title.key === selected.key)
+                    ?.key ??
+                    item.titles[0]?.key ??
+                    ""
+                )
+                setYear(item.year)
+              }}
+            >
               {q.data?.years.map((item) => (
-                <button
+                <Toggle
                   key={item.year}
                   className="chip"
-                  aria-pressed={item.year === selectedYear.year}
-                  onClick={() => {
-                    if (item.year !== selectedYear.year) {
-                      setTitle(
-                        item.titles.find((title) => title.key === selected.key)
-                          ?.key ??
-                          item.titles[0]?.key ??
-                          ""
-                      )
-                      setYear(item.year)
-                    }
-                  }}
+                  value={String(item.year)}
                 >
                   {item.year}
-                </button>
+                </Toggle>
               ))}
-            </div>
+            </ToggleGroup>
             <label className="field-label">
               Search job titles
               <input
@@ -306,26 +323,22 @@ function Pay() {
                   : "No job titles match; clear the search."
                 : `Showing ${visibleTitles.length} of the ${titles.length} most common job titles; search to find yours.`}
             </p>
-            <div
-              role="radiogroup"
+            <RadioGroup
               aria-label="Job title"
               className="title-options"
+              name="job-title"
+              value={selected.key}
+              onValueChange={(title) => {
+                if (title !== null) setTitle(title)
+              }}
             >
               {visibleTitles.map((item) => (
                 <label className="title-option" key={item.key}>
-                  <input
-                    type="radio"
-                    name="job-title"
-                    value={item.key}
-                    checked={item.key === selected.key}
-                    onChange={() => {
-                      if (item.key !== selected.key) setTitle(item.key)
-                    }}
-                  />
+                  <Radio value={item.key} />
                   <span>{item.title}</span>
                 </label>
               ))}
-            </div>
+            </RadioGroup>
           </div>
           {selected && (
             <PayDetail year={selectedYear.year} title={selected.key} />
@@ -365,20 +378,23 @@ function EmployerInsight() {
         retry={() => void q.refetch()}
       />
       {yearOptions && yearOptions.years.length > 0 && (
-        <div className="controls employer-years" role="group" aria-label="Year">
+        <ToggleGroup
+          className="controls employer-years"
+          aria-label="Year"
+          value={
+            year == null && catalog.data?.year == null
+              ? []
+              : [String(year ?? catalog.data?.year)]
+          }
+          deselectable={false}
+          onValueChange={([year]) => setYear(Number(year))}
+        >
           {yearOptions.years.map((item) => (
-            <button
-              key={item}
-              className="chip"
-              aria-pressed={item === (year ?? catalog.data?.year)}
-              onClick={() => {
-                if (item !== (year ?? catalog.data?.year)) setYear(item)
-              }}
-            >
+            <Toggle key={item} className="chip" value={String(item)}>
               {item}
-            </button>
+            </Toggle>
           ))}
-        </div>
+        </ToggleGroup>
       )}
       {q.isPlaceholderData && <p role="status">Loading employers…</p>}
       {q.data && (
@@ -419,18 +435,19 @@ function Posts() {
     <section className="panel insight-panel">
       <h1>What students post about</h1>
       <p>Weekly mentions in r/f1visa and r/stemopt. Topics can overlap.</p>
-      <div className="controls" role="group" aria-label="Topic">
+      <ToggleGroup
+        className="controls"
+        aria-label="Topic"
+        value={[topic]}
+        deselectable={false}
+        onValueChange={([topic]) => setTopic(topic)}
+      >
         {(["sevis", "cpt", "policy"] as const).map((t) => (
-          <button
-            className="chip"
-            key={t}
-            aria-pressed={topic === t}
-            onClick={() => setTopic(t)}
-          >
+          <Toggle className="chip" key={t} value={t}>
             {t === "policy" ? "Policy" : t.toUpperCase()}
-          </button>
+          </Toggle>
         ))}
-      </div>
+      </ToggleGroup>
       <State
         loading={q.isLoading}
         error={q.isError}

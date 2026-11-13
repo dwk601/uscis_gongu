@@ -1,3 +1,4 @@
+import { Toggle, ToggleGroup } from "@ui-sdk/react/toggle"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { lazy, Suspense, useEffect, useRef, useState } from "react"
@@ -219,6 +220,11 @@ function BulletinPage() {
   const summaryRef = useRef<HTMLButtonElement>(null)
   const selectedRef = useRef<HTMLButtonElement>(null)
   const focusSummary = useRef(false)
+  const selectCategory = (category: string) => {
+    focusSummary.current = true
+    setExpanded(false)
+    update({ category, group: undefined })
+  }
   useEffect(() => {
     if (!expanded && focusSummary.current && summaryRef.current) {
       summaryRef.current.focus()
@@ -288,46 +294,59 @@ function BulletinPage() {
         {known && (
           <div className="bulletin-chart-choice">
             <span>Which chart?</span>
-            <div
+            <ToggleGroup
               className="bulletin-chart-segments"
-              role="group"
+              value={[chart]}
+              deselectable={false}
+              onValueChange={([chart]) => update({ chart })}
               aria-label="Bulletin chart"
             >
-              <button
+              <Toggle
                 className="chip"
-                aria-pressed={chart === "final_action"}
-                onClick={() => update({ chart: "final_action" })}
+                value="final_action"
+                onClick={() => {
+                  if (chart === "final_action") update({ chart })
+                }}
               >
                 Approval cutoff
-              </button>
-              <button
+              </Toggle>
+              <Toggle
                 className="chip"
-                aria-pressed={chart === "dates_for_filing"}
-                onClick={() => update({ chart: "dates_for_filing" })}
+                value="dates_for_filing"
+                onClick={() => {
+                  if (chart === "dates_for_filing") update({ chart })
+                }}
               >
                 Filing cutoff
-              </button>
-            </div>
+              </Toggle>
+            </ToggleGroup>
           </div>
         )}
       </div>
       {!group && <h2 className="bulletin-prompt">Which group fits you?</h2>}
-      <div className="controls" role="group" aria-label="Bulletin group">
+      <ToggleGroup
+        className="controls"
+        value={group ? [group] : []}
+        deselectable={false}
+        onValueChange={([group]) => {
+          setExpanded(true)
+          update({ group, category: undefined })
+        }}
+        aria-label="Bulletin group"
+      >
         {groups.map((item) => (
-          <button
-            type="button"
+          <Toggle
             className="chip"
             key={item}
-            aria-pressed={group === item}
+            value={item}
             onClick={() => {
-              setExpanded(true)
-              if (item !== group) update({ group: item, category: undefined })
+              if (item === group) setExpanded(true)
             }}
           >
             {item}
-          </button>
+          </Toggle>
         ))}
-      </div>
+      </ToggleGroup>
       {group === groups[0] && (!known || expanded) && (
         <p>
           Spouse or unmarried child under 21 of a U.S. citizen, or parent of a
@@ -370,7 +389,13 @@ function BulletinPage() {
               <button onClick={() => void bulletin.refetch()}>Try again</button>
             </p>
           ) : (
-            <div className="bulletin-category-list">
+            <ToggleGroup
+              className="bulletin-category-list"
+              value={category ? [category] : []}
+              deselectable={false}
+              onValueChange={([category]) => selectCategory(category)}
+              aria-label="Bulletin category"
+            >
               {bulletin.data?.categories
                 .filter((c) => groupFor(c.code) === group)
                 .sort(
@@ -379,21 +404,19 @@ function BulletinPage() {
                     Number(olderInvestors.has(b.code))
                 )
                 .map((c) => (
-                  <button
+                  <Toggle
                     className="form-summary"
                     ref={c.code === category ? selectedRef : undefined}
-                    aria-pressed={c.code === category}
+                    value={c.code}
                     key={c.code}
                     onClick={() => {
-                      focusSummary.current = true
-                      setExpanded(false)
-                      update({ category: c.code, group: undefined })
+                      if (c.code === category) selectCategory(c.code)
                     }}
                   >
                     <CategoryName code={c.code} />
-                  </button>
+                  </Toggle>
                 ))}
-            </div>
+            </ToggleGroup>
           )}
         </section>
       )}
@@ -417,22 +440,26 @@ function BulletinPage() {
             </p>
           ) : (
             <>
-              <div
+              <ToggleGroup
                 className="controls bulletin-rail"
-                role="group"
+                value={[country]}
+                deselectable={false}
+                onValueChange={([country]) => update({ country })}
                 aria-label="Country of birth"
               >
                 {data?.series.map((s) => (
-                  <button
+                  <Toggle
                     key={s.country}
                     className="chip"
-                    aria-pressed={country === s.country}
-                    onClick={() => update({ country: s.country })}
+                    value={s.country}
+                    onClick={() => {
+                      if (country === s.country) update({ country })
+                    }}
                   >
                     {countryLabel(s.country)}
-                  </button>
+                  </Toggle>
                 ))}
-              </div>
+              </ToggleGroup>
               {!series && (
                 <p role="alert">
                   {countryLabel(country)} is not available for this category.{" "}

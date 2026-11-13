@@ -11,6 +11,9 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
     collectionName: "users",
     name: "Member",
     email: "member@example.com",
+    seeking: ["none"],
+    status: "none",
+    country: "none",
   }
   const token = `e30.${Buffer.from(JSON.stringify({ id: record.id, exp: 4102444800 })).toString("base64url")}.signature`
   await page.route("**/api/collections/users/auth-with-password", (route) =>

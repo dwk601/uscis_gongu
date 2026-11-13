@@ -9,6 +9,7 @@ import { useState, type FormEvent } from "react"
 import { Toggle, ToggleGroup } from "@ui-sdk/react/toggle"
 import { useTheme } from "@/components/theme-provider"
 import { AdminCommunity } from "@/components/admin-community"
+import { ProfileForm } from "@/components/profile-form"
 import { authReady, isAdmin, useAuth, mutationErrorMessage } from "@/lib/auth"
 import { pb } from "@/lib/pb"
 
@@ -113,6 +114,10 @@ function Settings() {
             Save
           </button>
         </form>
+      </section>
+      <section className="social-section">
+        <h2>About you</h2>
+        <ProfileForm key={user.id} user={user} />
       </section>
       <section className="social-section">
         <h2>Appearance</h2>

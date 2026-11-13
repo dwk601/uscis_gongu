@@ -93,6 +93,9 @@ test("filtered community remains readable when its summary fails", async ({
           id: "abcdefghijklmno",
           collectionId: "users",
           collectionName: "users",
+          seeking: ["none"],
+          status: "none",
+          country: "none",
         },
       })
     )

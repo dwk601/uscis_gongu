@@ -15,8 +15,11 @@ import {
 import { formHue, formInk } from "@/lib/palette"
 import { cn } from "@/lib/utils"
 import { SiteHeader } from "@/components/site-header"
-import { AgentWidget } from "@/components/agent-widget"
+import { AgentLauncher } from "@/components/agent-launcher"
 
+const AgentWidget = lazy(() =>
+  import("@/components/agent-widget").then((m) => ({ default: m.AgentWidget }))
+)
 const RouterDevtools = import.meta.env.DEV
   ? lazy(() =>
       import("@tanstack/react-router-devtools").then((m) => ({
@@ -37,10 +40,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 )
 
 function RootLayout() {
-  const [launcherTarget, setLauncherTarget] = useState<HTMLSpanElement | null>(
-    null
-  )
   const [agentOpen, setAgentOpen] = useState(false)
+  const [agentLoaded, setAgentLoaded] = useState(false)
+  const [agentPanel, setAgentPanel] = useState<HTMLDivElement | null>(null)
+  const agentLauncher = useRef<HTMLButtonElement>(null)
   const accountMenu = useRef<HTMLDetailsElement>(null)
   const { location, matches } = useRouterState({
     select: (state) => ({ location: state.location, matches: state.matches }),
@@ -86,18 +89,36 @@ function RootLayout() {
       }
     >
       <SiteHeader
-        onLauncherSlot={setLauncherTarget}
+        launcher={
+          showAgent && (
+            <AgentLauncher
+              launcher={agentLauncher}
+              panel={agentPanel}
+              open={agentOpen}
+              onIntent={() => setAgentLoaded(true)}
+              onOpenChange={(next) => {
+                if (next) {
+                  setAgentLoaded(true)
+                  accountMenu.current?.removeAttribute("open")
+                }
+                setAgentOpen(next)
+              }}
+            />
+          )
+        }
         accountMenu={accountMenu}
         onAccountOpen={() => setAgentOpen(false)}
       />
       <Outlet />
-      {showAgent && (
-        <AgentWidget
-          launcherTarget={launcherTarget}
-          open={agentOpen}
-          onOpenChange={setAgentOpen}
-          onOpening={() => accountMenu.current?.removeAttribute("open")}
-        />
+      {agentLoaded && (
+        <Suspense fallback={null}>
+          <AgentWidget
+            panel={agentPanel}
+            panelRef={setAgentPanel}
+            open={showAgent && agentOpen}
+            onOpenChange={setAgentOpen}
+          />
+        </Suspense>
       )}
       {import.meta.env.DEV && (
         <Suspense fallback={null}>

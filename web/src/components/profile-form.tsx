@@ -61,6 +61,12 @@ export function ProfileForm({
   const [error, setError] = useState("")
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [seekingAnchor, setSeekingAnchor] = useState<HTMLDivElement | null>(
+    null
+  )
+  const [countryAnchor, setCountryAnchor] = useState<HTMLDivElement | null>(
+    null
+  )
 
   function change<K extends keyof ProfileAnswers>(
     key: K,
@@ -110,16 +116,13 @@ export function ProfileForm({
 
   return (
     <form className="profile-form" onSubmit={submit} aria-busy={busy}>
-      <p className="profile-privacy">
-        Your answers are private, never shown on posts. Change them in Settings.
-      </p>
+      <p className="profile-privacy">Private. Never shown on your posts.</p>
       <Field name="seeking" invalid={fieldErrors.seeking ? true : undefined}>
         <FieldLabel>What cases are you looking for?</FieldLabel>
         <Combobox
           multiple
           required
           readOnly={busy}
-          items={seekingOptions}
           value={answers.seeking}
           itemToLabel={seekingLabel}
           onValueChange={(next) => {
@@ -131,7 +134,7 @@ export function ProfileForm({
             )
           }}
         >
-          <div className="profile-combo">
+          <div className="profile-combo" ref={setSeekingAnchor}>
             <ComboboxChips>
               <ComboboxValue>
                 {(state) =>
@@ -153,7 +156,11 @@ export function ProfileForm({
               <ChevronDownIcon aria-hidden="true" />
             </ComboboxTrigger>
           </div>
-          <ComboboxContent className="profile-popup" sideOffset={6}>
+          <ComboboxContent
+            className="profile-popup"
+            sideOffset={6}
+            anchor={seekingAnchor}
+          >
             <ComboboxEmpty>No forms found.</ComboboxEmpty>
             <ComboboxList>
               {seekingOptions.map((option) => (
@@ -217,18 +224,21 @@ export function ProfileForm({
         <Combobox
           required
           readOnly={busy}
-          items={countryOptions}
           value={answers.country || null}
           itemToLabel={countryLabel}
           onValueChange={(next) => change("country", next ?? "")}
         >
-          <div className="profile-combo">
+          <div className="profile-combo" ref={setCountryAnchor}>
             <ComboboxInput placeholder="Search countries or regions…" />
             <ComboboxTrigger aria-label="Show countries and regions">
               <ChevronDownIcon aria-hidden="true" />
             </ComboboxTrigger>
           </div>
-          <ComboboxContent className="profile-popup" sideOffset={6}>
+          <ComboboxContent
+            className="profile-popup"
+            sideOffset={6}
+            anchor={countryAnchor}
+          >
             <ComboboxEmpty>No countries or regions found.</ComboboxEmpty>
             <ComboboxList>
               {countryOptions.map((option) => (

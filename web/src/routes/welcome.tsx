@@ -31,9 +31,7 @@ function Welcome() {
   return (
     <main className="workspace social social-narrow">
       <h1>About you</h1>
-      <p>
-        A few answers before you continue. Every question has an N/A option.
-      </p>
+      <p>Every question has an N/A option. Change your answers in Settings.</p>
       {user && (
         <ProfileForm
           key={user.id}

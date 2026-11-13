@@ -73,6 +73,10 @@ test("signup requires private answers and returns to the original deep link", as
   expect(new URL(page.url()).searchParams.get("redirect")).toBe(deepLink)
   await expect(page.getByRole("button", { name: "Ask gongu" })).toHaveCount(0)
 
+  await page.goto("/settings/")
+  await expect(
+    page.getByRole("heading", { name: "Settings", exact: true })
+  ).toBeVisible()
   await page.goto(deepLink)
   await expect(page).toHaveURL(/\/welcome\?/)
   expect(new URL(page.url()).searchParams.get("redirect")).toBe(deepLink)
@@ -104,6 +108,7 @@ test("signup requires private answers and returns to the original deep link", as
     page.getByRole("button", { name: "Remove I-765 · Work permit" })
   ).toHaveCount(0)
   await seeking.fill("I-130")
+  await expect(page.getByRole("option")).toHaveCount(1)
   await page
     .getByRole("option", {
       name: "I-130 · Petition for a relative",

@@ -401,7 +401,7 @@
 .profile-popup[data-modality="keyboard"] [data-highlighted][data-selected] {
   outline-color: currentColor;
 }
-.profile-popup [data-slot="combobox-empty"] {
+.profile-popup [data-slot="combobox-empty"]:not(:empty) {
   padding: 12px;
   color: var(--muted);
 }

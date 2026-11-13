@@ -43,8 +43,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   {
     beforeLoad: async ({ location }) => {
       if (!pb.authStore.isValid) return
-      if (["/welcome", "/login", "/settings"].includes(location.pathname))
-        return
+      const pathname = location.pathname.replace(/\/+$/, "") || "/"
+      if (["/welcome", "/login", "/settings"].includes(pathname)) return
       if (profileComplete(pb.authStore.record)) return
       await authReady
       if (!pb.authStore.isValid || profileComplete(pb.authStore.record)) return
@@ -72,7 +72,8 @@ function RootLayout() {
   })
   const leafSearch = matches.at(-1)?.search as
     { form?: string; view?: string } | undefined
-  const pathname = matches.at(-1)?.pathname ?? location.pathname
+  const pathname =
+    (matches.at(-1)?.pathname ?? location.pathname).replace(/\/+$/, "") || "/"
   const screen =
     pathname === "/"
       ? leafSearch?.form || leafSearch?.view === "case"
@@ -95,7 +96,7 @@ function RootLayout() {
   }, [screen])
   const form =
     typeof location.search.form === "string" ? location.search.form : "I-485"
-  const showAgent = !["/login", "/welcome"].includes(location.pathname)
+  const showAgent = !["/login", "/welcome"].includes(pathname)
   if (!showAgent && agentOpen) setAgentOpen(false)
   return (
     <div

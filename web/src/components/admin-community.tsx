@@ -85,13 +85,7 @@ export function AdminCommunity({ userId }: { userId: string }) {
         >
           {members.data?.items.map((item) => (
             <article className="social-card" key={item.id}>
-              <Toggle
-                className="chip social-body"
-                value={item.id}
-                onClick={() => {
-                  if (member?.id === item.id) setMember(item)
-                }}
-              >
+              <Toggle className="chip social-body" value={item.id}>
                 {item.name || "member"}
               </Toggle>
               <p className="social-meta">

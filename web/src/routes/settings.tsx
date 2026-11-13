@@ -126,14 +126,7 @@ function Settings() {
           }}
         >
           {(["light", "dark"] as const).map((t) => (
-            <Toggle
-              key={t}
-              className="chip"
-              value={t}
-              onClick={() => {
-                if (theme === t) setTheme(t)
-              }}
-            >
+            <Toggle key={t} className="chip" value={t}>
               {t === "light" ? "Light" : "Dark"}
             </Toggle>
           ))}

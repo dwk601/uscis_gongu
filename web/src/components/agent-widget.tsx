@@ -247,13 +247,8 @@ export function AgentWidget({
   const [tooltipDismissed, setTooltipDismissed] = useState(false)
   const [sessionEnded, setSessionEnded] = useState(false)
   const launcher = useRef<HTMLButtonElement>(null)
-  const panel = useRef<HTMLElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
   const panelId = useId()
-
-  function close() {
-    onOpenChange(false)
-    launcher.current?.focus({ preventScroll: true })
-  }
 
   async function endSession(error: unknown) {
     setSessionEnded(true)
@@ -328,7 +323,6 @@ export function AgentWidget({
       <Dialog
         open={open}
         modal={false}
-        closeOnOutsidePress={false}
         onOpenChange={(next, details) => {
           if (next) onOpening()
           if (details.reason === "escape-key") setTooltipDismissed(true)
@@ -336,15 +330,12 @@ export function AgentWidget({
         }}
       >
         <DialogContent
-          ref={(element) => {
-            panel.current = element
-          }}
+          ref={panel}
           id={panelId}
           className="agent-panel"
           render={<section />}
           keepMounted
           initialFocus="textarea, a"
-          finalFocus={() => launcher.current}
         >
           <header className="agent-header">
             <DialogTitle>Ask gongu</DialogTitle>
@@ -381,12 +372,6 @@ export function AgentWidget({
               data-tooltip-dismissed={tooltipDismissed}
               onBlur={() => setTooltipDismissed(false)}
               onMouseEnter={() => setTooltipDismissed(false)}
-              onClick={(event) => {
-                if (open) {
-                  event.preventDefault()
-                  close()
-                }
-              }}
             >
               <MessageCircle size={20} aria-hidden="true" />
               <span>Ask</span>

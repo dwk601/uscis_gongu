@@ -45,17 +45,12 @@ function Button({
   variant = "default",
   size = "default",
   ...props
-}: ComponentProps<typeof ButtonPrimitive> &
-  VariantProps<typeof buttonVariants>) {
+}: Omit<ComponentProps<typeof ButtonPrimitive>, "className"> &
+  VariantProps<typeof buttonVariants> & { className?: string }) {
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={(state) =>
-        cn(
-          buttonVariants({ variant, size }),
-          typeof className === "function" ? className(state) : className
-        )
-      }
+      className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
   )

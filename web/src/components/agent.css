@@ -63,7 +63,6 @@
   margin: 0;
   border: 0;
   padding: 0;
-  translate: none;
   z-index: 3;
   right: calc(max(0px, (100% - 1320px) / 2) + min(5vw, 66px));
   top: calc(var(--header-h, 0px) + 8px);
@@ -83,9 +82,6 @@
   transition:
     opacity 160ms ease-out,
     transform 160ms ease-out;
-}
-.agent-panel[data-open] {
-  visibility: visible;
 }
 .agent-panel[data-starting-style],
 .agent-panel[data-ending-style] {

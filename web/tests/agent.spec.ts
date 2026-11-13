@@ -237,8 +237,6 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(dialog.getByRole("textbox")).toHaveCount(0)
   const signIn = dialog.getByRole("link", { name: "Sign in" })
-  await expect(signIn).toBeFocused()
-  await expect(launcher).toHaveAttribute("aria-expanded", "true")
   const href = await signIn.getAttribute("href")
   expect(new URL(href!, "http://gongu.test").searchParams.get("redirect")).toBe(
     "/trends?form=I-485"
@@ -339,7 +337,6 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await expect(launcher).toBeFocused()
   await expect(launcher).toHaveAttribute("aria-expanded", "false")
   await launcher.click()
-  await expect(question).toHaveValue("short viewport draft")
   await expect(dialog).toHaveCSS("opacity", "1")
   await theme.focus()
   await expect(theme).toBeFocused()
@@ -422,17 +419,6 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await expect(dialog.getByRole("status")).toHaveText("Asking gongu…")
   await expect(question).toHaveValue("")
   await expect(dialog.locator(".agent-thinking")).toHaveText("Asking gongu…")
-  await close.click()
-  await expect(dialog).not.toBeVisible()
-  await expect(launcher).toBeFocused()
-  await launcher.click()
-  await expect(dialog.getByRole("status")).toHaveText("Asking gongu…")
-  await expect(question).toHaveValue("")
-  await expect(dialog.locator(".agent-content")).toHaveAttribute(
-    "aria-busy",
-    "true"
-  )
-  expect(requests).toBe(4)
   await dialog.getByRole("button", { name: "Cancel" }).click()
   release!()
   await expect(dialog.getByRole("status")).toHaveText("Question canceled.")

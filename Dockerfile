@@ -14,9 +14,9 @@ COPY --from=web /src/web/dist ./web/dist
 RUN CGO_ENABLED=0 go build -trimpath -o /server .
 
 FROM alpine:3.23
-RUN apk add --no-cache ca-certificates && \
-    addgroup -S app && adduser -S -G app app && \
+RUN addgroup -S app && adduser -S -G app app && \
     mkdir -p /app/pb_data && chown app:app /app/pb_data
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /server /app/server
 USER app
 WORKDIR /app

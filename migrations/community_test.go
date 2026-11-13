@@ -47,6 +47,7 @@ func TestCommunityRules(t *testing.T) {
 		{"undo vote", "DELETE", "votes/records/" + vote, "", a, 204, nil, []string{vote}, nil},
 		{"users private", "GET", "users/records", "", "", 200, []string{`"totalItems":0`}, nil, nil},
 		{"member list users", "GET", "users/records", "", a, 200, []string{`"totalItems":1`, `"name":"Alice"`}, nil, nil},
+		{"signup profile", "POST", "users/records", `{"email":"profile@example.com","password":"password123","passwordConfirm":"password123","seeking":["I-765","I-485"],"status":"student","country":"KR"}`, "", 200, []string{`"collectionName":"users"`}, nil, []string{`"seeking":`, `"status":`, `"country":`}},
 		{"owner profile patch", "PATCH", "users/records/" + a, `{"seeking":["I-765","I-485"],"status":"student","country":"KR"}`, a, 200, []string{`"seeking":["I-765","I-485"]`, `"status":"student"`, `"country":"KR"`}, nil, nil},
 		{"mixed profile seeking", "PATCH", "users/records/" + a, `{"seeking":["none","I-485"],"status":"student","country":"KR"}`, a, 400, []string{`"seeking":{`}, nil, nil},
 		{"partial profile patch", "PATCH", "users/records/" + a, `{"status":"student"}`, a, 400, []string{`"seeking":{`, `"country":{`}, nil, nil},
@@ -171,8 +172,14 @@ func TestCommunityRules(t *testing.T) {
 					}
 				},
 				AfterTestFunc: func(tb testing.TB, app *tests.TestApp, _ *http.Response) {
-					if tc.name == "owner profile patch" {
-						user, err := app.FindRecordById("users", a)
+					if tc.name == "owner profile patch" || tc.name == "signup profile" {
+						var user *core.Record
+						var err error
+						if tc.name == "signup profile" {
+							user, err = app.FindAuthRecordByEmail("users", "profile@example.com")
+						} else {
+							user, err = app.FindRecordById("users", a)
+						}
 						if err != nil {
 							tb.Fatal(err)
 						}

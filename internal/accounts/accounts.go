@@ -46,7 +46,7 @@ func Register(app core.App) {
 	})
 
 	app.OnRecordEnrich("users").BindFunc(func(e *core.RecordEnrichEvent) error {
-		// Apply privacy after PocketBase's default superuser visibility flags.
+		// Reveal answers to their owner; keep PocketBase's default visibility otherwise.
 		if err := e.Next(); err != nil {
 			return err
 		}
@@ -54,8 +54,6 @@ func Register(app core.App) {
 			e.RequestInfo.Auth.Collection().Id == e.Record.Collection().Id &&
 			e.RequestInfo.Auth.Id == e.Record.Id {
 			e.Record.Unhide("seeking", "status", "country")
-		} else {
-			e.Record.Hide("seeking", "status", "country")
 		}
 		return nil
 	})

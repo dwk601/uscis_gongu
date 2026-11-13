@@ -49,6 +49,8 @@ func TestCommunityRules(t *testing.T) {
 		{"member list users", "GET", "users/records", "", a, 200, []string{`"totalItems":1`, `"name":"Alice"`}, nil, nil},
 		{"signup profile", "POST", "users/records", `{"email":"profile@example.com","password":"password123","passwordConfirm":"password123","seeking":["I-765","I-485"],"status":"student","country":"KR"}`, "", 200, []string{`"collectionName":"users"`}, nil, []string{`"seeking":`, `"status":`, `"country":`}},
 		{"owner profile patch", "PATCH", "users/records/" + a, `{"seeking":["I-765","I-485"],"status":"student","country":"KR"}`, a, 200, []string{`"seeking":["I-765","I-485"]`, `"status":"student"`, `"country":"KR"`}, nil, nil},
+		{"owner profile sign in", "POST", "users/auth-with-password", `{"identity":"alice@example.com","password":"password123"}`, "", 200, []string{`"seeking":["I-485"]`, `"status":"student"`, `"country":"KR"`}, nil, nil},
+		{"owner profile refresh", "POST", "users/auth-refresh", "", a, 200, []string{`"seeking":["I-485"]`, `"status":"student"`, `"country":"KR"`}, nil, nil},
 		{"mixed profile seeking", "PATCH", "users/records/" + a, `{"seeking":["none","I-485"],"status":"student","country":"KR"}`, a, 400, []string{`"seeking":{`}, nil, nil},
 		{"partial profile patch", "PATCH", "users/records/" + a, `{"status":"student"}`, a, 400, []string{`"seeking":{`, `"country":{`}, nil, nil},
 		{"admin list users", "GET", "users/records", "", admin, 200, []string{`"totalItems":3`, `"name":"Alice"`, `"name":"Bob"`}, nil, []string{`"I-485"`, `"status":"student"`, `"country":"KR"`}},
@@ -76,7 +78,7 @@ func TestCommunityRules(t *testing.T) {
 			headers := map[string]string{"Content-Type": "application/json"}
 			var privateEmails []string
 			for id, email := range map[string]string{a: "alice@example.com", b: "bob@example.com", admin: "admin@example.com"} {
-				if id != tc.actor {
+				if id != tc.actor && !(tc.name == "owner profile sign in" && id == a) {
 					privateEmails = append(privateEmails, email)
 				}
 			}
@@ -103,7 +105,7 @@ func TestCommunityRules(t *testing.T) {
 						return r
 					}
 					alice := map[string]any{"email": "alice@example.com", "password": "password123", "name": "Alice"}
-					if tc.name == "admin list users" || tc.name == "admin filter private profile" {
+					if tc.name == "admin list users" || tc.name == "admin filter private profile" || tc.name == "owner profile sign in" || tc.name == "owner profile refresh" {
 						alice["seeking"] = []string{"I-485"}
 						alice["status"] = "student"
 						alice["country"] = "KR"

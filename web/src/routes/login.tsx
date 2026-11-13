@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useState, type FormEvent } from "react"
+import { Toggle, ToggleGroup } from "@ui-sdk/react/toggle"
 import { pb } from "@/lib/pb"
 import { errorMessage } from "@/lib/auth"
 
@@ -87,28 +88,20 @@ function Login() {
     <main className="workspace social social-narrow">
       <h1>Welcome to gongu</h1>
       <div className="social-card">
-        <div className="controls">
-          <button
-            className="chip"
-            aria-pressed={!create}
-            onClick={() => {
-              setCreate(false)
-              setError("")
-            }}
-          >
+        <ToggleGroup
+          className="controls"
+          aria-label="Account mode"
+          value={[create ? "create" : "sign-in"]}
+          deselectable={false}
+          onValueChange={([mode]) => setCreate(mode === "create")}
+        >
+          <Toggle className="chip" value="sign-in" onClick={() => setError("")}>
             Sign in
-          </button>
-          <button
-            className="chip"
-            aria-pressed={create}
-            onClick={() => {
-              setCreate(true)
-              setError("")
-            }}
-          >
+          </Toggle>
+          <Toggle className="chip" value="create" onClick={() => setError("")}>
             Create account
-          </button>
-        </div>
+          </Toggle>
+        </ToggleGroup>
         <form className="social-form" onSubmit={submit}>
           {create && (
             <label>

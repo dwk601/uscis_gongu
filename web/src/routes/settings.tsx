@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import { useState, type FormEvent } from "react"
+import { Toggle, ToggleGroup } from "@ui-sdk/react/toggle"
 import { useTheme } from "@/components/theme-provider"
 import { AdminCommunity } from "@/components/admin-community"
 import { authReady, isAdmin, useAuth, mutationErrorMessage } from "@/lib/auth"
@@ -115,18 +116,28 @@ function Settings() {
       </section>
       <section className="social-section">
         <h2>Appearance</h2>
-        <div className="controls">
+        <ToggleGroup
+          className="controls"
+          aria-label="Appearance"
+          value={[theme]}
+          deselectable={false}
+          onValueChange={([next]) => {
+            if (next === "light" || next === "dark") setTheme(next)
+          }}
+        >
           {(["light", "dark"] as const).map((t) => (
-            <button
+            <Toggle
               key={t}
               className="chip"
-              aria-pressed={theme === t}
-              onClick={() => setTheme(t)}
+              value={t}
+              onClick={() => {
+                if (theme === t) setTheme(t)
+              }}
             >
               {t === "light" ? "Light" : "Dark"}
-            </button>
+            </Toggle>
           ))}
-        </div>
+        </ToggleGroup>
       </section>
       <section className="social-section">
         <h2>Change password</h2>

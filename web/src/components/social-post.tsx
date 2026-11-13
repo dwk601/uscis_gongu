@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useRouterState } from "@tanstack/react-router"
 import { useState } from "react"
+import { Toggle } from "@ui-sdk/react/toggle"
 import { ArrowUp } from "lucide-react"
 import { useAuth, mutationErrorMessage } from "@/lib/auth"
 import { listVotes, relativeTime, type Post } from "@/lib/community"
@@ -106,16 +107,15 @@ export function PostCard({
       )}
       <div className="social-actions">
         {user ? (
-          <button
+          <Toggle
             className="chip"
             aria-label={`${voted ? "Remove upvote" : "Upvote"}, ${count} ${count === 1 ? "vote" : "votes"}`}
-            aria-pressed={voted}
+            pressed={voted}
             disabled={mutation.isPending || votes.isLoading || votes.isError}
-            onClick={() => mutation.mutate()}
-            type="button"
+            onPressedChange={() => mutation.mutate()}
           >
             <ArrowUp aria-hidden="true" size={16} /> {count}
-          </button>
+          </Toggle>
         ) : (
           <Link
             className="chip"

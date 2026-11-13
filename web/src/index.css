@@ -1,4 +1,10 @@
+@layer ui-sdk;
 @import "@fontsource-variable/geist";
+
+[data-slot][hidden] {
+  display: none;
+}
+
 :root {
   font-family: "Geist Variable", sans-serif;
   color: #171717;

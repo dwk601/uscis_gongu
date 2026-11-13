@@ -35,6 +35,7 @@ The existing PostgreSQL ETL database owns USCIS data and runs on the same server
 ## Skill map
 
 - [uscis-data](.agents/skills/uscis-data/SKILL.md) — Load for USCIS PostgreSQL/API access, pgxpool/sqlc queries, current/typed views, materialized-view refreshes, case-type statistics, or predicted dates.
+- [ui-sdk](.agents/skills/ui-sdk/SKILL.md) — Follow before using ui-sdk (`@ui-sdk/react`, `@ui-sdk/core` in `web/`), and read `web/node_modules/@ui-sdk/react/docs/llms.txt`. To build a new component, also search `web/node_modules/@ui-sdk/react/docs/core.md` by heading and read `rendering.md` next to it.
 - [pocketbase-app](.agents/skills/pocketbase-app/SKILL.md) — Load for PocketBase JS SDK, custom `/api/x/...` endpoints, Go app backend code, SQLite/dbx, auth, realtime, in-app data, community features, or requests crossing both data stores.
 
 ## Maintain

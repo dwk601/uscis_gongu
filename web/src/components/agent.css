@@ -59,6 +59,11 @@
 }
 .agent-panel {
   position: fixed;
+  inset: auto;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  translate: none;
   z-index: 3;
   right: calc(max(0px, (100% - 1320px) / 2) + min(5vw, 66px));
   top: calc(var(--header-h, 0px) + 8px);
@@ -73,21 +78,19 @@
   background: var(--panel);
   color: var(--ink);
   box-shadow: 0 8px 24px #0003;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(8px);
-  transition:
-    opacity 160ms ease-out,
-    transform 160ms ease-out,
-    visibility 160ms;
-}
-.agent-panel[data-open="true"] {
   opacity: 1;
-  visibility: visible;
   transform: translateY(0);
   transition:
     opacity 160ms ease-out,
     transform 160ms ease-out;
+}
+.agent-panel[data-open] {
+  visibility: visible;
+}
+.agent-panel[data-starting-style],
+.agent-panel[data-ending-style] {
+  opacity: 0;
+  transform: translateY(8px);
 }
 .agent-panel:has(.agent-signin) {
   height: auto;
@@ -331,7 +334,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .agent-panel,
-  .agent-panel[data-open="true"] {
+  .agent-panel[data-starting-style],
+  .agent-panel[data-ending-style] {
     transition: none;
     transform: none;
   }

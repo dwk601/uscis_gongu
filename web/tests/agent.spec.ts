@@ -329,10 +329,22 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await close.click()
   await launcher.click()
   await expect(question).toHaveValue("short viewport draft")
-  await question.fill("")
 
   await page.setViewportSize({ width: 1024, height: 768 })
   await expect(dialog).toHaveCSS("width", "380px")
+  await launcher.click()
+  await expect(dialog).not.toBeVisible()
+  await expect(launcher).toBeFocused()
+  await expect(launcher).toHaveAttribute("aria-expanded", "false")
+  await launcher.click()
+  await expect(dialog).toHaveCSS("opacity", "1")
+  await theme.focus()
+  await expect(theme).toBeFocused()
+  await page.keyboard.press("Escape")
+  await expect(dialog).not.toBeVisible()
+  await expect(launcher).toBeFocused()
+  await launcher.click()
+  await question.fill("")
   await expect
     .poll(async () => {
       const panelBox = await dialog.boundingBox()
@@ -456,4 +468,5 @@ test("Ask gongu signs in, renders data, retains route state, and handles its bud
   await expect(
     dialog.getByText("Your session ended. Please sign in again.")
   ).toBeVisible()
+  await expect(dialog.getByRole("link", { name: "Sign in" })).toBeFocused()
 })

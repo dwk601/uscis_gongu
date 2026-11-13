@@ -1,4 +1,12 @@
+@layer ui-sdk;
 @import "@fontsource-variable/geist";
+
+@layer ui-sdk {
+  :where([data-slot][hidden]:not([hidden="until-found"])) {
+    display: none !important;
+  }
+}
+
 :root {
   font-family: "Geist Variable", sans-serif;
   color: #171717;
@@ -685,15 +693,15 @@ td {
   padding: 9px 15px;
   cursor: pointer;
 }
-.title-option:has(input:checked) {
+.title-option:has([data-slot="radio"][data-checked]) {
   background: var(--ink);
   color: var(--ground);
 }
-.title-option:has(input:focus-visible) {
+.title-option:has([data-slot="radio"]:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
-.title-option input {
+.title-option [data-slot="radio"] {
   position: absolute;
   opacity: 0;
 }

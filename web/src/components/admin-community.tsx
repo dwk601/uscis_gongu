@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { useEffect, useRef, useState } from "react"
+import { Toggle, ToggleGroup } from "@ui-sdk/react/toggle"
 import type { RecordModel } from "pocketbase"
 import { mutationErrorMessage } from "@/lib/auth"
 import { relativeTime, type Comment, type Post } from "@/lib/community"
@@ -71,26 +72,37 @@ export function AdminCommunity({ userId }: { userId: string }) {
         </p>
       )}
       {members.data?.items.length === 0 && <p>No members on this page.</p>}
-      {members.data?.items.map((item) => (
-        <article className="social-card" key={item.id}>
-          <button
-            className="chip social-body"
-            aria-pressed={member?.id === item.id}
-            onClick={() => setMember(item)}
-          >
-            {item.name || "member"}
-          </button>
-          <p className="social-meta">
-            <span>{item.id}</span>
-            <span>
-              Joined{" "}
-              <time dateTime={item.created.replace(" ", "T")}>
-                {new Date(item.created.replace(" ", "T")).toLocaleDateString()}
-              </time>
-            </span>
-          </p>
-        </article>
-      ))}
+      {!!members.data?.items.length && (
+        <ToggleGroup
+          aria-label="Members"
+          orientation="vertical"
+          value={member ? [member.id] : []}
+          deselectable={false}
+          onValueChange={([id]) => {
+            const selected = members.data?.items.find((item) => item.id === id)
+            if (selected) setMember(selected)
+          }}
+        >
+          {members.data?.items.map((item) => (
+            <article className="social-card" key={item.id}>
+              <Toggle className="chip social-body" value={item.id}>
+                {item.name || "member"}
+              </Toggle>
+              <p className="social-meta">
+                <span>{item.id}</span>
+                <span>
+                  Joined{" "}
+                  <time dateTime={item.created.replace(" ", "T")}>
+                    {new Date(
+                      item.created.replace(" ", "T")
+                    ).toLocaleDateString()}
+                  </time>
+                </span>
+              </p>
+            </article>
+          ))}
+        </ToggleGroup>
+      )}
       <Pagination
         page={page}
         totalPages={members.data?.totalPages ?? page}

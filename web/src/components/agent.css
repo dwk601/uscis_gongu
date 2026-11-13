@@ -1,64 +1,12 @@
 .agent-widget {
   font-size: 14px;
 }
-.header-actions > span:has(.agent-launcher) {
-  position: relative;
-}
-.header-actions > span:has(.agent-launcher)::after {
-  content: "Ask gongu" / "";
-  position: absolute;
-  z-index: 4;
-  top: calc(100% + 4px);
-  right: 0;
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: var(--ink);
-  color: var(--ground);
-  font-size: 12px;
-  white-space: nowrap;
-  visibility: hidden;
-}
-.header-actions
-  > span:has(
-    .agent-launcher:focus-visible:not([data-tooltip-dismissed="true"]):not(
-        [aria-expanded="true"]
-      )
-  )::after {
-  visibility: visible;
-}
-@media (hover: hover) {
-  .header-actions
-    > span:hover:has(
-      .agent-launcher:not([data-tooltip-dismissed="true"]):not(
-          [aria-expanded="true"]
-        )
-    )::after {
-    visibility: visible;
-  }
-}
-.site-header:has(.account-menu[open])
-  .header-actions
-  > span:has(.agent-launcher)::after {
-  visibility: hidden;
-}
-.agent-launcher {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-width: 44px;
-  height: 44px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 99px;
-  background: var(--page-hue);
-  color: var(--page-ink, #171717);
-}
-.agent-launcher:hover {
-  background: color-mix(in srgb, var(--page-hue) 88%, var(--panel));
-}
 .agent-panel {
   position: fixed;
+  inset: auto;
+  margin: 0;
+  border: 0;
+  padding: 0;
   z-index: 3;
   right: calc(max(0px, (100% - 1320px) / 2) + min(5vw, 66px));
   top: calc(var(--header-h, 0px) + 8px);
@@ -73,21 +21,16 @@
   background: var(--panel);
   color: var(--ink);
   box-shadow: 0 8px 24px #0003;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(8px);
-  transition:
-    opacity 160ms ease-out,
-    transform 160ms ease-out,
-    visibility 160ms;
-}
-.agent-panel[data-open="true"] {
   opacity: 1;
-  visibility: visible;
   transform: translateY(0);
   transition:
     opacity 160ms ease-out,
     transform 160ms ease-out;
+}
+.agent-panel[data-starting-style],
+.agent-panel[data-ending-style] {
+  opacity: 0;
+  transform: translateY(8px);
 }
 .agent-panel:has(.agent-signin) {
   height: auto;
@@ -279,6 +222,11 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+@media (max-width: 640px), (max-height: 520px) {
+  body:has(.agent-panel[data-open]) {
+    overflow: hidden;
+  }
+}
 @media (max-width: 700px) {
   .agent-panel {
     right: 20px;
@@ -331,7 +279,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .agent-panel,
-  .agent-panel[data-open="true"] {
+  .agent-panel[data-starting-style],
+  .agent-panel[data-ending-style] {
     transition: none;
     transform: none;
   }

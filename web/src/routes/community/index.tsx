@@ -8,6 +8,7 @@ import { caseQuery, type CaseResponse } from "@/lib/case"
 import { FormPicker } from "@/components/form-picker"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useEffect, useState, type FormEvent } from "react"
+import { Toggle, ToggleGroup } from "@ui-sdk/react/toggle"
 import { useAuth, mutationErrorMessage } from "@/lib/auth"
 import { validForm, listPosts } from "@/lib/community"
 import { pb } from "@/lib/pb"
@@ -153,20 +154,27 @@ function Community() {
             </p>
           )
         })()}
-      <div
+      <ToggleGroup
         className="social-filters"
-        role="group"
         aria-label="Sort and filter posts"
+        value={[search.sort]}
+        deselectable={false}
+        onValueChange={([sort]) => {
+          if (sort) void navigate({ search: { ...search, sort } })
+        }}
       >
         {(["new", "top"] as const).map((sort) => (
-          <button
+          <Toggle
             key={sort}
             className="chip"
-            aria-pressed={search.sort === sort}
-            onClick={() => void navigate({ search: { ...search, sort } })}
+            value={sort}
+            onClick={() => {
+              if (search.sort === sort)
+                void navigate({ search: { ...search, sort } })
+            }}
           >
             {sort === "new" ? "New" : "Top"}
-          </button>
+          </Toggle>
         ))}
         <FormPicker
           forms={forms}
@@ -180,7 +188,7 @@ function Community() {
             void navigate({ search: { ...search, form, compose: undefined } })
           }
         />
-      </div>
+      </ToggleGroup>
       {feed.isLoading && <p>Loading posts…</p>}
       {feed.isError && (
         <p role="alert">Could not load posts. Please try again.</p>

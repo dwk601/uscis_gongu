@@ -1,3 +1,4 @@
+import { Toggle, ToggleGroup } from "@ui-sdk/react/toggle"
 import { validDate } from "@/lib/dates"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -330,25 +331,37 @@ function Trends() {
       </div>
       {(journey === "students" || journey === "workers") && (
         <>
-          <div className="controls" role="group" aria-label="Insights">
-            <button
+          <ToggleGroup
+            className="controls"
+            value={[insight ?? "case-wait"]}
+            deselectable={false}
+            onValueChange={([insight]) =>
+              update({ insight: insight === "case-wait" ? undefined : insight })
+            }
+            aria-label="Insights"
+          >
+            <Toggle
               className="chip"
-              aria-pressed={!insight}
-              onClick={() => update({ insight: undefined })}
+              value="case-wait"
+              onClick={() => {
+                if (!insight) update({ insight: undefined })
+              }}
             >
               Case wait
-            </button>
+            </Toggle>
             {insightOptions.map(([id, label]) => (
-              <button
+              <Toggle
                 key={id}
                 className="chip"
-                aria-pressed={insight === id}
-                onClick={() => update({ insight: id })}
+                value={id}
+                onClick={() => {
+                  if (insight === id) update({ insight: id })
+                }}
               >
                 {label}
-              </button>
+              </Toggle>
             ))}
-          </div>
+          </ToggleGroup>
           {journey === "students" && !insight && (
             <p>
               {search.form === "I-765" &&
@@ -393,30 +406,24 @@ function Trends() {
               </label>
             </div>
           ) : (
-            <div
+            <ToggleGroup
               ref={formRailRef}
               className="chip-rail form-rail"
-              role="group"
+              value={[search.form]}
+              deselectable={false}
+              onValueChange={([form]) => {
+                setVisa(undefined)
+                setSource(undefined)
+                update({ form, journey, series: undefined })
+              }}
               aria-label="Form"
-              tabIndex={0}
             >
               {choices.map((f) => (
-                <button
-                  key={f.form}
-                  className="chip"
-                  aria-pressed={f.form === search.form}
-                  onClick={() => {
-                    if (f.form !== search.form) {
-                      setVisa(undefined)
-                      setSource(undefined)
-                      update({ form: f.form, journey, series: undefined })
-                    }
-                  }}
-                >
+                <Toggle key={f.form} className="chip" value={f.form}>
                   {f.label} <small>· {f.form}</small>
-                </button>
+                </Toggle>
               ))}
-            </div>
+            </ToggleGroup>
           )}
           {journey !== "all" && (
             <div className="controls">
@@ -456,23 +463,26 @@ function Trends() {
             </p>
           )}
           {(detail.data?.official.length ?? 0) > 1 && (
-            <div
+            <ToggleGroup
               className="chip-rail"
-              role="group"
+              value={official ? [`series:${official.id}`] : []}
+              deselectable={false}
+              onValueChange={([series]) => update({ series: series.slice(7) })}
               aria-label="Case category"
-              tabIndex={0}
             >
               {detail.data!.official.map((s) => (
-                <button
+                <Toggle
                   className="chip"
-                  aria-pressed={s.id === official?.id}
+                  value={`series:${s.id}`}
                   key={s.id}
-                  onClick={() => update({ series: s.id })}
+                  onClick={() => {
+                    if (s.id === official?.id) update({ series: s.id })
+                  }}
                 >
                   {s.label}
-                </button>
+                </Toggle>
               ))}
-            </div>
+            </ToggleGroup>
           )}
           {detail.isLoading ? (
             <div className="skeleton" aria-label="Loading official data" />
@@ -542,26 +552,32 @@ function Trends() {
                 <section className="panel">
                   <h2>Reported waits</h2>
                   {redditAvailable && (
-                    <div
+                    <ToggleGroup
                       className="controls"
-                      role="group"
+                      value={[source]}
+                      deselectable={false}
+                      onValueChange={([source]) => setSource(source)}
                       aria-label="Reported wait source"
                     >
-                      <button
+                      <Toggle
                         className="chip"
-                        aria-pressed={source === "reddit"}
-                        onClick={() => setSource("reddit")}
+                        value="reddit"
+                        onClick={() => {
+                          if (source === "reddit") setSource("reddit")
+                        }}
                       >
                         Reddit
-                      </button>
-                      <button
+                      </Toggle>
+                      <Toggle
                         className="chip"
-                        aria-pressed={source === "visajourney"}
-                        onClick={() => setSource("visajourney")}
+                        value="visajourney"
+                        onClick={() => {
+                          if (source === "visajourney") setSource("visajourney")
+                        }}
                       >
                         VisaJourney
-                      </button>
-                    </div>
+                      </Toggle>
+                    </ToggleGroup>
                   )}
                   {showReddit ? (
                     <Suspense fallback={<div className="skeleton" />}>
@@ -573,24 +589,40 @@ function Trends() {
                       {!community.isLoading &&
                         !community.isError &&
                         candidates.length > 0 && (
-                          <div
+                          <ToggleGroup
                             className="controls"
-                            role="group"
+                            value={[
+                              selected?.visaType == null
+                                ? "not-stated"
+                                : `visa:${selected.visaType}`,
+                            ]}
+                            deselectable={false}
+                            onValueChange={([visa]) =>
+                              setVisa(
+                                visa === "not-stated" ? null : visa.slice(5)
+                              )
+                            }
                             aria-label="Visa route"
                           >
                             {candidates.map((s) => (
-                              <button
+                              <Toggle
                                 key={s.visaType ?? "not-stated"}
                                 className="chip"
-                                aria-pressed={s === selected}
-                                onClick={() => setVisa(s.visaType)}
+                                value={
+                                  s.visaType == null
+                                    ? "not-stated"
+                                    : `visa:${s.visaType}`
+                                }
+                                onClick={() => {
+                                  if (s === selected) setVisa(s.visaType)
+                                }}
                               >
                                 {s.visaType == null
                                   ? "Not stated"
                                   : visaLabel(s.visaType, search.form)}
-                              </button>
+                              </Toggle>
                             ))}
-                          </div>
+                          </ToggleGroup>
                         )}
                       {community.isLoading ? (
                         <div

@@ -1,7 +1,19 @@
 import { Link, useRouterState } from "@tanstack/react-router"
-import { MessageCircle, X } from "lucide-react"
-import { useEffect, useId, useRef, useState, type FormEvent } from "react"
-import { createPortal } from "react-dom"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@ui-sdk/react/dialog"
+import { X } from "lucide-react"
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type RefCallback,
+} from "react"
 import { mutationErrorMessage, useAuth } from "@/lib/auth"
 import { agentError, askAgent, type AgentResponse } from "@/lib/agent"
 import { pb } from "@/lib/pb"
@@ -224,30 +236,20 @@ function AgentSession({
 }
 
 export function AgentWidget({
-  launcherTarget,
+  panel,
+  panelRef,
   open,
   onOpenChange,
-  onOpening,
 }: {
-  launcherTarget: HTMLElement | null
+  panel: HTMLElement | null
+  panelRef: RefCallback<HTMLDivElement>
   open: boolean
   onOpenChange: (open: boolean) => void
-  onOpening: () => void
 }) {
   const user = useAuth()
   const location = useRouterState({ select: (state) => state.location })
   const redirect = location.pathname + location.searchStr
-  const [tooltipDismissed, setTooltipDismissed] = useState(false)
   const [sessionEnded, setSessionEnded] = useState(false)
-  const launcher = useRef<HTMLButtonElement>(null)
-  const panel = useRef<HTMLElement>(null)
-  const panelId = useId()
-  const titleId = useId()
-
-  function close() {
-    onOpenChange(false)
-    launcher.current?.focus({ preventScroll: true })
-  }
 
   async function endSession(error: unknown) {
     setSessionEnded(true)
@@ -264,111 +266,41 @@ export function AgentWidget({
   )
 
   useEffect(() => {
-    function dismissTooltip(event: KeyboardEvent) {
-      const button = launcher.current
-      if (
-        event.key === "Escape" &&
-        (button?.matches(":focus-visible") ||
-          (window.matchMedia("(hover: hover)").matches &&
-            button?.parentElement?.matches(":hover")))
-      )
-        setTooltipDismissed(true)
-    }
-    document.addEventListener("keydown", dismissTooltip)
-    return () => document.removeEventListener("keydown", dismissTooltip)
-  }, [])
-
-  useEffect(() => {
     if (!open) return
-    panel.current?.querySelector<HTMLElement>("textarea, a")?.focus()
-    function escape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault()
-        setTooltipDismissed(true)
-        onOpenChange(false)
-        launcher.current?.focus({ preventScroll: true })
-      }
-    }
-    document.addEventListener("keydown", escape)
-    return () => document.removeEventListener("keydown", escape)
-  }, [open, sessionEnded, onOpenChange])
-
-  useEffect(() => {
-    if (!open) return
-    const mobile = window.matchMedia("(max-width: 640px), (max-height: 520px)")
-    const previousOverflow = document.body.style.overflow
-    function lock() {
-      document.body.style.overflow = mobile.matches
-        ? "hidden"
-        : previousOverflow
-    }
-    lock()
-    mobile.addEventListener("change", lock)
-    return () => {
-      document.body.style.overflow = previousOverflow
-      mobile.removeEventListener("change", lock)
-    }
-  }, [open])
+    panel?.querySelector<HTMLElement>("textarea, a")?.focus()
+  }, [open, sessionEnded, panel])
 
   return (
     <div className="agent-widget">
-      <section
-        ref={panel}
-        id={panelId}
-        className="agent-panel"
-        data-open={open}
-        role="dialog"
-        aria-modal="false"
-        aria-labelledby={titleId}
-        aria-hidden={!open}
-        inert={!open}
-      >
-        <header className="agent-header">
-          <h2 id={titleId}>Ask gongu</h2>
-          <Button
-            className="chip agent-icon"
-            type="button"
-            aria-label="Close Ask gongu"
-            onClick={close}
-          >
-            <X size={20} aria-hidden="true" />
-          </Button>
-        </header>
-        {user && !sessionEnded ? (
-          <AgentSession
-            key={user.id}
-            userId={user.id}
-            onSessionEnded={endSession}
-          />
-        ) : (
-          <SignIn redirect={redirect} ended={sessionEnded} />
-        )}
-      </section>
-      {launcherTarget &&
-        createPortal(
-          <Button
-            ref={launcher}
-            className="chip agent-launcher"
-            type="button"
-            aria-label="Ask gongu"
-            aria-expanded={open}
-            aria-controls={panelId}
-            data-tooltip-dismissed={tooltipDismissed}
-            onBlur={() => setTooltipDismissed(false)}
-            onMouseEnter={() => setTooltipDismissed(false)}
-            onClick={() => {
-              if (open) close()
-              else {
-                onOpening()
-                onOpenChange(true)
-              }
-            }}
-          >
-            <MessageCircle size={20} aria-hidden="true" />
-            <span>Ask</span>
-          </Button>,
-          launcherTarget
-        )}
+      <Dialog open={open} modal={false} onOpenChange={onOpenChange}>
+        <DialogContent
+          ref={panelRef}
+          className="agent-panel"
+          render={<section />}
+          keepMounted
+          initialFocus="textarea, a"
+          finalFocus=".agent-launcher"
+        >
+          <header className="agent-header">
+            <DialogTitle>Ask gongu</DialogTitle>
+            <DialogClose
+              className="chip agent-icon"
+              aria-label="Close Ask gongu"
+            >
+              <X size={20} aria-hidden="true" />
+            </DialogClose>
+          </header>
+          {user && !sessionEnded ? (
+            <AgentSession
+              key={user.id}
+              userId={user.id}
+              onSessionEnded={endSession}
+            />
+          ) : (
+            <SignIn redirect={redirect} ended={sessionEnded} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
